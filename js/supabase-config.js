@@ -4,7 +4,7 @@
 
 // Clés Supabase (Production)
 const SUPABASE_URL = 'https://gxlgxlkcisesywnzckhg.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR4emNxbHdwc2ltbHJzaWhrc2llIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI4NDc3OTgsImV4cCI6MjA2ODQyMzc5OH0.XohKIxxisX0FZVq4hY74LnDqdfVUNAXw58aiaR4Y6P4';
+const SUPABASE_ANON_KEY = 'sb_publishable_uYf8cKKBKBHqFiHLtalhCQ_W1Mr77Ok';
 
 // Fonction d'initialisation
 (function initSupabase() {
