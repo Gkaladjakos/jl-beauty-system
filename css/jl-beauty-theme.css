@@ -1,0 +1,156 @@
+/* JL Beauty System - Thème de marque */
+/* Couleurs principales : Or #E8B44C et Noir #000000 */
+
+:root {
+    --jl-gold: #E8B44C;
+    --jl-gold-dark: #D4A043;
+    --jl-gold-darker: #C09039;
+    --jl-black: #000000;
+    --jl-dark-gray: #1a1a1a;
+    --jl-gray: #333333;
+}
+
+/* Sidebar */
+.sidebar {
+    background: linear-gradient(180deg, var(--jl-black) 0%, var(--jl-dark-gray) 100%) !important;
+}
+
+.sidebar-item:hover {
+    background-color: rgba(232, 180, 76, 0.1) !important;
+}
+
+.sidebar-item.active {
+    background: linear-gradient(90deg, var(--jl-gold) 0%, var(--jl-gold-dark) 100%) !important;
+    border-left: 4px solid var(--jl-gold) !important;
+    color: var(--jl-black) !important;
+    font-weight: 600;
+}
+
+/* Boutons primaires */
+.btn-primary,
+button.bg-purple-600,
+button.bg-blue-600,
+button.bg-green-600 {
+    background: linear-gradient(135deg, var(--jl-gold) 0%, var(--jl-gold-dark) 100%) !important;
+    color: var(--jl-black) !important;
+    font-weight: 600;
+    border: none;
+}
+
+.btn-primary:hover,
+button.bg-purple-600:hover,
+button.bg-blue-600:hover,
+button.bg-green-600:hover {
+    background: linear-gradient(135deg, var(--jl-gold-dark) 0%, var(--jl-gold-darker) 100%) !important;
+}
+
+/* Badges et statuts */
+.badge.bg-purple-100,
+.bg-purple-100 {
+    background-color: rgba(232, 180, 76, 0.1) !important;
+    color: var(--jl-gold-darker) !important;
+}
+
+.badge.bg-purple-600,
+.bg-purple-600 {
+    background-color: var(--jl-gold) !important;
+    color: var(--jl-black) !important;
+}
+
+/* Icônes et accents */
+.text-purple-600,
+.text-purple-700 {
+    color: var(--jl-gold) !important;
+}
+
+.text-purple-800 {
+    color: var(--jl-gold-dark) !important;
+}
+
+/* Bordures */
+.border-purple-600,
+.border-purple-500 {
+    border-color: var(--jl-gold) !important;
+}
+
+/* Focus states */
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: var(--jl-gold) !important;
+    box-shadow: 0 0 0 3px rgba(232, 180, 76, 0.2) !important;
+}
+
+/* Cartes statistiques */
+.stat-card {
+    border-left: 4px solid var(--jl-gold);
+}
+
+/* Graphiques - ajuster les couleurs si possible */
+.chart-gold {
+    background-color: rgba(232, 180, 76, 0.2);
+}
+
+/* Links et hover states */
+a:hover {
+    color: var(--jl-gold) !important;
+}
+
+/* Loading spinner */
+.fa-spinner {
+    color: var(--jl-gold) !important;
+}
+
+/* Header badges */
+.currency-badge {
+    border: 2px solid var(--jl-gold);
+    background-color: rgba(232, 180, 76, 0.05);
+}
+
+/* Tables - row hover */
+tr:hover {
+    background-color: rgba(232, 180, 76, 0.05);
+}
+
+/* Modal headers */
+.modal-header {
+    background: linear-gradient(135deg, rgba(232, 180, 76, 0.1) 0%, rgba(232, 180, 76, 0.05) 100%);
+    border-bottom: 2px solid var(--jl-gold);
+}
+
+/* Success notifications */
+.notification-success {
+    background-color: var(--jl-gold) !important;
+    color: var(--jl-black) !important;
+}
+
+/* Scrollbars (webkit) */
+::-webkit-scrollbar-thumb {
+    background: var(--jl-gold);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--jl-gold-dark);
+}
+
+/* Custom classes */
+.jl-gold-bg {
+    background-color: var(--jl-gold);
+}
+
+.jl-gold-text {
+    color: var(--jl-gold);
+}
+
+.jl-gold-border {
+    border-color: var(--jl-gold);
+}
+
+.jl-gradient {
+    background: linear-gradient(135deg, var(--jl-gold) 0%, var(--jl-gold-dark) 100%);
+}
+
+.jl-gradient-dark {
+    background: linear-gradient(135deg, var(--jl-black) 0%, var(--jl-dark-gray) 100%);
+}

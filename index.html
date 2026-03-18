@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JL Beauty System - VERSION PRODUCTION (Supabase)</title>
+    
+    <!-- CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/jl-beauty-theme.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- SUPABASE CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .sidebar-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        .sidebar-item.active {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-left: 4px solid white;
+        }
+        .card {
+            transition: transform 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+        }
+        .modal {
+            display: none;
+        }
+        .modal.active {
+            display: flex;
+        }
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .table-container {
+            overflow-x: auto;
+        }
+        table {
+            min-width: 100%;
+        }
+        .modal-overlay {
+            display: flex;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            max-width: 42rem;
+            width: 100%;
+            margin: 1rem;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1.5rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .modal-body {
+            padding: 1.5rem;
+        }
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            padding: 1.5rem;
+            border-top: 1px solid #e5e7eb;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <!-- Sidebar -->
+    <div class="flex h-screen overflow-hidden">
+        <aside class="sidebar w-64 text-white flex-shrink-0">
+            <div class="p-6 text-center border-b border-gray-700">
+                <img src="images/jl-beauty-logo.png" alt="JL Beauty" class="w-24 h-24 mx-auto mb-2">
+                <h1 class="text-xl font-bold" style="color: #E8B44C;">JL Beauty</h1>
+                <p class="text-sm text-gray-400 mt-1">Version Production</p>
+            </div>
+            
+            <nav class="mt-6">
+                <a href="#" class="sidebar-item active flex items-center px-6 py-3 text-white" data-page="dashboard">
+                    <i class="fas fa-home w-6"></i>
+                    <span>Tableau de bord</span>
+                </a>
+                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white" data-page="rendez-vous">
+                    <i class="fas fa-calendar-alt w-6"></i>
+                    <span>Rendez-vous</span>
+                </a>
+                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white" data-page="clients">
+                    <i class="fas fa-users w-6"></i>
+                    <span>Clients</span>
+                </a>
+                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white" data-page="coiffeuses">
+                    <i class="fas fa-user-tie w-6"></i>
+                    <span>Coiffeuses</span>
+                </a>
+                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white" data-page="services">
+                    <i class="fas fa-briefcase w-6"></i>
+                    <span>Services</span>
+                </a>
+                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white" data-page="produits">
+                    <i class="fas fa-box w-6"></i>
+                    <span>Produits</span>
+                </a>
+                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white" data-page="materiels">
+                    <i class="fas fa-tools w-6"></i>
+                    <span>Matériels</span>
+                </a>
+                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white" data-page="consommables">
+                    <i class="fas fa-flask w-6"></i>
+                    <span>Consommables</span>
+                </a>
+                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white" data-page="ventes">
+                    <i class="fas fa-cash-register w-6"></i>
+                    <span>Ventes</span>
+                </a>
+                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white" data-page="commissions">
+                    <i class="fas fa-money-bill-wave w-6"></i>
+                    <span>Commissions</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-y-auto">
+            <!-- Header -->
+            <header class="bg-white shadow-sm">
+                <div class="flex items-center justify-between px-8 py-4">
+                    <div>
+                        <h2 id="page-title" class="text-2xl font-semibold text-gray-800">Tableau de bord</h2>
+                        <p id="page-subtitle" class="text-sm text-gray-600">Vue d'ensemble de votre salon</p>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <div class="flex items-center space-x-3 border-l border-gray-300 pl-4">
+                            <img id="user-avatar" src="https://ui-avatars.com/api/?name=Admin&background=9333ea&color=fff" 
+                                 class="w-10 h-10 rounded-full" alt="User">
+                            <div id="user-info">
+                                <p class="text-sm font-medium text-gray-800">Administrateur</p>
+                                <p class="text-xs text-gray-600">Mode Production</p>
+                            </div>
+                            <button onclick="AuthSupabase.logout()" class="ml-3 px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600" title="Se déconnecter">
+                                <i class="fas fa-sign-out-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content Area -->
+            <div id="content-area" class="p-8">
+                <!-- Dashboard content will be loaded here -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loading" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-8">
+            <i class="fas fa-spinner fa-spin text-4xl text-purple-600"></i>
+            <p class="mt-4 text-gray-700">Chargement...</p>
+        </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <!-- Configuration Supabase (À CONFIGURER AVEC VOS CLÉS) -->
+    <script src="js/supabase-config.js"></script>
+    
+    <!-- Authentication -->
+    <script src="js/auth-supabase.js"></script>
+    <script src="js/permissions.js"></script>
+    
+    <!-- Utilitaires Supabase -->
+    <script src="js/utils-supabase.js"></script>
+    
+    <!-- Modules applicatifs (MÊMES que la version locale) -->
+    <script src="js/app.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script src="js/clients.js"></script>
+    <script src="js/coiffeuses.js"></script>
+    <script src="js/services.js"></script>
+    <script src="js/rendez-vous.js"></script>
+    <script src="js/produits.js"></script>
+    <script src="js/materiels.js"></script>
+    <script src="js/consommables.js"></script>
+    <script src="js/ventes.js"></script>
+    <script src="js/commissions.js"></script>
+    
+    <script>
+        // Check authentication on load
+        AuthSupabase.checkAuth().then(user => {
+            if (!user) {
+                window.location.href = 'login.html';
+                return;
+            }
+            
+            // Update user display
+            const userInfo = document.getElementById('user-info');
+            const userAvatar = document.getElementById('user-avatar');
+            
+            if (userInfo && user.user_metadata) {
+                const nom = user.user_metadata.nom || user.email;
+                const role = user.user_metadata.role || 'Utilisateur';
+                
+                userInfo.innerHTML = `
+                    <p class="text-sm font-medium text-gray-800">${nom}</p>
+                    <p class="text-xs text-gray-600">${role}</p>
+                `;
+                
+                if (userAvatar) {
+                    userAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(nom)}&background=9333ea&color=fff`;
+                }
+                
+                // Hide modules based on role
+                Permissions.hideRestrictedModules(role);
+            }
+        });
+    </script>
+</body>
+</html>
