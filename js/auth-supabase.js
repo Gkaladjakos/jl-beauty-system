@@ -8,13 +8,16 @@ const AuthSupabase = {
 
     // Initialize Supabase client
     init() {
-        if (typeof SUPABASE_URL === 'undefined' || typeof SUPABASE_ANON_KEY === 'undefined') {
-            console.error('Supabase credentials not found. Please configure js/supabase-config.js');
+        // Utiliser le client Supabase déjà configuré dans supabase-config.js
+        if (typeof window.supabase === 'undefined' || !window.supabase) {
+            console.error('❌ Supabase client not found. Make sure supabase-config.js is loaded before auth-supabase.js');
+            console.error('Expected: window.supabase to be defined');
             return false;
         }
 
-        // Initialize Supabase client (using the global supabase from CDN)
-        this.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // Utiliser le client déjà créé (pas besoin de recréer)
+        this.supabase = window.supabase;
+        console.log('✅ AuthSupabase initialized with existing client');
         return true;
     },
 
