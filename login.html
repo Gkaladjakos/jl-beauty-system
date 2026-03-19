@@ -231,7 +231,7 @@
                     // Version Supabase
                     const result = await AuthSupabase.login(email, password);
                     if (result.success) {
-                        window.location.href = 'index-supabase.html';
+                        window.location.href = 'index.html';
                     } else {
                         showError(result.error);
                         showLoading(false);
