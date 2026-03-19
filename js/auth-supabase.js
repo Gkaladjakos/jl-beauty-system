@@ -117,6 +117,57 @@ const AuthSupabase = {
         return this.getCurrentUser() !== null;
     },
 
+    // Check authentication and return current user
+    async checkAuth() {
+        try {
+            if (!this.init()) {
+                console.error('❌ Supabase not initialized');
+                return null;
+            }
+
+            // Check for existing session
+            const { data: { session } } = await this.supabase.auth.getSession();
+            
+            if (!session) {
+                console.log('⚠️ No active session found');
+                return null;
+            }
+
+            // Get user profile from database
+            const { data: userProfile, error } = await this.supabase
+                .from('users')
+                .select('*')
+                .eq('email', session.user.email)
+                .single();
+
+            if (error) {
+                console.error('❌ Error fetching user profile:', error);
+                return null;
+            }
+
+            // Build user data object
+            const userData = {
+                id: session.user.id,
+                email: session.user.email,
+                nom: userProfile?.nom || session.user.email.split('@')[0],
+                role: userProfile?.role || 'caissiere',
+                permissions: this.getPermissionsByRole(userProfile?.role || 'caissiere')
+            };
+
+            // Save to current user and localStorage
+            this.currentUser = userData;
+            localStorage.setItem('jlbeauty_user', JSON.stringify(userData));
+            localStorage.setItem('jlbeauty_auth_type', 'supabase');
+
+            console.log('✅ User authenticated:', userData.email);
+            return userData;
+
+        } catch (error) {
+            console.error('❌ checkAuth error:', error);
+            return null;
+        }
+    },
+
     // Check if user has permission
     hasPermission(module) {
         const user = this.getCurrentUser();
@@ -216,3 +267,4 @@ if (typeof window !== 'undefined') {
         }
     });
 }
+

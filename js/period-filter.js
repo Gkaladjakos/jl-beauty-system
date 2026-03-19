@@ -1,5 +1,10 @@
 // Composant réutilisable pour les filtres de période
 const PeriodFilter = {
+    // Alias: render() -> renderHTML() for compatibility
+    render(containerId = 'period-filter') {
+        return this.renderHTML(containerId);
+    },
+
     // Generate period filter HTML
     renderHTML(containerId = 'period-filter') {
         return `
