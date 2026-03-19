@@ -2,9 +2,9 @@
 // CONFIGURATION SUPABASE - JL BEAUTY SYSTEM
 // ============================================
 
-// Clés Supabase (Production)
+// Clés Supabase (Production) - CORRECTES
 const SUPABASE_URL = 'https://gxlgxlkcisesywnzckhg.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_uYf8cKKBKBHqFiHLtalhCQ_W1Mr77Ok';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd4bGd4bGtjaXNlc3l3bnpja2hnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4MjI4OTEsImV4cCI6MjA4OTM5ODg5MX0.Yn58LUzD-_SzWO1oe4nt57JMffroYhPNqKXfaAupevo';
 
 // Fonction d'initialisation
 (function initSupabase() {
