@@ -211,16 +211,30 @@
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             
+            console.log('🚀 FORM SUBMITTED!');
+            
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
             const version = document.getElementById('version-selector').value;
+            
+            console.log('📋 Form data:', { email, password: '***', version });
             
             showLoading(true);
             
             try {
                 if (version === 'local') {
+                    console.log('📍 Mode: LOCAL');
                     // Version locale (localStorage)
+                    if (typeof AuthLocal === 'undefined') {
+                        console.error('❌ AuthLocal non chargé !');
+                        showError('Erreur : AuthLocal non disponible');
+                        showLoading(false);
+                        return;
+                    }
+                    
                     const result = await AuthLocal.login(email, password);
+                    console.log('📊 Local result:', result);
+                    
                     if (result.success) {
                         window.location.href = 'index-local.html';
                     } else {
@@ -228,21 +242,44 @@
                         showLoading(false);
                     }
                 } else {
-                    // Version Supabase
+                    console.log('📍 Mode: PRODUCTION (Supabase)');
+                    
+                    // Vérifier que AuthSupabase existe
+                    if (typeof AuthSupabase === 'undefined') {
+                        console.error('❌ AuthSupabase non chargé !');
+                        showError('Erreur : AuthSupabase non disponible');
+                        showLoading(false);
+                        return;
+                    }
+                    
+                    // Version Supabase (Production)
+                    console.log('🔐 Tentative de connexion Supabase:', email);
+                    console.log('📧 Email:', email);
+                    console.log('🔑 Password length:', password.length);
+                    console.log('🔍 AuthSupabase object:', AuthSupabase);
+                    console.log('🔍 AuthSupabase.login function:', typeof AuthSupabase.login);
+                    
                     const result = await AuthSupabase.login(email, password);
+                    console.log('📊 Résultat login:', result);
+                    
                     if (result.success) {
+                        console.log('✅ Connexion réussie, redirection vers index.html');
                         window.location.href = 'index.html';
                     } else {
+                        console.error('❌ Échec connexion:', result.error);
                         showError(result.error);
                         showLoading(false);
                     }
                 }
             } catch (error) {
-                console.error('Login error:', error);
+                console.error('💥 Login error (catch):', error);
+                console.error('Stack:', error.stack);
                 showError('Erreur de connexion. Vérifiez votre connexion internet.');
                 showLoading(false);
             }
         });
+        
+        console.log('✅ Event listener attaché au formulaire');
 
         // Auto-fill email on page load (for demo)
         window.addEventListener('DOMContentLoaded', () => {

@@ -228,19 +228,28 @@
     
     <script>
         // Check authentication on load
+        console.log('🔐 Checking authentication...');
+        
         AuthSupabase.checkAuth().then(user => {
+            console.log('👤 User from checkAuth:', user);
+            
             if (!user) {
+                console.log('❌ No user, redirecting to login');
                 window.location.href = 'login.html';
                 return;
             }
+            
+            console.log('✅ User authenticated:', user.email);
             
             // Update user display
             const userInfo = document.getElementById('user-info');
             const userAvatar = document.getElementById('user-avatar');
             
-            if (userInfo && user.user_metadata) {
-                const nom = user.user_metadata.nom || user.email;
-                const role = user.user_metadata.role || 'Utilisateur';
+            if (userInfo) {
+                const nom = user.nom || user.email.split('@')[0];
+                const role = user.role || 'Utilisateur';
+                
+                console.log('📊 Display info:', { nom, role });
                 
                 userInfo.innerHTML = `
                     <p class="text-sm font-medium text-gray-800">${nom}</p>
@@ -252,8 +261,15 @@
                 }
                 
                 // Hide modules based on role
-                Permissions.hideRestrictedModules(role);
+                if (typeof Permissions !== 'undefined') {
+                    Permissions.hideRestrictedModules(role);
+                }
             }
+            
+            console.log('✅ Dashboard ready');
+        }).catch(error => {
+            console.error('💥 Error during auth check:', error);
+            window.location.href = 'login.html';
         });
     </script>
 </body>
