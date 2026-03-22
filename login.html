@@ -35,7 +35,7 @@
     <div class="login-card w-full max-w-md rounded-2xl shadow-2xl p-8">
         <!-- Logo -->
         <div class="text-center mb-8">
-            <img src="images/jl-beauty-logo.png" alt="JL Beauty" class="w-32 h-32 mx-auto mb-4">
+            <img src="images/jl-beauty-logo.png" alt="JL Beauty" class="w-32 h-32 mx-auto mb-4" onerror="this.style.display='none'">
             <h1 class="text-3xl font-bold" style="color: #E8B44C;">JL Beauty System</h1>
             <p class="text-gray-600 mt-2">Un univers à vivre</p>
         </div>
@@ -45,7 +45,7 @@
             <label class="block text-sm font-medium text-gray-700 mb-2">
                 <i class="fas fa-server mr-2"></i>Version :
             </label>
-            <select id="version-selector" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500" onchange="toggleVersionInfo()">
+            <select id="version-selector" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
                 <option value="local">Local (Demo - localStorage)</option>
                 <option value="supabase">Production (Supabase)</option>
             </select>
@@ -100,7 +100,7 @@
                     <input type="password" id="password" required
                            class="input-focus w-full px-4 py-3 border border-gray-300 rounded-lg transition-all pr-12"
                            placeholder="••••••••">
-                    <button type="button" onclick="togglePassword()" 
+                    <button type="button" id="toggle-password-btn"
                             class="absolute right-3 top-3 text-gray-500 hover:text-gray-700">
                         <i id="password-icon" class="fas fa-eye"></i>
                     </button>
@@ -114,7 +114,7 @@
             </div>
 
             <!-- Bouton de connexion -->
-            <button type="submit" 
+            <button type="submit" id="submit-btn"
                     class="btn-primary w-full py-3 rounded-lg font-semibold transition-all transform hover:scale-105 shadow-lg">
                 <i class="fas fa-sign-in-alt mr-2"></i>Se connecter
             </button>
@@ -133,7 +133,7 @@
                 Besoin d'aide ? Contactez votre administrateur
             </p>
             <p class="mt-2 text-xs text-gray-500">
-                JL Beauty System v2.2 © 2026
+                JL Beauty System v3.0 © 2026
             </p>
         </div>
     </div>
@@ -150,39 +150,50 @@
     <script src="js/auth-supabase.js"></script>
     
     <script>
+        console.log('='.repeat(50));
+        console.log('🚀 JL BEAUTY LOGIN - INITIALIZATION');
+        console.log('='.repeat(50));
+
         // Toggle password visibility
-        function togglePassword() {
-            const passwordInput = document.getElementById('password');
-            const passwordIcon = document.getElementById('password-icon');
-            
-            if (passwordInput.type === 'password') {
-                passwordInput.type = 'text';
-                passwordIcon.classList.remove('fa-eye');
-                passwordIcon.classList.add('fa-eye-slash');
-            } else {
-                passwordInput.type = 'password';
-                passwordIcon.classList.remove('fa-eye-slash');
-                passwordIcon.classList.add('fa-eye');
-            }
+        const togglePasswordBtn = document.getElementById('toggle-password-btn');
+        if (togglePasswordBtn) {
+            togglePasswordBtn.addEventListener('click', function() {
+                const passwordInput = document.getElementById('password');
+                const passwordIcon = document.getElementById('password-icon');
+                
+                if (passwordInput.type === 'password') {
+                    passwordInput.type = 'text';
+                    passwordIcon.classList.remove('fa-eye');
+                    passwordIcon.classList.add('fa-eye-slash');
+                } else {
+                    passwordInput.type = 'password';
+                    passwordIcon.classList.remove('fa-eye-slash');
+                    passwordIcon.classList.add('fa-eye');
+                }
+            });
         }
 
         // Toggle version info
-        function toggleVersionInfo() {
-            const version = document.getElementById('version-selector').value;
-            const localInfo = document.getElementById('local-info');
-            const supabaseInfo = document.getElementById('supabase-info');
-            
-            if (version === 'local') {
-                localInfo.classList.remove('hidden');
-                supabaseInfo.classList.add('hidden');
-            } else {
-                localInfo.classList.add('hidden');
-                supabaseInfo.classList.remove('hidden');
-            }
+        const versionSelector = document.getElementById('version-selector');
+        if (versionSelector) {
+            versionSelector.addEventListener('change', function() {
+                const version = this.value;
+                const localInfo = document.getElementById('local-info');
+                const supabaseInfo = document.getElementById('supabase-info');
+                
+                if (version === 'local') {
+                    localInfo.classList.remove('hidden');
+                    supabaseInfo.classList.add('hidden');
+                } else {
+                    localInfo.classList.add('hidden');
+                    supabaseInfo.classList.remove('hidden');
+                }
+            });
         }
 
         // Show error message
         function showError(message) {
+            console.error('❌ ERROR:', message);
             const errorDiv = document.getElementById('error-message');
             const errorText = document.getElementById('error-text');
             errorText.textContent = message;
@@ -197,120 +208,118 @@
         function showLoading(show) {
             const loading = document.getElementById('loading');
             const form = document.getElementById('login-form');
+            const submitBtn = document.getElementById('submit-btn');
             
             if (show) {
                 loading.classList.remove('hidden');
-                form.classList.add('hidden');
+                form.style.opacity = '0.5';
+                submitBtn.disabled = true;
             } else {
                 loading.classList.add('hidden');
-                form.classList.remove('hidden');
+                form.style.opacity = '1';
+                submitBtn.disabled = false;
             }
         }
 
-        console.log('🎬 Script execution started');
-        console.log('📋 Checking if form exists...');
-        const loginForm = document.getElementById('login-form');
-        console.log('📋 Form found:', loginForm);
-        
-        if (!loginForm) {
-            console.error('❌ LOGIN FORM NOT FOUND!');
-        } else {
-            console.log('✅ Form found, attaching event listener...');
-        }
+        // Check if dependencies are loaded
+        console.log('📦 Checking dependencies...');
+        console.log('  - Supabase:', typeof window.supabase !== 'undefined' ? '✅' : '❌');
+        console.log('  - AuthLocal:', typeof AuthLocal !== 'undefined' ? '✅' : '❌');
+        console.log('  - AuthSupabase:', typeof AuthSupabase !== 'undefined' ? '✅' : '❌');
 
         // Handle form submission
-        document.getElementById('login-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
+        const loginForm = document.getElementById('login-form');
+        
+        if (!loginForm) {
+            console.error('❌ CRITICAL: Login form not found!');
+        } else {
+            console.log('✅ Login form found');
             
-            console.log('🚀 FORM SUBMITTED!');
-            
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const version = document.getElementById('version-selector').value;
-            
-            console.log('📋 Form data:', { email, password: '***', version });
-            
-            showLoading(true);
-            
-            try {
-                if (version === 'local') {
-                    console.log('📍 Mode: LOCAL');
-                    // Version locale (localStorage)
-                    if (typeof AuthLocal === 'undefined') {
-                        console.error('❌ AuthLocal non chargé !');
-                        showError('Erreur : AuthLocal non disponible');
-                        showLoading(false);
-                        return;
-                    }
-                    
-                    const result = await AuthLocal.login(email, password);
-                    console.log('📊 Local result:', result);
-                    
-                    if (result.success) {
-                        window.location.href = 'index-local.html';
+            loginForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                console.log('\n' + '='.repeat(50));
+                console.log('🚀 FORM SUBMITTED!');
+                console.log('='.repeat(50));
+                
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                const version = document.getElementById('version-selector').value;
+                
+                console.log('📋 Form data:');
+                console.log('  - Email:', email);
+                console.log('  - Password:', '***' + password.slice(-2));
+                console.log('  - Version:', version);
+                
+                showLoading(true);
+                
+                try {
+                    if (version === 'local') {
+                        console.log('\n📍 MODE: LOCAL (localStorage)');
+                        
+                        if (typeof AuthLocal === 'undefined') {
+                            throw new Error('AuthLocal not loaded');
+                        }
+                        
+                        const result = await AuthLocal.login(email, password);
+                        console.log('📊 Result:', result);
+                        
+                        if (result.success) {
+                            console.log('✅ Login successful!');
+                            console.log('➡️ Redirecting to index-local.html...');
+                            window.location.href = 'index-local.html';
+                        } else {
+                            showError(result.error);
+                            showLoading(false);
+                        }
                     } else {
-                        showError(result.error);
-                        showLoading(false);
+                        console.log('\n📍 MODE: PRODUCTION (Supabase)');
+                        
+                        if (typeof AuthSupabase === 'undefined') {
+                            throw new Error('AuthSupabase not loaded');
+                        }
+                        
+                        if (typeof window.supabase === 'undefined') {
+                            throw new Error('Supabase client not initialized');
+                        }
+                        
+                        console.log('🔐 Calling AuthSupabase.login()...');
+                        const result = await AuthSupabase.login(email, password);
+                        console.log('📊 Result:', result);
+                        
+                        if (result.success) {
+                            console.log('✅ Login successful!');
+                            console.log('👤 User:', result.user);
+                            console.log('➡️ Redirecting to index.html...');
+                            window.location.href = 'index.html';
+                        } else {
+                            console.error('❌ Login failed:', result.error);
+                            showError(result.error);
+                            showLoading(false);
+                        }
                     }
-                } else {
-                    console.log('📍 Mode: PRODUCTION (Supabase)');
-                    
-                    // Vérifier que AuthSupabase existe
-                    if (typeof AuthSupabase === 'undefined') {
-                        console.error('❌ AuthSupabase non chargé !');
-                        showError('Erreur : AuthSupabase non disponible');
-                        showLoading(false);
-                        return;
-                    }
-                    
-                    // Version Supabase (Production)
-                    console.log('🔐 Tentative de connexion Supabase:', email);
-                    console.log('📧 Email:', email);
-                    console.log('🔑 Password length:', password.length);
-                    console.log('🔍 AuthSupabase object:', AuthSupabase);
-                    console.log('🔍 AuthSupabase.login function:', typeof AuthSupabase.login);
-                    
-                    const result = await AuthSupabase.login(email, password);
-                    console.log('📊 Résultat login:', result);
-                    
-                    if (result.success) {
-                        console.log('✅ Connexion réussie, redirection vers index.html');
-                        window.location.href = 'index.html';
-                    } else {
-                        console.error('❌ Échec connexion:', result.error);
-                        showError(result.error);
-                        showLoading(false);
-                    }
+                } catch (error) {
+                    console.error('💥 EXCEPTION during login:', error);
+                    console.error('Stack trace:', error.stack);
+                    showError('Erreur technique : ' + error.message);
+                    showLoading(false);
                 }
-            } catch (error) {
-                console.error('💥 Login error (catch):', error);
-                console.error('Stack:', error.stack);
-                showError('Erreur de connexion. Vérifiez votre connexion internet.');
-                showLoading(false);
-            }
-        });
-        
-        console.log('✅ Event listener attaché au formulaire');
-        
-        // TEST MANUEL - Déclencher le submit après 3 secondes pour voir si ça marche
-        setTimeout(() => {
-            console.log('🧪 TEST MANUEL: Le formulaire peut-il être soumis?');
-            const form = document.getElementById('login-form');
-            if (form) {
-                console.log('✅ Form existe toujours');
-                // Ne pas vraiment soumettre, juste tester
-                console.log('🔍 Nombre d\'event listeners: check console');
-            }
-        }, 3000);
+            });
+            
+            console.log('✅ Event listener attached to form');
+        }
 
-        // Auto-fill email on page load (for demo)
-        window.addEventListener('DOMContentLoaded', () => {
+        // Auto-fill for local mode on page load
+        window.addEventListener('DOMContentLoaded', function() {
             const version = document.getElementById('version-selector').value;
             if (version === 'local') {
                 document.getElementById('email').value = 'admin@jlbeauty.com';
                 document.getElementById('password').value = 'admin123';
             }
         });
+
+        console.log('\n✅ Login page initialized successfully');
+        console.log('='.repeat(50) + '\n');
     </script>
 </body>
 </html>
