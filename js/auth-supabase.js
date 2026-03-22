@@ -128,6 +128,23 @@ const AuthSupabase = {
     // Check authentication and return current user
     async checkAuth() {
         try {
+            // PRIORITÉ 1 : Vérifier localStorage d'abord
+            const storedUser = localStorage.getItem('jlbeauty_user');
+            const authType = localStorage.getItem('jlbeauty_auth_type');
+            
+            if (storedUser && authType === 'supabase') {
+                try {
+                    const userData = JSON.parse(storedUser);
+                    this.currentUser = userData;
+                    console.log('✅ User found in localStorage:', userData.email);
+                    return userData;
+                } catch (e) {
+                    console.error('❌ Error parsing stored user:', e);
+                    // Continue avec la vérification Supabase
+                }
+            }
+
+            // PRIORITÉ 2 : Vérifier Supabase si localStorage est vide
             if (!this.init()) {
                 console.error('❌ Supabase not initialized');
                 return null;
@@ -141,25 +158,13 @@ const AuthSupabase = {
                 return null;
             }
 
-            // Get user profile from database
-            const { data: userProfile, error } = await this.supabase
-                .from('users')
-                .select('*')
-                .eq('email', session.user.email)
-                .single();
-
-            if (error) {
-                console.error('❌ Error fetching user profile:', error);
-                return null;
-            }
-
-            // Build user data object
+            // Build user data object from session
             const userData = {
                 id: session.user.id,
                 email: session.user.email,
-                nom: userProfile?.nom || session.user.email.split('@')[0],
-                role: userProfile?.role || 'caissiere',
-                permissions: this.getPermissionsByRole(userProfile?.role || 'caissiere')
+                nom: session.user.email.split('@')[0],
+                role: 'gerant',
+                permissions: ['all']
             };
 
             // Save to current user and localStorage
@@ -167,7 +172,7 @@ const AuthSupabase = {
             localStorage.setItem('jlbeauty_user', JSON.stringify(userData));
             localStorage.setItem('jlbeauty_auth_type', 'supabase');
 
-            console.log('✅ User authenticated:', userData.email);
+            console.log('✅ User authenticated from Supabase:', userData.email);
             return userData;
 
         } catch (error) {
