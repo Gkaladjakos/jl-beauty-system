@@ -207,6 +207,17 @@
             }
         }
 
+        console.log('🎬 Script execution started');
+        console.log('📋 Checking if form exists...');
+        const loginForm = document.getElementById('login-form');
+        console.log('📋 Form found:', loginForm);
+        
+        if (!loginForm) {
+            console.error('❌ LOGIN FORM NOT FOUND!');
+        } else {
+            console.log('✅ Form found, attaching event listener...');
+        }
+
         // Handle form submission
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -280,6 +291,17 @@
         });
         
         console.log('✅ Event listener attaché au formulaire');
+        
+        // TEST MANUEL - Déclencher le submit après 3 secondes pour voir si ça marche
+        setTimeout(() => {
+            console.log('🧪 TEST MANUEL: Le formulaire peut-il être soumis?');
+            const form = document.getElementById('login-form');
+            if (form) {
+                console.log('✅ Form existe toujours');
+                // Ne pas vraiment soumettre, juste tester
+                console.log('🔍 Nombre d\'event listeners: check console');
+            }
+        }, 3000);
 
         // Auto-fill email on page load (for demo)
         window.addEventListener('DOMContentLoaded', () => {
