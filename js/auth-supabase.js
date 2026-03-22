@@ -275,4 +275,3 @@ if (typeof window !== 'undefined') {
         }
     });
 }
-
