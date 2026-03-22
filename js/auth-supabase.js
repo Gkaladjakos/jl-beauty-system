@@ -38,12 +38,16 @@ const AuthSupabase = {
             });
 
             if (error) {
-                console.error('Supabase login error:', error);
+                console.error('❌ Supabase login error:', error);
+                console.error('Error code:', error.code);
+                console.error('Error message:', error.message);
                 return {
                     success: false,
                     error: this.getErrorMessage(error)
                 };
             }
+
+            console.log('✅ Supabase auth successful for:', data.user.email);
 
             // Get user profile from custom users table
             const { data: userProfile, error: profileError } = await this.supabase
@@ -69,6 +73,10 @@ const AuthSupabase = {
             this.currentUser = userData;
             localStorage.setItem('jlbeauty_user', JSON.stringify(userData));
             localStorage.setItem('jlbeauty_auth_type', 'supabase');
+
+            console.log('✅ User data saved:', userData);
+            console.log('📊 Role:', userData.role);
+            console.log('🔑 Permissions:', userData.permissions);
 
             return {
                 success: true,
@@ -242,7 +250,7 @@ const AuthSupabase = {
         if (window.location.pathname.includes('login.html')) {
             // Si déjà connecté, rediriger vers l'app
             if (this.isLoggedIn()) {
-                window.location.href = 'index.html';
+                window.location.href = 'index-supabase.html';
             }
             return;
         }
