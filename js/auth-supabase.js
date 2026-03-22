@@ -242,7 +242,7 @@ const AuthSupabase = {
         if (window.location.pathname.includes('login.html')) {
             // Si déjà connecté, rediriger vers l'app
             if (this.isLoggedIn()) {
-                window.location.href = 'index-supabase.html';
+                window.location.href = 'index.html';
             }
             return;
         }
