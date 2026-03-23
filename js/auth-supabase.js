@@ -180,25 +180,56 @@ const AuthSupabase = {
         return this.getCurrentUser() !== null;
     },
 
-    // Logout
-    async logout() {
-        console.log('🚪 Logging out...');
-        
-        if (this.supabase) {
-            try {
-                await this.supabase.auth.signOut();
-            } catch (e) {
-                console.error('Error signing out from Supabase:', e);
+    // Check authentication and return current user
+     async checkAuth() {
+        try {
+            // PRIORITÉ 1 : Vérifier localStorage d'abord
+            const storedUser = localStorage.getItem('jlbeauty_user');
+            const authType = localStorage.getItem('jlbeauty_auth_type');
+            
+            if (storedUser && authType === 'supabase') {
+                try {
+                    const userData = JSON.parse(storedUser);
+                    this.currentUser = userData;
+                    console.log('✅ User found in localStorage:', userData.email);
+                    return userData;
+                } catch (e) {
+                    console.error('❌ Error parsing stored user:', e);
+                }
             }
-        }
-        
-        this.currentUser = null;
-        localStorage.removeItem('jlbeauty_user');
-        localStorage.removeItem('jlbeauty_auth_type');
-        
-        window.location.href = 'login.html';
-    },
 
+            if (!this.init()) {
+                console.error('❌ Supabase not initialized');
+                return null;
+            }
+
+            const { data: { session } } = await this.supabase.auth.getSession();
+            
+            if (!session) {
+                console.log('⚠️ No active session found');
+                return null;
+            }
+
+            const userData = {
+                id: session.user.id,
+                email: session.user.email,
+                nom: session.user.email.split('@')[0],
+                role: 'gerant',
+                permissions: ['all']
+            };
+
+            this.currentUser = userData;
+            localStorage.setItem('jlbeauty_user', JSON.stringify(userData));
+            localStorage.setItem('jlbeauty_auth_type', 'supabase');
+
+            console.log('✅ User authenticated from Supabase:', userData.email);
+            return userData;
+
+        } catch (error) {
+            console.error('❌ checkAuth error:', error);
+            return null;
+        }
+    },
     // Check if user has permission
     hasPermission(module) {
         const user = this.getCurrentUser();
