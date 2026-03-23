@@ -1,6 +1,7 @@
-// ✅ VERSION PRODUCTION - Supabase Authentication
-// Système d'authentification sécurisé utilisant Supabase Auth
-// Mots de passe hashés, tokens JWT, niveau production
+// ============================================
+// AUTHENTIFICATION SUPABASE - VERSION FINALE
+// JL BEAUTY SYSTEM - PRODUCTION
+// ============================================
 
 const AuthSupabase = {
     supabase: null,
@@ -8,83 +9,82 @@ const AuthSupabase = {
 
     // Initialize Supabase client
     init() {
-        // Utiliser le client Supabase déjà configuré dans supabase-config.js
         if (typeof window.supabase === 'undefined' || !window.supabase) {
-            console.error('❌ Supabase client not found. Make sure supabase-config.js is loaded before auth-supabase.js');
-            console.error('Expected: window.supabase to be defined');
+            console.error('❌ Supabase client not found');
             return false;
         }
-
-        // Utiliser le client déjà créé (pas besoin de recréer)
         this.supabase = window.supabase;
-        console.log('✅ AuthSupabase initialized with existing client');
+        console.log('✅ AuthSupabase initialized');
         return true;
     },
 
     // Login with email and password
     async login(email, password) {
+        console.log('🔐 LOGIN ATTEMPT:', email);
+        
         if (!this.init()) {
-            return {
-                success: false,
-                error: 'Configuration Supabase manquante'
-            };
+            return { success: false, error: 'Configuration Supabase manquante' };
         }
 
         try {
-            // Authenticate with Supabase
+            // 1. Authenticate with Supabase Auth
             const { data, error } = await this.supabase.auth.signInWithPassword({
                 email: email,
                 password: password
             });
 
             if (error) {
-                console.error('❌ Supabase login error:', error);
-                console.error('Error code:', error.code);
-                console.error('Error message:', error.message);
+                console.error('❌ Auth error:', error.message);
                 return {
                     success: false,
-                    error: this.getErrorMessage(error)
+                    error: error.message === 'Invalid login credentials' 
+                        ? 'Email ou mot de passe incorrect' 
+                        : error.message
                 };
             }
 
-            console.log('✅ Supabase auth successful for:', data.user.email);
+            console.log('✅ Supabase auth successful');
 
-            // Get user profile from custom users table
-            const { data: userProfile, error: profileError } = await this.supabase
-                .from('users')
-                .select('*')
-                .eq('email', email)
-                .single();
+            // 2. Try to get user profile from users table
+            let userProfile = null;
+            try {
+                const { data: profile, error: profileError } = await this.supabase
+                    .from('users')
+                    .select('*')
+                    .eq('email', email)
+                    .single();
 
-            if (profileError) {
-                console.error('Error fetching user profile:', profileError);
-                // Continue anyway with basic auth data
+                if (!profileError && profile) {
+                    userProfile = profile;
+                    console.log('✅ User profile found:', profile);
+                } else {
+                    console.warn('⚠️ No profile in users table, using defaults');
+                }
+            } catch (err) {
+                console.warn('⚠️ Profile fetch failed, using defaults:', err.message);
             }
 
-            // Store user data
+            // 3. Build user data object
             const userData = {
                 id: data.user.id,
                 email: data.user.email,
-                nom: userProfile?.nom || 'Utilisateur',
-                role: userProfile?.role || 'caissiere',
-                permissions: this.getPermissionsByRole(userProfile?.role || 'caissiere')
+                nom: userProfile?.nom || data.user.email.split('@')[0],
+                role: userProfile?.role || 'gerant',
+                permissions: userProfile?.role === 'gerant' ? ['all'] : ['dashboard', 'clients', 'rendez-vous', 'ventes']
             };
 
+            // 4. Save to localStorage
             this.currentUser = userData;
             localStorage.setItem('jlbeauty_user', JSON.stringify(userData));
             localStorage.setItem('jlbeauty_auth_type', 'supabase');
 
-            console.log('✅ User data saved:', userData);
-            console.log('📊 Role:', userData.role);
-            console.log('🔑 Permissions:', userData.permissions);
+            console.log('✅ LOGIN SUCCESS:', userData.email);
+            console.log('📊 User data saved to localStorage');
 
-            return {
-                success: true,
-                user: userData
-            };
+            return { success: true, user: userData };
 
         } catch (error) {
-            console.error('Login error:', error);
+            console.error('💥 Login error:', error);
             return {
                 success: false,
                 error: 'Erreur de connexion. Vérifiez votre connexion internet.'
@@ -92,16 +92,71 @@ const AuthSupabase = {
         }
     },
 
-    // Logout
-    async logout() {
-        if (this.supabase) {
-            await this.supabase.auth.signOut();
-        }
+    // Check authentication (PRIORITÉ TOTALE au localStorage)
+    async checkAuth() {
+        console.log('🔍 checkAuth() called');
         
-        this.currentUser = null;
-        localStorage.removeItem('jlbeauty_user');
-        localStorage.removeItem('jlbeauty_auth_type');
-        window.location.href = 'login.html';
+        try {
+            // ✅ PRIORITÉ 1 : localStorage TOUJOURS en premier
+            const storedUser = localStorage.getItem('jlbeauty_user');
+            const authType = localStorage.getItem('jlbeauty_auth_type');
+            
+            console.log('📦 localStorage check:', {
+                hasUser: !!storedUser,
+                authType: authType
+            });
+
+            if (storedUser && authType === 'supabase') {
+                try {
+                    const userData = JSON.parse(storedUser);
+                    this.currentUser = userData;
+                    console.log('✅ User loaded from localStorage:', userData.email);
+                    console.log('📊 Role:', userData.role);
+                    return userData; // ✅ RETOUR IMMÉDIAT
+                } catch (e) {
+                    console.error('❌ Error parsing stored user:', e);
+                    // Continue to Supabase check
+                }
+            }
+
+            console.log('⚠️ No valid localStorage, checking Supabase session...');
+
+            // ✅ PRIORITÉ 2 : Vérifier Supabase uniquement si localStorage vide
+            if (!this.init()) {
+                console.error('❌ Supabase not initialized');
+                return null;
+            }
+
+            const { data: { session } } = await this.supabase.auth.getSession();
+            
+            if (!session) {
+                console.log('❌ No Supabase session found');
+                return null;
+            }
+
+            console.log('✅ Supabase session found, creating user data...');
+
+            // Build user data from session
+            const userData = {
+                id: session.user.id,
+                email: session.user.email,
+                nom: session.user.email.split('@')[0],
+                role: 'gerant',
+                permissions: ['all']
+            };
+
+            // Save to localStorage for next time
+            this.currentUser = userData;
+            localStorage.setItem('jlbeauty_user', JSON.stringify(userData));
+            localStorage.setItem('jlbeauty_auth_type', 'supabase');
+
+            console.log('✅ User authenticated from Supabase session');
+            return userData;
+
+        } catch (error) {
+            console.error('💥 checkAuth error:', error);
+            return null;
+        }
     },
 
     // Get current user
@@ -120,65 +175,28 @@ const AuthSupabase = {
         }
     },
 
-    // Check if user is logged in
+    // Check if logged in
     isLoggedIn() {
         return this.getCurrentUser() !== null;
     },
 
-    // Check authentication and return current user
-    async checkAuth() {
-        try {
-            // PRIORITÉ 1 : Vérifier localStorage d'abord
-            const storedUser = localStorage.getItem('jlbeauty_user');
-            const authType = localStorage.getItem('jlbeauty_auth_type');
-            
-            if (storedUser && authType === 'supabase') {
-                try {
-                    const userData = JSON.parse(storedUser);
-                    this.currentUser = userData;
-                    console.log('✅ User found in localStorage:', userData.email);
-                    return userData;
-                } catch (e) {
-                    console.error('❌ Error parsing stored user:', e);
-                    // Continue avec la vérification Supabase
-                }
+    // Logout
+    async logout() {
+        console.log('🚪 Logging out...');
+        
+        if (this.supabase) {
+            try {
+                await this.supabase.auth.signOut();
+            } catch (e) {
+                console.error('Error signing out from Supabase:', e);
             }
-
-            // PRIORITÉ 2 : Vérifier Supabase si localStorage est vide
-            if (!this.init()) {
-                console.error('❌ Supabase not initialized');
-                return null;
-            }
-
-            // Check for existing session
-            const { data: { session } } = await this.supabase.auth.getSession();
-            
-            if (!session) {
-                console.log('⚠️ No active session found');
-                return null;
-            }
-
-            // Build user data object from session
-            const userData = {
-                id: session.user.id,
-                email: session.user.email,
-                nom: session.user.email.split('@')[0],
-                role: 'gerant',
-                permissions: ['all']
-            };
-
-            // Save to current user and localStorage
-            this.currentUser = userData;
-            localStorage.setItem('jlbeauty_user', JSON.stringify(userData));
-            localStorage.setItem('jlbeauty_auth_type', 'supabase');
-
-            console.log('✅ User authenticated from Supabase:', userData.email);
-            return userData;
-
-        } catch (error) {
-            console.error('❌ checkAuth error:', error);
-            return null;
         }
+        
+        this.currentUser = null;
+        localStorage.removeItem('jlbeauty_user');
+        localStorage.removeItem('jlbeauty_auth_type');
+        
+        window.location.href = 'login.html';
     },
 
     // Check if user has permission
@@ -197,86 +215,11 @@ const AuthSupabase = {
     getRole() {
         const user = this.getCurrentUser();
         return user ? user.role : null;
-    },
-
-    // Get permissions by role
-    getPermissionsByRole(role) {
-        const permissions = {
-            gerant: ['all'], // Accès complet
-            caissiere: ['dashboard', 'clients', 'rendez-vous', 'ventes', 'consommables'] // Accès limité
-        };
-
-        return permissions[role] || permissions['caissiere'];
-    },
-
-    // Require auth (redirect if not logged in)
-    requireAuth() {
-        if (!this.isLoggedIn()) {
-            window.location.href = 'login.html';
-            return false;
-        }
-        return true;
-    },
-
-    // Check session validity
-    async checkSession() {
-        if (!this.init()) return false;
-
-        try {
-            const { data, error } = await this.supabase.auth.getSession();
-            
-            if (error || !data.session) {
-                this.logout();
-                return false;
-            }
-
-            return true;
-        } catch (error) {
-            console.error('Session check error:', error);
-            return false;
-        }
-    },
-
-    // Get user-friendly error message
-    getErrorMessage(error) {
-        const messages = {
-            'Invalid login credentials': 'Email ou mot de passe incorrect',
-            'Email not confirmed': 'Email non confirmé',
-            'User not found': 'Utilisateur introuvable',
-            'Network request failed': 'Erreur de connexion réseau'
-        };
-
-        return messages[error.message] || error.message || 'Erreur de connexion';
-    },
-
-    // Init auth check on page load
-    async initPageAuth() {
-        // Vérifier si on est sur la page de login
-        if (window.location.pathname.includes('login.html')) {
-            // Si déjà connecté, rediriger vers l'app
-            if (this.isLoggedIn()) {
-                window.location.href = 'index-supabase.html';
-            }
-            return;
-        }
-
-        // Sur les autres pages, vérifier l'authentification
-        if (!this.requireAuth()) return;
-
-        // Vérifier la validité de la session
-        const isValid = await this.checkSession();
-        if (!isValid) {
-            this.logout();
-        }
     }
 };
 
-// Auto-init
+// Export global
 if (typeof window !== 'undefined') {
-    document.addEventListener('DOMContentLoaded', () => {
-        // Ne pas init sur la page de login (sera géré par le formulaire)
-        if (!window.location.pathname.includes('login.html')) {
-            AuthSupabase.initPageAuth();
-        }
-    });
+    window.AuthSupabase = AuthSupabase;
+    console.log('✅ AuthSupabase loaded and ready');
 }

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JL Beauty System - VERSION PRODUCTION (Supabase)</title>
+    <title>JL Beauty System - PRODUCTION</title>
     
     <!-- CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -16,77 +16,21 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        .sidebar-item:hover {
-            background-color: rgba(255, 255, 255, 0.1);
-        }
-        .sidebar-item.active {
-            background-color: rgba(255, 255, 255, 0.2);
-            border-left: 4px solid white;
-        }
-        .card {
-            transition: transform 0.2s;
-        }
-        .card:hover {
-            transform: translateY(-2px);
-        }
-        .modal {
-            display: none;
-        }
-        .modal.active {
-            display: flex;
-        }
-        .badge {
-            display: inline-block;
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-        .table-container {
-            overflow-x: auto;
-        }
-        table {
-            min-width: 100%;
-        }
-        .modal-overlay {
-            display: flex;
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.5);
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-        }
-        .modal-content {
-            background: white;
-            border-radius: 0.5rem;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-            max-width: 42rem;
-            width: 100%;
-            margin: 1rem;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-        .modal-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 1.5rem;
-            border-bottom: 1px solid #e5e7eb;
-        }
-        .modal-body {
-            padding: 1.5rem;
-        }
-        .modal-footer {
-            display: flex;
-            justify-content: flex-end;
-            gap: 0.75rem;
-            padding: 1.5rem;
-            border-top: 1px solid #e5e7eb;
-        }
+        body { font-family: 'Inter', sans-serif; }
+        .sidebar-item:hover { background-color: rgba(255, 255, 255, 0.1); }
+        .sidebar-item.active { background-color: rgba(255, 255, 255, 0.2); border-left: 4px solid white; }
+        .card { transition: transform 0.2s; }
+        .card:hover { transform: translateY(-2px); }
+        .modal { display: none; }
+        .modal.active { display: flex; }
+        .badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+        .table-container { overflow-x: auto; }
+        table { min-width: 100%; }
+        .modal-overlay { display: flex; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); align-items: center; justify-content: center; z-index: 9999; }
+        .modal-content { background: white; border-radius: 0.5rem; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); max-width: 42rem; width: 100%; margin: 1rem; max-height: 90vh; overflow-y: auto; }
+        .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1.5rem; border-bottom: 1px solid #e5e7eb; }
+        .modal-body { padding: 1.5rem; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 0.75rem; padding: 1.5rem; border-top: 1px solid #e5e7eb; }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -184,93 +128,111 @@
     </div>
 
     <!-- SCRIPTS -->
-    <!-- Configuration Supabase (À CONFIGURER AVEC VOS CLÉS) -->
     <script src="js/supabase-config.js"></script>
-    
-    <!-- Authentication -->
-    <script src="js/auth-supabase.js"></script>
+    <script src="js/auth-supabase-PRODUCTION-FINAL.js"></script>
     <script src="js/permissions.js"></script>
-    
-    <!-- Currency configuration -->
     <script src="js/currency-config.js"></script>
-    
-    <!-- Utilitaires Supabase -->
     <script src="js/utils-supabase.js"></script>
-    
-    <!-- Modules applicatifs de base -->
     <script src="js/app.js"></script>
     <script src="js/dashboard.js"></script>
     <script src="js/clients.js"></script>
     <script src="js/coiffeuses.js"></script>
     <script src="js/services.js"></script>
-    
-    <!-- ✅ NEW v3.0: Enhanced Rendez-vous with Calendar & Date Validation -->
     <script src="js/rendez-vous-date-validator.js"></script>
     <script src="js/rendez-vous-calendar.js"></script>
     <script src="js/rendez-vous.js"></script>
-    
-    <!-- ✅ NEW v3.0: Enhanced Products with Categories -->
     <script src="js/categories-manager.js"></script>
     <script src="js/produits-v3.js"></script>
-    
     <script src="js/materiels.js"></script>
     <script src="js/consommables.js"></script>
-    
-    <!-- ✅ NEW v3.0: Enhanced Sales with Multi-products & Thermal Receipt -->
     <script src="js/period-filter.js"></script>
     <script src="js/thermal-receipt.js"></script>
     <script src="js/ventes-v4.js"></script>
     <script src="js/ventes-v4-methods.js"></script>
     <script src="js/ventes-v4-save.js"></script>
-    
-    <!-- ✅ NEW v3.0: Enhanced Commissions with Period Filter & Payment Status -->
     <script src="js/commissions-v3.js"></script>
     
     <script>
-        // Check authentication on load
-        console.log('🔐 Checking authentication...');
+        // ============================================
+        // AUTHENTIFICATION - PRODUCTION FINALE
+        // ============================================
+        console.log('='.repeat(60));
+        console.log('🚀 JL BEAUTY SYSTEM - DASHBOARD LOADING');
+        console.log('='.repeat(60));
         
-        AuthSupabase.checkAuth().then(user => {
-            console.log('👤 User from checkAuth:', user);
-            
-            if (!user) {
-                console.log('❌ No user, redirecting to login');
+        // Fonction principale d'authentification
+        async function initDashboard() {
+            try {
+                console.log('🔐 Step 1: Checking authentication...');
+                
+                // Vérifier l'authentification
+                const user = await AuthSupabase.checkAuth();
+                
+                console.log('📊 Auth result:', user ? '✅ USER FOUND' : '❌ NO USER');
+                
+                if (!user) {
+                    console.log('🚪 Redirecting to login...');
+                    window.location.href = 'login.html';
+                    return;
+                }
+                
+                console.log('✅ User authenticated:', user.email);
+                console.log('📋 User role:', user.role);
+                console.log('🔑 User permissions:', user.permissions);
+                
+                // Mettre à jour l'interface utilisateur
+                const userInfo = document.getElementById('user-info');
+                const userAvatar = document.getElementById('user-avatar');
+                
+                if (userInfo) {
+                    const nom = user.nom || user.email.split('@')[0];
+                    const role = user.role || 'Utilisateur';
+                    
+                    userInfo.innerHTML = `
+                        <p class="text-sm font-medium text-gray-800">${nom}</p>
+                        <p class="text-xs text-gray-600">${role}</p>
+                    `;
+                    
+                    if (userAvatar) {
+                        userAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(nom)}&background=9333ea&color=fff`;
+                    }
+                }
+                
+                // Masquer les modules selon le rôle
+                if (typeof Permissions !== 'undefined' && user.role !== 'gerant') {
+                    console.log('🔒 Hiding restricted modules for role:', user.role);
+                    
+                    const gerantModules = ['coiffeuses', 'services', 'produits', 'materiels', 'commissions'];
+                    const sidebarItems = document.querySelectorAll('.sidebar-item');
+                    
+                    sidebarItems.forEach(item => {
+                        const page = item.getAttribute('data-page');
+                        if (gerantModules.includes(page)) {
+                            item.style.display = 'none';
+                        }
+                    });
+                }
+                
+                console.log('='.repeat(60));
+                console.log('✅ DASHBOARD READY - Welcome', user.email);
+                console.log('='.repeat(60));
+                
+            } catch (error) {
+                console.error('💥 Dashboard initialization error:', error);
+                console.error('Stack:', error.stack);
+                
+                // En cas d'erreur, rediriger vers login
+                alert('Erreur lors du chargement du tableau de bord. Redirection...');
                 window.location.href = 'login.html';
-                return;
             }
-            
-            console.log('✅ User authenticated:', user.email);
-            
-            // Update user display
-            const userInfo = document.getElementById('user-info');
-            const userAvatar = document.getElementById('user-avatar');
-            
-            if (userInfo) {
-                const nom = user.nom || user.email.split('@')[0];
-                const role = user.role || 'Utilisateur';
-                
-                console.log('📊 Display info:', { nom, role });
-                
-                userInfo.innerHTML = `
-                    <p class="text-sm font-medium text-gray-800">${nom}</p>
-                    <p class="text-xs text-gray-600">${role}</p>
-                `;
-                
-                if (userAvatar) {
-                    userAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(nom)}&background=9333ea&color=fff`;
-                }
-                
-                // Hide modules based on role
-                if (typeof Permissions !== 'undefined') {
-                    Permissions.hideRestrictedModules(role);
-                }
-            }
-            
-            console.log('✅ Dashboard ready');
-        }).catch(error => {
-            console.error('💥 Error during auth check:', error);
-            window.location.href = 'login.html';
-        });
+        }
+        
+        // Lancer l'initialisation au chargement de la page
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initDashboard);
+        } else {
+            initDashboard();
+        }
     </script>
 </body>
 </html>

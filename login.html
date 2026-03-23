@@ -35,49 +35,16 @@
     <div class="login-card w-full max-w-md rounded-2xl shadow-2xl p-8">
         <!-- Logo -->
         <div class="text-center mb-8">
-            <img src="images/jl-beauty-logo.png" alt="JL Beauty" class="w-32 h-32 mx-auto mb-4" onerror="this.style.display='none'">
+            <img src="images/jl-beauty-logo.png" alt="JL Beauty" class="w-32 h-32 mx-auto mb-4">
             <h1 class="text-3xl font-bold" style="color: #E8B44C;">JL Beauty System</h1>
             <p class="text-gray-600 mt-2">Un univers à vivre</p>
         </div>
 
-        <!-- Sélecteur de Version -->
-        <div class="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <label class="block text-sm font-medium text-gray-700 mb-2">
-                <i class="fas fa-server mr-2"></i>Version :
-            </label>
-            <select id="version-selector" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
-                <option value="local">Local (Demo - localStorage)</option>
-                <option value="supabase">Production (Supabase)</option>
-            </select>
-        </div>
-
-        <!-- Info Version Locale -->
-        <div id="local-info" class="mb-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <p class="text-sm text-yellow-800">
-                <i class="fas fa-exclamation-triangle mr-2"></i>
-                <strong>Mode Demo :</strong> Utilisez les identifiants de test ci-dessous.
-            </p>
-            <div class="mt-3 space-y-2 text-xs text-gray-700">
-                <div class="flex items-center">
-                    <span class="font-semibold w-20">Gérant :</span>
-                    <code class="bg-white px-2 py-1 rounded">admin@jlbeauty.com</code>
-                    <span class="mx-2">/</span>
-                    <code class="bg-white px-2 py-1 rounded">admin123</code>
-                </div>
-                <div class="flex items-center">
-                    <span class="font-semibold w-20">Caissière :</span>
-                    <code class="bg-white px-2 py-1 rounded">caisse@jlbeauty.com</code>
-                    <span class="mx-2">/</span>
-                    <code class="bg-white px-2 py-1 rounded">caisse123</code>
-                </div>
-            </div>
-        </div>
-
-        <!-- Info Version Supabase -->
-        <div id="supabase-info" class="mb-6 bg-green-50 border border-green-200 rounded-lg p-4 hidden">
+        <!-- Info Production -->
+        <div class="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
             <p class="text-sm text-green-800">
                 <i class="fas fa-shield-alt mr-2"></i>
-                <strong>Mode Production :</strong> Utilisez vos identifiants Supabase.
+                <strong>Mode Production</strong> - Connectez-vous avec vos identifiants Supabase
             </p>
         </div>
 
@@ -89,7 +56,7 @@
                 </label>
                 <input type="email" id="email" required
                        class="input-focus w-full px-4 py-3 border border-gray-300 rounded-lg transition-all"
-                       placeholder="votre@email.com">
+                       placeholder="admin@jlbeauty.com">
             </div>
 
             <div>
@@ -100,7 +67,7 @@
                     <input type="password" id="password" required
                            class="input-focus w-full px-4 py-3 border border-gray-300 rounded-lg transition-all pr-12"
                            placeholder="••••••••">
-                    <button type="button" id="toggle-password-btn"
+                    <button type="button" onclick="togglePassword()" 
                             class="absolute right-3 top-3 text-gray-500 hover:text-gray-700">
                         <i id="password-icon" class="fas fa-eye"></i>
                     </button>
@@ -133,67 +100,39 @@
                 Besoin d'aide ? Contactez votre administrateur
             </p>
             <p class="mt-2 text-xs text-gray-500">
-                JL Beauty System v3.0 © 2026
+                JL Beauty System v2.2 © 2026
             </p>
         </div>
     </div>
 
     <!-- Scripts -->
-    <!-- Supabase CDN (DOIT être chargé en premier) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
-    <!-- Configuration Supabase -->
     <script src="js/supabase-config.js"></script>
-    
-    <!-- Authentication scripts -->
-    <script src="js/auth-local.js"></script>
-    <script src="js/auth-supabase.js"></script>
+    <script src="js/auth-supabase-PRODUCTION-FINAL.js"></script>
     
     <script>
-        console.log('='.repeat(50));
-        console.log('🚀 JL BEAUTY LOGIN - INITIALIZATION');
-        console.log('='.repeat(50));
+        console.log('='.repeat(60));
+        console.log('🚀 JL BEAUTY LOGIN - PRODUCTION FINAL');
+        console.log('='.repeat(60));
 
         // Toggle password visibility
-        const togglePasswordBtn = document.getElementById('toggle-password-btn');
-        if (togglePasswordBtn) {
-            togglePasswordBtn.addEventListener('click', function() {
-                const passwordInput = document.getElementById('password');
-                const passwordIcon = document.getElementById('password-icon');
-                
-                if (passwordInput.type === 'password') {
-                    passwordInput.type = 'text';
-                    passwordIcon.classList.remove('fa-eye');
-                    passwordIcon.classList.add('fa-eye-slash');
-                } else {
-                    passwordInput.type = 'password';
-                    passwordIcon.classList.remove('fa-eye-slash');
-                    passwordIcon.classList.add('fa-eye');
-                }
-            });
-        }
-
-        // Toggle version info
-        const versionSelector = document.getElementById('version-selector');
-        if (versionSelector) {
-            versionSelector.addEventListener('change', function() {
-                const version = this.value;
-                const localInfo = document.getElementById('local-info');
-                const supabaseInfo = document.getElementById('supabase-info');
-                
-                if (version === 'local') {
-                    localInfo.classList.remove('hidden');
-                    supabaseInfo.classList.add('hidden');
-                } else {
-                    localInfo.classList.add('hidden');
-                    supabaseInfo.classList.remove('hidden');
-                }
-            });
+        function togglePassword() {
+            const passwordInput = document.getElementById('password');
+            const passwordIcon = document.getElementById('password-icon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                passwordIcon.classList.remove('fa-eye');
+                passwordIcon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                passwordIcon.classList.remove('fa-eye-slash');
+                passwordIcon.classList.add('fa-eye');
+            }
         }
 
         // Show error message
         function showError(message) {
-            console.error('❌ ERROR:', message);
             const errorDiv = document.getElementById('error-message');
             const errorText = document.getElementById('error-text');
             errorText.textContent = message;
@@ -212,115 +151,85 @@
             
             if (show) {
                 loading.classList.remove('hidden');
-                form.style.opacity = '0.5';
+                form.classList.add('hidden');
                 submitBtn.disabled = true;
             } else {
                 loading.classList.add('hidden');
-                form.style.opacity = '1';
+                form.classList.remove('hidden');
                 submitBtn.disabled = false;
             }
         }
-
-        // Check if dependencies are loaded
-        console.log('📦 Checking dependencies...');
-        console.log('  - Supabase:', typeof window.supabase !== 'undefined' ? '✅' : '❌');
-        console.log('  - AuthLocal:', typeof AuthLocal !== 'undefined' ? '✅' : '❌');
-        console.log('  - AuthSupabase:', typeof AuthSupabase !== 'undefined' ? '✅' : '❌');
 
         // Handle form submission
         const loginForm = document.getElementById('login-form');
         
         if (!loginForm) {
-            console.error('❌ CRITICAL: Login form not found!');
+            console.error('❌ LOGIN FORM NOT FOUND!');
         } else {
-            console.log('✅ Login form found');
+            console.log('✅ Login form found, attaching handler...');
             
             loginForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
                 
-                console.log('\n' + '='.repeat(50));
                 console.log('🚀 FORM SUBMITTED!');
-                console.log('='.repeat(50));
                 
                 const email = document.getElementById('email').value;
                 const password = document.getElementById('password').value;
-                const version = document.getElementById('version-selector').value;
                 
-                console.log('📋 Form data:');
-                console.log('  - Email:', email);
-                console.log('  - Password:', '***' + password.slice(-2));
-                console.log('  - Version:', version);
+                console.log('📧 Email:', email);
+                console.log('🔑 Password length:', password.length);
+                
+                // Validation
+                if (!email || !password) {
+                    showError('Veuillez remplir tous les champs');
+                    return;
+                }
                 
                 showLoading(true);
                 
                 try {
-                    if (version === 'local') {
-                        console.log('\n📍 MODE: LOCAL (localStorage)');
+                    // Vérifier que AuthSupabase est chargé
+                    if (typeof AuthSupabase === 'undefined') {
+                        console.error('❌ AuthSupabase not loaded!');
+                        showError('Erreur de configuration. Veuillez rafraîchir la page.');
+                        showLoading(false);
+                        return;
+                    }
+                    
+                    console.log('🔐 Calling AuthSupabase.login()...');
+                    
+                    // Tenter la connexion
+                    const result = await AuthSupabase.login(email, password);
+                    
+                    console.log('📊 Login result:', result);
+                    
+                    if (result.success) {
+                        console.log('✅ LOGIN SUCCESS! Redirecting...');
+                        console.log('👤 User:', result.user);
                         
-                        if (typeof AuthLocal === 'undefined') {
-                            throw new Error('AuthLocal not loaded');
-                        }
-                        
-                        const result = await AuthLocal.login(email, password);
-                        console.log('📊 Result:', result);
-                        
-                        if (result.success) {
-                            console.log('✅ Login successful!');
-                            console.log('➡️ Redirecting to index-local.html...');
-                            window.location.href = 'index-local.html';
-                        } else {
-                            showError(result.error);
-                            showLoading(false);
-                        }
-                    } else {
-                        console.log('\n📍 MODE: PRODUCTION (Supabase)');
-                        
-                        if (typeof AuthSupabase === 'undefined') {
-                            throw new Error('AuthSupabase not loaded');
-                        }
-                        
-                        if (typeof window.supabase === 'undefined') {
-                            throw new Error('Supabase client not initialized');
-                        }
-                        
-                        console.log('🔐 Calling AuthSupabase.login()...');
-                        const result = await AuthSupabase.login(email, password);
-                        console.log('📊 Result:', result);
-                        
-                        if (result.success) {
-                            console.log('✅ Login successful!');
-                            console.log('👤 User:', result.user);
-                            console.log('➡️ Redirecting to index.html...');
+                        // Petit délai pour s'assurer que tout est sauvegardé
+                        setTimeout(() => {
                             window.location.href = 'index.html';
-                        } else {
-                            console.error('❌ Login failed:', result.error);
-                            showError(result.error);
-                            showLoading(false);
-                        }
+                        }, 500);
+                    } else {
+                        console.error('❌ LOGIN FAILED:', result.error);
+                        showError(result.error || 'Erreur de connexion');
+                        showLoading(false);
                     }
                 } catch (error) {
-                    console.error('💥 EXCEPTION during login:', error);
-                    console.error('Stack trace:', error.stack);
-                    showError('Erreur technique : ' + error.message);
+                    console.error('💥 Login exception:', error);
+                    console.error('Stack:', error.stack);
+                    showError('Erreur technique. Vérifiez votre connexion.');
                     showLoading(false);
                 }
             });
             
-            console.log('✅ Event listener attached to form');
+            console.log('✅ Event listener attached');
         }
-
-        // Auto-fill for local mode on page load
-        window.addEventListener('DOMContentLoaded', function() {
-            const version = document.getElementById('version-selector').value;
-            if (version === 'local') {
-                document.getElementById('email').value = 'admin@jlbeauty.com';
-                document.getElementById('password').value = 'admin123';
-            }
-        });
-
-        console.log('\n✅ Login page initialized successfully');
-        console.log('='.repeat(50) + '\n');
+        
+        console.log('='.repeat(60));
+        console.log('✅ LOGIN PAGE READY');
+        console.log('='.repeat(60));
     </script>
 </body>
 </html>
-// Updated: Sun Mar 22 15:36:55 WAT 2026
