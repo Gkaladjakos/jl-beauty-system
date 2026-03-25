@@ -28,7 +28,6 @@ Ventes.saveVente = async function(modal) {
         
         // Build vente data
         const venteData = {
-            id: Utils.generateId(),
             date_vente: Date.now(),
             type: this.currentType,
             client_id: null, // Could be linked to client if exists

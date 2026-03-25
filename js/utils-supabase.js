@@ -192,8 +192,12 @@ const Utils = {
         }
     },
 
-    // Generate unique ID
+    // Generate unique ID (NOT USED in Supabase - IDs are auto-generated)
+    // Supabase uses UUIDs generated server-side via gen_random_uuid()
     generateId() {
+        // ⚠️ This function should NOT be used when creating records in Supabase
+        // Supabase auto-generates UUIDs. Just omit the 'id' field when creating records.
+        console.warn('⚠️ generateId() should not be used with Supabase. IDs are auto-generated.');
         return 'id-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
     },
 

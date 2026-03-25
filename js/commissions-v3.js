@@ -411,7 +411,6 @@ const CommissionsV3 = {
                 const commData = commissionsByCoiffeuse[coiffeuseId];
                 
                 await Utils.create('commissions', {
-                    id: Utils.generateId(),
                     coiffeuse_id: commData.coiffeuse_id,
                     coiffeuse_nom: commData.coiffeuse_nom,
                     periode: periodLabel,

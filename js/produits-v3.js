@@ -359,7 +359,6 @@ const ProduitsV3 = {
                 const formData = Utils.getFormData(form);
                 
                 const data = {
-                    id: Utils.generateId(),
                     ...formData,
                     prix_achat: parseFloat(formData.prix_achat) || 0,
                     prix_vente: parseFloat(formData.prix_vente) || 0,

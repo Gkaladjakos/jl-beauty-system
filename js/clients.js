@@ -231,7 +231,6 @@ const Clients = {
                 App.showLoading();
                 const formData = new FormData(form);
                 const data = {
-                    id: Utils.generateId(),
                     nom: formData.get('nom') || '', // Empty if not provided
                     telephone: formData.get('telephone'),
                     email: formData.get('email') || '',
