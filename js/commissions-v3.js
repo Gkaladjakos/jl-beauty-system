@@ -95,11 +95,14 @@ const CommissionsV3 = {
         const filterContainer = document.getElementById('period-filter-container');
         if (filterContainer && typeof PeriodFilter !== 'undefined') {
             filterContainer.innerHTML = PeriodFilter.render();
-            PeriodFilter.onPeriodChange((period) => {
-                this.currentPeriod = period;
-                this.renderTable();
-                this.updateStats();
-            });
+            // Setup filter after HTML is rendered
+            setTimeout(() => {
+                PeriodFilter.setup((period) => {
+                    this.currentPeriod = period;
+                    this.renderTable();
+                    this.updateStats();
+                });
+            }, 100);
         }
         
         this.renderTable();

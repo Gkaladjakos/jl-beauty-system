@@ -45,7 +45,7 @@ Ventes.loadRdvOptions = function() {
     const today = new Date().setHours(0, 0, 0, 0);
     const rdvToday = this.rendezVous.filter(rdv => {
         const rdvDate = new Date(rdv.date_rdv).setHours(0, 0, 0, 0);
-        return rdvDate === today && ['Confirmé', 'En cours'].includes(rdv.statut);
+        return rdvDate === today && ['Programmé', 'En cours'].includes(rdv.statut);
     });
     
     select.innerHTML = '<option value="">Sélectionner un rendez-vous...</option>';
