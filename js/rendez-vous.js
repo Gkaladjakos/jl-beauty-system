@@ -441,7 +441,6 @@ const RendezVous = {
                 try {
                     App.showLoading();
                     const newClient = await Utils.create('clients', {
-                        id: Utils.generateId(),
                         nom: newNom || '',
                         telephone: newTel,
                         email: '',
@@ -524,7 +523,6 @@ const RendezVous = {
                 const dateTime = new Date(`${formData.get('date')}T${formData.get('heure')}`);
                 
                 const data = {
-                    id: Utils.generateId(),
                     client_id: clientId,
                     client_nom: clientNom,
                     client_telephone: clientTelephone,
@@ -756,7 +754,6 @@ const RendezVous = {
                 
                 // 2. Create new appointment
                 const newRdv = {
-                    id: Utils.generateId(),
                     client_id: rdv.client_id,
                     client_nom: rdv.client_nom,
                     client_telephone: rdv.client_telephone,

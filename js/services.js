@@ -178,7 +178,6 @@ const Services = {
                 App.showLoading();
                 const formData = new FormData(form);
                 const data = {
-                    id: Utils.generateId(),
                     nom: formData.get('nom'),
                     description: formData.get('description'),
                     prix: parseFloat(formData.get('prix')),
