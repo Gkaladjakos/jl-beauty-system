@@ -211,7 +211,6 @@ const Materiels = {
                 App.showLoading();
                 const formData = new FormData(form);
                 const data = {
-                    id: Utils.generateId(),
                     nom: formData.get('nom'),
                     categorie: formData.get('categorie'),
                     numero_serie: formData.get('numero_serie'),

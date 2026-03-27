@@ -169,9 +169,8 @@ const Ventes = {
             }
             
             const paiementInfo = vente.montant_percu 
-                ? `Perçu: ${Utils.formatCurrency(vente.montant_percu)}<br>Monnaie: ${Utils.formatCurrency(vente.montant_percu - vente.montant_total)}`
+                ? `Perçu: ${Utils.formatCurrency(vente.montant_percu)}<br>Monnaie: ${Utils.formatCurrency(vente.monnaie || 0)}`
                 : vente.mode_paiement;
-            
             return `
                 <tr class="hover:bg-gray-50">
                     <td class="px-6 py-4 text-sm">${date}</td>
@@ -336,7 +335,7 @@ const Ventes = {
         const modal = Utils.createModal(
             '<i class="fas fa-cash-register mr-2"></i>Enregistrer une vente',
             modalContent,
-            () => this.saveVente(modal)
+            () => Ventes.saveVente(modal)
         );
         
         document.body.appendChild(modal);
