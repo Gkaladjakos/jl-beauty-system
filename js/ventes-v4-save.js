@@ -28,12 +28,12 @@ Ventes.saveVente = async function(modal) {
         
         // Build vente data
         const venteData = {
-            date_vente: Date.now(),
+            date_vente: Date.now().toISOString()
             type: this.currentType,
             client_id: null, // Could be linked to client if exists
             client_telephone: clientTelephone,
             client_nom: document.getElementById('client-nom').value.trim() || '',
-            items: this.selectedItems,
+            items: JSON.stringify(this.selectedItems),
             montant_total: this.currentTotal,
             montant_percu: montantPercu || null,
             monnaie: montantPercu ? (montantPercu - this.currentTotal) : null,

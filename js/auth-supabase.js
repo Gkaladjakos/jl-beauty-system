@@ -9,6 +9,8 @@ const AuthSupabase = {
 
     // Initialize Supabase client
     init() {
+        if (this.supabase) return true; // ✅ Déjà initialisé, évite les appels répétés
+
         if (typeof window.supabase === 'undefined' || !window.supabase) {
             console.error('❌ Supabase client not found');
             return false;
@@ -21,7 +23,7 @@ const AuthSupabase = {
     // Login with email and password
     async login(email, password) {
         console.log('🔐 LOGIN ATTEMPT:', email);
-        
+
         if (!this.init()) {
             return { success: false, error: 'Configuration Supabase manquante' };
         }
@@ -37,8 +39,8 @@ const AuthSupabase = {
                 console.error('❌ Auth error:', error.message);
                 return {
                     success: false,
-                    error: error.message === 'Invalid login credentials' 
-                        ? 'Email ou mot de passe incorrect' 
+                    error: error.message === 'Invalid login credentials'
+                        ? 'Email ou mot de passe incorrect'
                         : error.message
                 };
             }
@@ -79,8 +81,6 @@ const AuthSupabase = {
             localStorage.setItem('jlbeauty_auth_type', 'supabase');
 
             console.log('✅ LOGIN SUCCESS:', userData.email);
-            console.log('📊 User data saved to localStorage');
-
             return { success: true, user: userData };
 
         } catch (error) {
@@ -92,15 +92,15 @@ const AuthSupabase = {
         }
     },
 
-    // Check authentication (PRIORITÉ TOTALE au localStorage)
+    // ✅ checkAuth() — UNE SEULE DÉFINITION (version fusionnée et complète)
     async checkAuth() {
         console.log('🔍 checkAuth() called');
-        
+
         try {
-            // ✅ PRIORITÉ 1 : localStorage TOUJOURS en premier
+            // PRIORITÉ 1 : localStorage TOUJOURS en premier
             const storedUser = localStorage.getItem('jlbeauty_user');
             const authType = localStorage.getItem('jlbeauty_auth_type');
-            
+
             console.log('📦 localStorage check:', {
                 hasUser: !!storedUser,
                 authType: authType
@@ -121,22 +121,21 @@ const AuthSupabase = {
 
             console.log('⚠️ No valid localStorage, checking Supabase session...');
 
-            // ✅ PRIORITÉ 2 : Vérifier Supabase uniquement si localStorage vide
+            // PRIORITÉ 2 : Vérifier la session Supabase
             if (!this.init()) {
                 console.error('❌ Supabase not initialized');
                 return null;
             }
 
             const { data: { session } } = await this.supabase.auth.getSession();
-            
+
             if (!session) {
-                console.log('❌ No Supabase session found');
+                console.log('❌ No active session found');
                 return null;
             }
 
             console.log('✅ Supabase session found, creating user data...');
 
-            // Build user data from session
             const userData = {
                 id: session.user.id,
                 email: session.user.email,
@@ -180,65 +179,12 @@ const AuthSupabase = {
         return this.getCurrentUser() !== null;
     },
 
-    // Check authentication and return current user
-     async checkAuth() {
-        try {
-            // PRIORITÉ 1 : Vérifier localStorage d'abord
-            const storedUser = localStorage.getItem('jlbeauty_user');
-            const authType = localStorage.getItem('jlbeauty_auth_type');
-            
-            if (storedUser && authType === 'supabase') {
-                try {
-                    const userData = JSON.parse(storedUser);
-                    this.currentUser = userData;
-                    console.log('✅ User found in localStorage:', userData.email);
-                    return userData;
-                } catch (e) {
-                    console.error('❌ Error parsing stored user:', e);
-                }
-            }
-
-            if (!this.init()) {
-                console.error('❌ Supabase not initialized');
-                return null;
-            }
-
-            const { data: { session } } = await this.supabase.auth.getSession();
-            
-            if (!session) {
-                console.log('⚠️ No active session found');
-                return null;
-            }
-
-            const userData = {
-                id: session.user.id,
-                email: session.user.email,
-                nom: session.user.email.split('@')[0],
-                role: 'gerant',
-                permissions: ['all']
-            };
-
-            this.currentUser = userData;
-            localStorage.setItem('jlbeauty_user', JSON.stringify(userData));
-            localStorage.setItem('jlbeauty_auth_type', 'supabase');
-
-            console.log('✅ User authenticated from Supabase:', userData.email);
-            return userData;
-
-        } catch (error) {
-            console.error('❌ checkAuth error:', error);
-            return null;
-        }
-    },
     // Check if user has permission
     hasPermission(module) {
         const user = this.getCurrentUser();
         if (!user) return false;
 
-        // Gérant a accès à tout
         if (user.permissions && user.permissions.includes('all')) return true;
-
-        // Vérifier la permission spécifique
         return user.permissions && user.permissions.includes(module);
     },
 
@@ -246,6 +192,22 @@ const AuthSupabase = {
     getRole() {
         const user = this.getCurrentUser();
         return user ? user.role : null;
+    },
+
+    // Logout
+    async logout() {
+        try {
+            if (this.init()) {
+                await this.supabase.auth.signOut();
+            }
+        } catch (e) {
+            console.warn('⚠️ Supabase signOut error:', e.message);
+        } finally {
+            this.currentUser = null;
+            localStorage.removeItem('jlbeauty_user');
+            localStorage.removeItem('jlbeauty_auth_type');
+            console.log('✅ Logged out successfully');
+        }
     }
 };
 
