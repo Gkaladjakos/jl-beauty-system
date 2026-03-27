@@ -1,7 +1,5 @@
 // =============================================================================
 // VENTES MODULE — Fichier unique et complet
-// Remplace : ventes-v4.js + ventes-v4-methods.js + ventes-v4-save.js
-// Dans index.html : <script src="ventes.js"></script>
 // =============================================================================
 
 const Ventes = {
@@ -36,6 +34,7 @@ const Ventes = {
                         <option value="">Tous les types</option>
                         <option value="Service">Service</option>
                         <option value="Produit">Produit</option>
+                        <option value="Mixte">Mixte</option>
                     </select>
                 </div>
             </div>
@@ -115,14 +114,38 @@ const Ventes = {
     },
 
     // =========================================================================
-    // 3. updateStats()
+    // 3. updateStats()  ✅ CORRIGÉ — ventile les ventes Mixte item par item
     // =========================================================================
     updateStats() {
-        const filteredData     = PeriodFilter.filterData(this.data, 'date_vente');
+        const filteredData = PeriodFilter.filterData(this.data, 'date_vente');
+
         const totalPeriode     = filteredData.reduce((s, v) => s + (v.montant_total || 0), 0);
-        const totalServices    = filteredData.filter(v => v.type === 'Service').reduce((s, v) => s + (v.montant_total || 0), 0);
-        const totalProduits    = filteredData.filter(v => v.type === 'Produit').reduce((s, v) => s + (v.montant_total || 0), 0);
-        const totalCommissions = filteredData.reduce((s, v) => s + (v.commission || 0), 0);
+        const totalCommissions = filteredData.reduce((s, v) => s + (v.commission    || 0), 0);
+
+        let totalServices = 0;
+        let totalProduits = 0;
+
+        filteredData.forEach(v => {
+            if (v.type === 'Service') {
+                totalServices += v.montant_total || 0;
+            } else if (v.type === 'Produit') {
+                totalProduits += v.montant_total || 0;
+            } else if (v.type === 'Mixte') {
+                // Ventiler via les items individuels
+                const items = typeof v.items === 'string'
+                    ? (() => { try { return JSON.parse(v.items); } catch(e) { return []; } })()
+                    : (v.items || []);
+
+                items.forEach(item => {
+                    const subtotal = (item.prix_unitaire || 0) * (item.quantite || 1);
+                    if (item.item_type === 'Service') {
+                        totalServices += subtotal;
+                    } else {
+                        totalProduits += subtotal;
+                    }
+                });
+            }
+        });
 
         document.getElementById('ventes-periode').textContent    = Utils.formatCurrency(totalPeriode);
         document.getElementById('ventes-services').textContent   = Utils.formatCurrency(totalServices);
@@ -131,7 +154,7 @@ const Ventes = {
     },
 
     // =========================================================================
-    // 4. renderTable()
+    // 4. renderTable()  ✅ CORRIGÉ — badge 3 cas + détails mixte
     // =========================================================================
     renderTable() {
         const tbody = document.getElementById('ventes-table');
@@ -155,10 +178,17 @@ const Ventes = {
         }
 
         tbody.innerHTML = filteredData.map(vente => {
-            const date      = Utils.formatDateTime(vente.date_vente);
-            const typeBadge = vente.type === 'Service'
-                ? '<span class="badge bg-blue-100 text-blue-800">Service</span>'
-                : '<span class="badge bg-green-100 text-green-800">Produit</span>';
+            const date = Utils.formatDateTime(vente.date_vente);
+
+            // ✅ Badge 3 cas : Service / Produit / Mixte
+            let typeBadge;
+            if (vente.type === 'Service') {
+                typeBadge = '<span class="badge bg-blue-100 text-blue-800">Service</span>';
+            } else if (vente.type === 'Produit') {
+                typeBadge = '<span class="badge bg-green-100 text-green-800">Produit</span>';
+            } else {
+                typeBadge = '<span class="badge bg-purple-100 text-purple-800">Mixte</span>';
+            }
 
             const items = typeof vente.items === 'string'
                 ? (() => { try { return JSON.parse(vente.items); } catch(e) { return null; } })()
@@ -166,9 +196,18 @@ const Ventes = {
 
             let details = '';
             if (items && Array.isArray(items) && items.length > 0) {
-                details = items.length > 1
-                    ? `${items.length} ${vente.type === 'Service' ? 'services' : 'produits'}`
-                    : (items[0].item_nom || items[0].service_nom || items[0].nom || '-');
+                if (items.length > 1) {
+                    // ✅ Pour les ventes mixtes, indiquer la composition
+                    const nbServices = items.filter(i => i.item_type === 'Service').length;
+                    const nbProduits = items.filter(i => i.item_type === 'Produit').length;
+                    if (nbServices > 0 && nbProduits > 0) {
+                        details = `${nbServices} service(s) + ${nbProduits} produit(s)`;
+                    } else {
+                        details = `${items.length} articles`;
+                    }
+                } else {
+                    details = items[0].item_nom || items[0].service_nom || items[0].nom || '-';
+                }
             } else {
                 details = vente.item_nom || '-';
             }
@@ -216,7 +255,7 @@ const Ventes = {
     },
 
     // =========================================================================
-    // 6. showAddModal()
+    // 6. showAddModal()  ✅ CORRIGÉ — label boutons mis à jour pour vente mixte
     // =========================================================================
     showAddModal() {
         this.selectedItems = [];
@@ -225,17 +264,19 @@ const Ventes = {
         const modalContent = `
             <form id="vente-form" class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Type de vente *</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Ajouter un article — cliquez sur le type voulu
+                    </label>
                     <div class="grid grid-cols-2 gap-4">
                         <button type="button" onclick="Ventes.setType('Service')"
                                 id="btn-type-service"
                                 class="px-4 py-3 border-2 border-blue-600 bg-blue-50 text-blue-700 rounded-lg font-medium hover:bg-blue-100">
-                            <i class="fas fa-cut mr-2"></i>Service
+                            <i class="fas fa-cut mr-2"></i>+ Service
                         </button>
                         <button type="button" onclick="Ventes.setType('Produit')"
                                 id="btn-type-produit"
                                 class="px-4 py-2 border-2 border-gray-300 text-gray-600 rounded-lg font-medium hover:bg-gray-50">
-                            <i class="fas fa-shopping-bag mr-2"></i>Produit
+                            <i class="fas fa-shopping-bag mr-2"></i>+ Produit
                         </button>
                     </div>
                 </div>
@@ -347,12 +388,12 @@ const Ventes = {
     },
 
     // =========================================================================
-    // 7. setType()
+    // 7. setType()  ✅ CORRIGÉ — ne vide plus selectedItems (vente mixte)
     // =========================================================================
     setType(type) {
-        this.currentType   = type;
-        this.selectedItems = [];
-        this.currentTotal  = 0;
+        this.currentType = type;
+        // ✅ On ne réinitialise PAS selectedItems ici
+        // → permet d'ajouter des services ET des produits sur la même vente
 
         const btnService = document.getElementById('btn-type-service');
         const btnProduit = document.getElementById('btn-type-produit');
@@ -416,7 +457,7 @@ const Ventes = {
     },
 
     // =========================================================================
-    // 10. loadFromRdv()
+    // 10. loadFromRdv()  ✅ CORRIGÉ — item_type explicite
     // =========================================================================
     loadFromRdv() {
         const rdvId = document.getElementById('select-rdv')?.value;
@@ -438,19 +479,23 @@ const Ventes = {
             const tauxComm    = coiffeuse?.taux_commission || 0;
             const commission  = Math.round((prixService * tauxComm / 100) * 100) / 100;
 
-            this.selectedItems = [{
-                id:              service.id,
-                nom:             service.nom,
-                item_nom:        service.nom,
-                prix_unitaire:   prixService,
-                quantite:        1,
-                coiffeuse_id:    coiffeuse?.id  || null,
-                coiffeuse_nom:   coiffeuse?.nom || '',
-                taux_commission: tauxComm,
-                commission:      commission,
-            }];
-
-            this.renderSelectedItems();
+            // ✅ Éviter les doublons si déjà chargé depuis ce RDV
+            const alreadyLoaded = this.selectedItems.find(i => i.id === service.id && i.item_type === 'Service');
+            if (!alreadyLoaded) {
+                this.selectedItems.push({
+                    id:              service.id,
+                    nom:             service.nom,
+                    item_nom:        service.nom,
+                    item_type:       'Service',        // ✅ typage explicite pour ventes mixtes
+                    prix_unitaire:   prixService,
+                    quantite:        1,
+                    coiffeuse_id:    coiffeuse?.id  || null,
+                    coiffeuse_nom:   coiffeuse?.nom || null,
+                    taux_commission: tauxComm,
+                    commission:      commission,
+                });
+                this.renderSelectedItems();
+            }
         }
     },
 
@@ -479,21 +524,21 @@ const Ventes = {
                 ).join('');
 
             area.innerHTML = `
-                <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 space-y-3">
-                    <h4 class="font-medium text-gray-700">
-                        <i class="fas fa-plus-circle mr-2"></i>Ajouter un service
+                <div class="border-2 border-dashed border-blue-300 bg-blue-50 rounded-lg p-4 space-y-3">
+                    <h4 class="font-medium text-blue-700">
+                        <i class="fas fa-cut mr-2"></i>Ajouter un service
                     </h4>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Service</label>
-                            <select id="select-service" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                            <select id="select-service" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
                                 <option value="">Choisir un service...</option>
                                 ${servicesOptions}
                             </select>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Coiffeuse</label>
-                            <select id="select-coiffeuse" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                            <select id="select-coiffeuse" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
                                 <option value="">Choisir une coiffeuse...</option>
                                 ${coiffeusesOptions}
                             </select>
@@ -503,13 +548,13 @@ const Ventes = {
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Prix unitaire</label>
                             <input type="number" id="item-prix" step="0.01" min="0"
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
                                    placeholder="0.00">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Commission (%)</label>
                             <input type="number" id="item-commission-pct" step="1" min="0" max="100" value="10"
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
                         </div>
                     </div>
                     <button type="button" onclick="Ventes.addServiceItem()"
@@ -540,14 +585,14 @@ const Ventes = {
                 ).join('');
 
             area.innerHTML = `
-                <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 space-y-3">
-                    <h4 class="font-medium text-gray-700">
-                        <i class="fas fa-plus-circle mr-2"></i>Ajouter un produit
+                <div class="border-2 border-dashed border-green-300 bg-green-50 rounded-lg p-4 space-y-3">
+                    <h4 class="font-medium text-green-700">
+                        <i class="fas fa-shopping-bag mr-2"></i>Ajouter un produit
                     </h4>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Produit</label>
-                            <select id="select-produit" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                            <select id="select-produit" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
                                 <option value="">Choisir un produit...</option>
                                 ${produitsOptions}
                             </select>
@@ -555,13 +600,13 @@ const Ventes = {
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Quantité</label>
                             <input type="number" id="item-quantite" min="1" value="1"
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
                         </div>
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Prix unitaire</label>
                         <input type="number" id="item-prix" step="0.01" min="0"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
                                placeholder="0.00">
                     </div>
                     <button type="button" onclick="Ventes.addProduitItem()"
@@ -577,8 +622,94 @@ const Ventes = {
             });
         }
     },
+
     // =========================================================================
-    // 12. SUPPRIMER UN ARTICLE
+    // 11b. addServiceItem()  ✅ NOUVEAU — item_type: 'Service' explicite
+    // =========================================================================
+    addServiceItem() {
+        const selectService   = document.getElementById('select-service');
+        const selectCoiffeuse = document.getElementById('select-coiffeuse');
+        const prixInput       = document.getElementById('item-prix');
+        const commPctInput    = document.getElementById('item-commission-pct');
+
+        if (!selectService?.value) {
+            App.showNotification('Veuillez choisir un service', 'error');
+            return;
+        }
+
+        const serviceOpt  = selectService.options[selectService.selectedIndex];
+        const coiffOpt    = selectCoiffeuse?.options[selectCoiffeuse.selectedIndex];
+        const prix        = parseFloat(prixInput?.value) || 0;
+        const commPct     = parseFloat(commPctInput?.value) || 0;
+        const commission  = Math.round((prix * commPct / 100) * 100) / 100;
+
+        this.selectedItems.push({
+            id:              selectService.value,
+            nom:             serviceOpt.dataset.nom || serviceOpt.text,
+            item_nom:        serviceOpt.dataset.nom || serviceOpt.text,
+            item_type:       'Service',              // ✅ typage explicite
+            prix_unitaire:   prix,
+            quantite:        1,
+            coiffeuse_id:    selectCoiffeuse?.value  || null,
+            coiffeuse_nom:   coiffOpt?.dataset.nom   || null,
+            taux_commission: commPct,
+            commission:      commission,
+        });
+
+        this.renderSelectedItems();
+
+        // Remettre le formulaire à zéro
+        selectService.value = '';
+        if (selectCoiffeuse) selectCoiffeuse.value = '';
+        if (prixInput)       prixInput.value       = '';
+        if (commPctInput)    commPctInput.value     = '10';
+    },
+
+    // =========================================================================
+    // 11c. addProduitItem()  ✅ NOUVEAU — item_type: 'Produit' explicite, vérifie stock
+    // =========================================================================
+    addProduitItem() {
+        const selectProduit = document.getElementById('select-produit');
+        const quantiteInput = document.getElementById('item-quantite');
+        const prixInput     = document.getElementById('item-prix');
+
+        if (!selectProduit?.value) {
+            App.showNotification('Veuillez choisir un produit', 'error');
+            return;
+        }
+
+        const produitOpt = selectProduit.options[selectProduit.selectedIndex];
+        const quantite   = parseInt(quantiteInput?.value) || 1;
+        const stock      = parseInt(produitOpt.dataset.stock) || 0;
+        const prix       = parseFloat(prixInput?.value) || 0;
+
+        if (quantite > stock) {
+            App.showNotification(`Stock insuffisant (disponible : ${stock})`, 'error');
+            return;
+        }
+
+        this.selectedItems.push({
+            id:            selectProduit.value,
+            nom:           produitOpt.dataset.nom || produitOpt.text,
+            item_nom:      produitOpt.dataset.nom || produitOpt.text,
+            item_type:     'Produit',              // ✅ typage explicite
+            prix_unitaire: prix,
+            quantite:      quantite,
+            coiffeuse_id:  null,
+            coiffeuse_nom: null,
+            commission:    0,
+        });
+
+        this.renderSelectedItems();
+
+        // Remettre le formulaire à zéro
+        selectProduit.value = '';
+        if (quantiteInput) quantiteInput.value = '1';
+        if (prixInput)     prixInput.value     = '';
+    },
+
+     // =========================================================================
+    // 12. removeItem()
     // =========================================================================
     removeItem(index) {
         this.selectedItems.splice(index, 1);
@@ -586,7 +717,7 @@ const Ventes = {
     },
 
     // =========================================================================
-    // 13. AFFICHER LES ARTICLES SÉLECTIONNÉS + TOTAL
+    // 13. renderSelectedItems()  ✅ CORRIGÉ — badge type par item + commission mixte
     // =========================================================================
     renderSelectedItems() {
         const display = document.getElementById('selected-items-display');
@@ -613,6 +744,11 @@ const Ventes = {
             total     += subtotal;
             totalComm += (item.commission || 0);
 
+            // ✅ Badge couleur selon item_type
+            const typePill = item.item_type === 'Service'
+                ? '<span class="text-xs bg-blue-100 text-blue-700 px-1 rounded">Service</span>'
+                : '<span class="text-xs bg-green-100 text-green-700 px-1 rounded">Produit</span>';
+
             const commInfo = item.commission
                 ? `<div class="text-xs text-orange-500">Comm: ${Utils.formatCurrency(item.commission)}</div>`
                 : '';
@@ -624,7 +760,7 @@ const Ventes = {
             return `
                 <tr class="border-b border-gray-200">
                     <td class="py-2">
-                        <div class="font-medium">${item.item_nom || item.nom}</div>
+                        <div class="font-medium">${item.item_nom || item.nom} ${typePill}</div>
                         ${coiffInfo}
                         ${commInfo}
                     </td>
@@ -641,12 +777,12 @@ const Ventes = {
         }).join('');
 
         this.currentTotal = total;
-
         if (totalEl) totalEl.textContent = Utils.formatCurrency(total);
 
-        // Afficher la ligne commission si pertinent (Services)
+        // ✅ Afficher la commission si au moins un item Service a une commission
         if (commDiv && commEl) {
-            if (this.currentType === 'Service' && totalComm > 0) {
+            const hasServiceItems = this.selectedItems.some(i => i.item_type === 'Service');
+            if (hasServiceItems && totalComm > 0) {
                 commDiv.classList.remove('hidden');
                 commEl.textContent = Utils.formatCurrency(totalComm);
             } else {
@@ -654,12 +790,11 @@ const Ventes = {
             }
         }
 
-        // Recalculer la monnaie si un montant perçu est déjà saisi
         this.calculateChange();
     },
 
     // =========================================================================
-    // 14. CALCUL DE LA MONNAIE
+    // 14. calculateChange()
     // =========================================================================
     calculateChange() {
         const percu           = parseFloat(document.getElementById('montant-percu')?.value) || 0;
@@ -688,7 +823,7 @@ const Ventes = {
     },
 
     // =========================================================================
-    // 15. SAUVEGARDER LA VENTE
+    // 15. saveVente()  ✅ CORRIGÉ — type Mixte + coiffeuse_nom null-safe + stock
     // =========================================================================
     async saveVente(modal) {
         if (this.selectedItems.length === 0) {
@@ -715,30 +850,47 @@ const Ventes = {
             return;
         }
 
-        const monnaie     = percu !== null ? Math.round((percu - this.currentTotal) * 100) / 100 : 0;
-        const totalComm   = this.selectedItems.reduce((s, i) => s + (i.commission || 0), 0);
+        const monnaie   = percu !== null ? Math.round((percu - this.currentTotal) * 100) / 100 : 0;
+        const totalComm = this.selectedItems.reduce((s, i) => s + (i.commission || 0), 0);
+
+        // ✅ Calculer le type réel de la vente
+        const hasServices = this.selectedItems.some(i => i.item_type === 'Service');
+        const hasProduits = this.selectedItems.some(i => i.item_type === 'Produit');
+        const venteType   = hasServices && hasProduits ? 'Mixte'
+                          : hasServices                ? 'Service'
+                          :                              'Produit';
 
         const payload = {
-            type:              this.currentType,
-            client_telephone:  telephone,
-            client_nom:        nomClient || null,
-            montant_total:     this.currentTotal,
-            commission:        Math.round(totalComm * 100) / 100,
-            mode_paiement:     modePaie,
-            montant_percu:     percu,
-            monnaie:           monnaie,
-            items:             JSON.stringify(this.selectedItems),
-            rdv_id:            rdvId,
-            date_vente:        new Date().toISOString(),
+            type:             venteType,
+            client_telephone: telephone,
+            client_nom:       nomClient || null,
+            montant_total:    this.currentTotal,
+            commission:       Math.round(totalComm * 100) / 100,
+            mode_paiement:    modePaie,
+            montant_percu:    percu,
+            monnaie:          monnaie,
+            items:            JSON.stringify(this.selectedItems),
+            rdv_id:           rdvId,
+            date_vente:       new Date().toISOString(),
         };
 
-        // Ajouter champs raccourcis pour ventes à item unique
+        // ✅ Champs raccourcis uniquement si 1 seul item
         if (this.selectedItems.length === 1) {
-            payload.item_id        = this.selectedItems[0].id;
-            payload.item_nom       = this.selectedItems[0].item_nom || this.selectedItems[0].nom;
-            payload.coiffeuse_id   = this.selectedItems[0].coiffeuse_id   || null;
-            payload.coiffeuse_nom  = this.selectedItems[0].coiffeuse_nom  || null;
+            const only = this.selectedItems[0];
+            payload.item_id  = only.id;
+            payload.item_nom = only.item_nom || only.nom;
+
+            // ✅ coiffeuse_nom seulement si c'est un Service avec coiffeuse renseignée
+            if (only.item_type === 'Service' && only.coiffeuse_id && only.coiffeuse_nom) {
+                payload.coiffeuse_id  = only.coiffeuse_id;
+                payload.coiffeuse_nom = only.coiffeuse_nom;
+            } else {
+                // Ne pas envoyer coiffeuse_nom si null (évite violation NOT NULL en DB)
+                payload.coiffeuse_id  = null;
+                // coiffeuse_nom volontairement absent du payload
+            }
         }
+        // Si plusieurs items : pas de champs raccourcis coiffeuse (vente mixte)
 
         try {
             App.showLoading?.();
@@ -746,14 +898,13 @@ const Ventes = {
 
             if (result.error) throw new Error(result.error.message);
 
-            // Décrémenter le stock pour les produits
-            if (this.currentType === 'Produit') {
-                for (const item of this.selectedItems) {
-                    const produit = this.produits.find(p => p.id === item.id);
-                    if (produit) {
-                        const newStock = (produit.stock_actuel || 0) - item.quantite;
-                        await Utils.update('produits', item.id, { stock_actuel: newStock });
-                    }
+            // ✅ Décrémenter le stock uniquement pour les items Produit
+            const produitItems = this.selectedItems.filter(i => i.item_type === 'Produit');
+            for (const item of produitItems) {
+                const produit = this.produits.find(p => p.id === item.id);
+                if (produit) {
+                    const newStock = (produit.stock_actuel || 0) - (item.quantite || 1);
+                    await Utils.update('produits', item.id, { stock_actuel: Math.max(0, newStock) });
                 }
             }
 
@@ -766,7 +917,6 @@ const Ventes = {
             Utils.closeModal(modal);
             App.showNotification('Vente enregistrée avec succès !', 'success');
 
-            // Recharger les données et rafraîchir l'affichage
             await this.loadAllData();
             this.renderTable();
             this.updateStats();
@@ -779,7 +929,7 @@ const Ventes = {
     },
 
     // =========================================================================
-    // 16. AFFICHER LES DÉTAILS D'UNE VENTE
+    // 16. showDetails()  ✅ CORRIGÉ — affiche le type par item pour les ventes mixtes
     // =========================================================================
     showDetails(venteId) {
         const vente = this.data.find(v => v.id === venteId);
@@ -790,26 +940,30 @@ const Ventes = {
             : (vente.items || []);
 
         const itemsHTML = items.length > 0
-            ? items.map(item => `
+            ? items.map(item => {
+                const typePill = item.item_type === 'Service'
+                    ? '<span class="text-xs bg-blue-100 text-blue-700 px-1 rounded ml-1">S</span>'
+                    : item.item_type === 'Produit'
+                        ? '<span class="text-xs bg-green-100 text-green-700 px-1 rounded ml-1">P</span>'
+                        : '';
+                return `
                 <tr class="border-b border-gray-100">
-                    <td class="py-2">${item.item_nom || item.nom || '-'}</td>
+                    <td class="py-2">${item.item_nom || item.nom || '-'}${typePill}</td>
                     <td class="py-2 text-center">${item.quantite || 1}</td>
                     <td class="py-2 text-right">${Utils.formatCurrency(item.prix_unitaire || 0)}</td>
                     <td class="py-2 text-right font-medium">
                         ${Utils.formatCurrency((item.prix_unitaire || 0) * (item.quantite || 1))}
                     </td>
-                    ${vente.type === 'Service'
-                        ? `<td class="py-2 text-right text-orange-500">
-                               ${Utils.formatCurrency(item.commission || 0)}
-                               ${item.coiffeuse_nom ? `<div class="text-xs text-gray-400">${item.coiffeuse_nom}</div>` : ''}
-                           </td>`
-                        : ''}
-                </tr>`).join('')
+                    <td class="py-2 text-right text-orange-500">
+                        ${item.commission ? Utils.formatCurrency(item.commission) : '-'}
+                        ${item.coiffeuse_nom ? `<div class="text-xs text-gray-400">${item.coiffeuse_nom}</div>` : ''}
+                    </td>
+                </tr>`;
+            }).join('')
             : `<tr><td colspan="5" class="py-4 text-center text-gray-400">Aucun détail disponible</td></tr>`;
 
         const content = `
             <div class="space-y-4">
-                <!-- En-tête -->
                 <div class="grid grid-cols-2 gap-4 bg-gray-50 rounded-lg p-4">
                     <div>
                         <p class="text-xs text-gray-500">Date</p>
@@ -830,7 +984,6 @@ const Ventes = {
                     </div>
                 </div>
 
-                <!-- Articles -->
                 <div>
                     <h4 class="font-medium text-gray-700 mb-2">Articles</h4>
                     <table class="w-full text-sm">
@@ -840,14 +993,13 @@ const Ventes = {
                                 <th class="text-center py-2">Qté</th>
                                 <th class="text-right py-2">P.U.</th>
                                 <th class="text-right py-2">Total</th>
-                                ${vente.type === 'Service' ? '<th class="text-right py-2">Commission</th>' : ''}
+                                <th class="text-right py-2">Commission</th>
                             </tr>
                         </thead>
                         <tbody>${itemsHTML}</tbody>
                     </table>
                 </div>
 
-                <!-- Totaux -->
                 <div class="bg-gray-50 rounded-lg p-4 space-y-2">
                     <div class="flex justify-between font-bold text-lg">
                         <span>Total</span>
@@ -874,14 +1026,14 @@ const Ventes = {
         const modal = Utils.createModal(
             `<i class="fas fa-receipt mr-2"></i>Détails de la vente`,
             content,
-            null,   // pas de bouton de sauvegarde
+            null,
             { hideConfirm: true, closeLabel: 'Fermer' }
         );
         document.body.appendChild(modal);
     },
 
     // =========================================================================
-    // 17. IMPRIMER LE REÇU
+    // 17. printReceipt()
     // =========================================================================
     printReceipt(venteId) {
         const vente = this.data.find(v => v.id === venteId);
@@ -891,22 +1043,20 @@ const Ventes = {
             ? (() => { try { return JSON.parse(vente.items); } catch(e) { return []; } })()
             : (vente.items || []);
 
-        // Utilise le module ThermalReceipt si disponible, sinon impression basique
         if (typeof ThermalReceipt !== 'undefined') {
             ThermalReceipt.print({
-                title:          'REÇU DE VENTE',
-                date:           vente.date_vente,
-                client_nom:     vente.client_nom     || 'Anonyme',
-                client_tel:     vente.client_telephone || '',
-                items:          items,
-                total:          vente.montant_total,
-                mode_paiement:  vente.mode_paiement,
-                montant_percu:  vente.montant_percu,
-                monnaie:        vente.monnaie,
-                type:           vente.type,
+                title:         'REÇU DE VENTE',
+                date:          vente.date_vente,
+                client_nom:    vente.client_nom     || 'Anonyme',
+                client_tel:    vente.client_telephone || '',
+                items:         items,
+                total:         vente.montant_total,
+                mode_paiement: vente.mode_paiement,
+                montant_percu: vente.montant_percu,
+                monnaie:       vente.monnaie,
+                type:          vente.type,
             });
         } else {
-            // Impression HTML de secours
             const itemsRows = items.map(item =>
                 `<tr>
                     <td>${item.item_nom || item.nom || '-'}</td>
@@ -925,7 +1075,7 @@ const Ventes = {
                     h2   { text-align: center; }
                     table{ width: 100%; border-collapse: collapse; }
                     td   { padding: 3px 4px; font-size: 12px; }
-                    .total { font-weight: bold; border-top: 1px solid #000; }
+                    .total  { font-weight: bold; border-top: 1px solid #000; }
                     .center { text-align: center; }
                 </style></head><body>
                 <h2>REÇU DE VENTE</h2>
@@ -970,7 +1120,7 @@ const Ventes = {
     },
 
     // =========================================================================
-    // 18. EXPORT DE LA PÉRIODE
+    // 18. exportPeriod()
     // =========================================================================
     exportPeriod() {
         const filteredData = PeriodFilter.filterData(this.data, 'date_vente');
@@ -1007,17 +1157,15 @@ const Ventes = {
             ]);
         });
 
-        // Ligne de totaux
-        const totalMontant  = filteredData.reduce((s, v) => s + (v.montant_total || 0), 0);
-        const totalComm     = filteredData.reduce((s, v) => s + (v.commission    || 0), 0);
+        const totalMontant = filteredData.reduce((s, v) => s + (v.montant_total || 0), 0);
+        const totalComm    = filteredData.reduce((s, v) => s + (v.commission    || 0), 0);
         rows.push(['', '', '', '', 'TOTAL', totalMontant, totalComm, '', '', '']);
 
-        // Construire le CSV
-        const csv     = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
-        const blob    = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-        const url     = URL.createObjectURL(blob);
-        const link    = document.createElement('a');
-        const period  = PeriodFilter.getLabel?.() || 'periode';
+        const csv    = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+        const blob   = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url    = URL.createObjectURL(blob);
+        const link   = document.createElement('a');
+        const period = PeriodFilter.getLabel?.() || 'periode';
 
         link.href     = url;
         link.download = `ventes_${period}_${new Date().toISOString().slice(0, 10)}.csv`;

@@ -33,11 +33,12 @@ const CategoriesManager = {
     getDefaultCategories() {
         return [
             { id: 'cat-1', nom: 'Soins capillaires', actif: true },
-            { id: 'cat-2', nom: 'Coloration', actif: true },
-            { id: 'cat-3', nom: 'Mèches', actif: true },
-            { id: 'cat-4', nom: 'Coiffage', actif: true },
-            { id: 'cat-5', nom: 'Accessoires', actif: true },
-            { id: 'cat-6', nom: 'Produits de beauté', actif: true }
+            { id: 'cat-2', nom: 'Tissage', actif: true },
+            { id: 'cat-3', nom: 'Coupe', actif: true },
+            { id: 'cat-4', nom: 'Ongleries', actif: true },
+            { id: 'cat-5', nom: 'Make Up', actif: true },
+            { id: 'cat-6', nom: 'Produits de beauté', actif: true },
+            { id: 'cat-7', nom: 'Entretien', actif: true }
         ];
     },
     
