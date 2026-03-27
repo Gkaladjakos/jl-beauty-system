@@ -136,8 +136,8 @@ const Ventes = {
             filteredData = filteredData.filter(v => v.type === typeFilter);
         }
         
-        // Sort by date (newest first)
-        filteredData.sort((a, b) => b.date_vente - a.date_vente);
+        // ✅ FIX 1 — Tri par date ISO string (new Date() pour comparaison correcte)
+        filteredData.sort((a, b) => new Date(b.date_vente) - new Date(a.date_vente));
         
         if (filteredData.length === 0) {
             tbody.innerHTML = `
@@ -157,20 +157,27 @@ const Ventes = {
                 ? '<span class="badge bg-blue-100 text-blue-800">Service</span>'
                 : '<span class="badge bg-green-100 text-green-800">Produit</span>';
             
+            // ✅ FIX 2 — Parser items si Supabase le retourne en JSON string
             let details = '';
-            if (vente.items && Array.isArray(vente.items)) {
-                const count = vente.items.length;
-                const firstItem = vente.items[0];
+            const items = typeof vente.items === 'string'
+                ? (() => { try { return JSON.parse(vente.items); } catch(e) { return null; } })()
+                : vente.items;
+
+            if (items && Array.isArray(items) && items.length > 0) {
+                const count = items.length;
+                const firstItem = items[0];
                 details = count > 1 
                     ? `${count} ${vente.type === 'Service' ? 'services' : 'produits'}`
-                    : (firstItem.item_nom || firstItem.service_nom || firstItem.nom);
+                    : (firstItem.item_nom || firstItem.service_nom || firstItem.nom || '-');
             } else {
                 details = vente.item_nom || '-';
             }
             
+            // ✅ FIX 3 — Utiliser vente.monnaie stocké plutôt que recalculer
             const paiementInfo = vente.montant_percu 
                 ? `Perçu: ${Utils.formatCurrency(vente.montant_percu)}<br>Monnaie: ${Utils.formatCurrency(vente.monnaie || 0)}`
                 : vente.mode_paiement;
+
             return `
                 <tr class="hover:bg-gray-50">
                     <td class="px-6 py-4 text-sm">${date}</td>
@@ -335,7 +342,8 @@ const Ventes = {
         const modal = Utils.createModal(
             '<i class="fas fa-cash-register mr-2"></i>Enregistrer une vente',
             modalContent,
-            () => Ventes.saveVente(modal)
+            // ✅ FIX 4 — Référence directe à Ventes.saveVente pour éviter le problème de contexte "this"
+            () => Ventes.saveVente(modal),
         );
         
         document.body.appendChild(modal);
