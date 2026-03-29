@@ -500,152 +500,158 @@ const Ventes = {
     },
 
     // =========================================================================
-    // 11. renderItemsArea()
-    // =========================================================================
-    renderItemsArea() {
-        const area = document.getElementById('items-area');
-        if (!area) return;
+// renderItemsArea() ✅ CORRIGÉ
+// Services  → liste services + coiffeuse associée
+// Produits  → liste produits uniquement (pas de coiffeuse)
+// =========================================================================
+renderItemsArea() {
+    const area = document.getElementById('items-area');
+    if (!area) return;
 
-        if (this.currentType === 'Service') {
-            const servicesOptions = this.services
-                .filter(s => s.actif !== false)
-                .map(s =>
-                    `<option value="${s.id}" data-prix="${s.prix || 0}" data-nom="${s.nom}">
-                        ${s.nom} — ${Utils.formatCurrency(s.prix || 0)}
-                    </option>`
-                ).join('');
+    // ✅ CORRECTION 1 — Construire servicesOptions ET coiffeusesOptions ICI
+    const servicesOptions = (this.services || [])
+        .filter(s => s.actif !== false)
+        .map(s => `
+            <option 
+                value="${s.id}" 
+                data-nom="${s.nom}" 
+                data-prix="${s.prix || 0}">
+                ${s.nom} — ${Utils.formatCurrency(s.prix || 0)}
+            </option>`)
+        .join('');
 
-            const coiffeusesOptions = this.coiffeuses
-                .filter(c => c.statut !== 'Inactif')
-                .map(c =>
-                    `<option value="${c.id}" data-nom="${c.nom}" data-taux="${c.taux_commission || 0}">
-                        ${c.nom} (${c.taux_commission || 0}%)
-                    </option>`
-                ).join('');
+    const coiffeusesOptions = (this.coiffeuses || [])
+        .filter(c => c.statut === 'Actif')
+        .map(c => `
+            <option 
+                value="${c.id}" 
+                data-nom="${c.nom}" 
+                data-taux="${c.taux_commission || 0}">
+                ${c.nom} (${c.taux_commission || 0}%)
+            </option>`)
+        .join('');
 
-            area.innerHTML = `
-                <div class="border-2 border-dashed border-blue-300 bg-blue-50 rounded-lg p-4 space-y-3">
-                    <h4 class="font-medium text-blue-700">
-                        <i class="fas fa-cut mr-2"></i>Ajouter un service
-                    </h4>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Service</label>
-                            <select id="select-service" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
-                                <option value="">Choisir un service...</option>
-                                ${servicesOptions}
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Coiffeuse</label>
-                            <select id="select-coiffeuse" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
-                                <option value="">Choisir une coiffeuse...</option>
-                                ${coiffeusesOptions}
-                            </select>
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Prix unitaire</label>
-                            <input type="number" id="item-prix" step="0.01" min="0"
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
-                                   placeholder="0.00">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Commission (%)</label>
-                            <input type="number" id="item-commission-pct" step="1" min="0" max="100" value="10"
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
-                        </div>
-                    </div>
-                    <button type="button" onclick="Ventes.addServiceItem()"
-                            class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
-                        <i class="fas fa-plus mr-2"></i>Ajouter ce service
-                    </button>
-                </div>`;
+    const produitsOptions = (this.produits || [])
+        .filter(p => p.stock_actuel > 0)
+        .map(p => `
+            <option 
+                value="${p.id}" 
+                data-nom="${p.nom}" 
+                data-prix="${p.prix_vente || 0}">
+                ${p.nom} — ${Utils.formatCurrency(p.prix_vente || 0)} 
+                (stock: ${p.stock_actuel})
+            </option>`)
+        .join('');
 
-            document.getElementById('select-service')?.addEventListener('change', function() {
-                const opt = this.options[this.selectedIndex];
-                const prixInput = document.getElementById('item-prix');
-                if (prixInput) prixInput.value = opt.dataset.prix || 0;
-            });
-
-            document.getElementById('select-coiffeuse')?.addEventListener('change', function() {
-                const opt = this.options[this.selectedIndex];
-                const commInput = document.getElementById('item-commission-pct');
-                if (commInput && opt.dataset.taux) commInput.value = opt.dataset.taux;
-            });
-
-        } else {
-            const produitsOptions = this.produits
-                .filter(p => p.actif !== false && (p.stock_actuel || 0) > 0)
-                .map(p =>
-                    `<option value="${p.id}" data-prix="${p.prix_vente || 0}" data-nom="${p.nom}" data-stock="${p.stock_actuel || 0}">
-                        ${p.nom} — ${Utils.formatCurrency(p.prix_vente || 0)} (stock: ${p.stock_actuel || 0})
-                    </option>`
-                ).join('');
-
-                area.innerHTML = `
-                <div class="border-2 border-dashed border-blue-300 bg-blue-50 rounded-lg p-4 space-y-3">
-                    <h4 class="font-medium text-blue-700">
-                        <i class="fas fa-cut mr-2"></i>Ajouter un service
-                    </h4>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Service</label>
-                            <select id="select-service" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
-                                <option value="">Choisir un service...</option>
-                                ${servicesOptions}
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Coiffeuse</label>
-                            <select id="select-coiffeuse" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
-                                <option value="">Choisir une coiffeuse...</option>
-                                ${coiffeusesOptions}
-                            </select>
-                        </div>
+    // ✅ CORRECTION 2 — Deux zones séparées selon le type
+    if (this.currentType === 'Service') {
+        area.innerHTML = `
+            <div class="border-2 border-dashed border-blue-300 bg-blue-50 rounded-lg p-4 space-y-3">
+                <h4 class="font-medium text-blue-700">
+                    <i class="fas fa-cut mr-2"></i>Ajouter un service
+                </h4>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Service</label>
+                        <select id="select-service" 
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
+                            <option value="">Choisir un service...</option>
+                            ${servicesOptions}
+                        </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Prix unitaire</label>
-                        <input type="number" id="item-prix" step="0.01" min="0"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
-                               placeholder="0.00">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Coiffeuse <span class="text-red-500">*</span>
+                        </label>
+                        <select id="select-coiffeuse" 
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
+                            <option value="">Choisir une coiffeuse...</option>
+                            ${coiffeusesOptions}
+                        </select>
                     </div>
-            
-                    <!-- ✅ Commission affichée automatiquement, non modifiable -->
-                    <div id="commission-preview" class="hidden bg-orange-50 border border-orange-200 rounded-lg px-4 py-3">
-                        <div class="flex justify-between items-center">
-                            <span class="text-sm text-orange-700">
-                                <i class="fas fa-percentage mr-1"></i>
-                                Commission <span id="comm-taux-label" class="font-bold"></span>
-                            </span>
-                            <span id="comm-montant-label" class="font-bold text-orange-700"></span>
-                        </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Prix</label>
+                    <input type="number" id="item-prix" step="0.01" min="0"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                           placeholder="0.00">
+                </div>
+
+                <!-- ✅ Commission auto — lecture seule -->
+                <div id="commission-preview" 
+                     class="hidden bg-orange-50 border border-orange-200 rounded-lg px-4 py-3">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-orange-700">
+                            <i class="fas fa-percentage mr-1"></i>
+                            Commission <span id="comm-taux-label" class="font-bold"></span>
+                        </span>
+                        <span id="comm-montant-label" class="font-bold text-orange-700"></span>
                     </div>
-            
-                    <button type="button" onclick="Ventes.addServiceItem()"
-                            class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
-                        <i class="fas fa-plus mr-2"></i>Ajouter ce service
-                    </button>
-                </div>`;
-            
-            // ✅ Listeners mis à jour — recalculent la commission automatiquement
-            document.getElementById('select-service')?.addEventListener('change', function() {
-                const opt = this.options[this.selectedIndex];
-                const prixInput = document.getElementById('item-prix');
-                if (prixInput) prixInput.value = opt.dataset.prix || 0;
-                Ventes.updateCommissionPreview();
-            });
-            
-            document.getElementById('select-coiffeuse')?.addEventListener('change', function() {
-                Ventes.updateCommissionPreview();
-            });
-            
-            document.getElementById('item-prix')?.addEventListener('input', function() {
-                Ventes.updateCommissionPreview();
-            });
-        }
-    },
+                </div>
+
+                <button type="button" onclick="Ventes.addServiceItem()"
+                        class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
+                    <i class="fas fa-plus mr-2"></i>Ajouter ce service
+                </button>
+            </div>`;
+
+        // ✅ Listeners service
+        document.getElementById('select-service')?.addEventListener('change', function() {
+            const opt = this.options[this.selectedIndex];
+            const prixInput = document.getElementById('item-prix');
+            if (prixInput) prixInput.value = opt.dataset.prix || 0;
+            Ventes.updateCommissionPreview();
+        });
+        document.getElementById('select-coiffeuse')?.addEventListener('change', function() {
+            Ventes.updateCommissionPreview();
+        });
+        document.getElementById('item-prix')?.addEventListener('input', function() {
+            Ventes.updateCommissionPreview();
+        });
+
+    } else if (this.currentType === 'Produit') {
+        // ✅ CORRECTION 3 — Produit : pas de coiffeuse
+        area.innerHTML = `
+            <div class="border-2 border-dashed border-green-300 bg-green-50 rounded-lg p-4 space-y-3">
+                <h4 class="font-medium text-green-700">
+                    <i class="fas fa-box mr-2"></i>Ajouter un produit
+                </h4>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Produit</label>
+                        <select id="select-produit" 
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
+                            <option value="">Choisir un produit...</option>
+                            ${produitsOptions}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Quantité</label>
+                        <input type="number" id="item-quantite" min="1" value="1"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Prix unitaire</label>
+                    <input type="number" id="item-prix" step="0.01" min="0"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                           placeholder="0.00">
+                </div>
+
+                <button type="button" onclick="Ventes.addProduitItem()"
+                        class="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm">
+                    <i class="fas fa-plus mr-2"></i>Ajouter ce produit
+                </button>
+            </div>`;
+
+        // ✅ Listener produit — remplir prix auto
+        document.getElementById('select-produit')?.addEventListener('change', function() {
+            const opt = this.options[this.selectedIndex];
+            const prixInput = document.getElementById('item-prix');
+            if (prixInput) prixInput.value = opt.dataset.prix || 0;
+        });
+    }
+},
 
     // =========================================================================
 // addServiceItem() ✅ CORRIGÉ — commission tirée automatiquement de la coiffeuse
@@ -696,48 +702,49 @@ const Ventes = {
     },
 
     // =========================================================================
-    // 11c. addProduitItem()  ✅ NOUVEAU — item_type: 'Produit' explicite, vérifie stock
-    // =========================================================================
-    addServiceItem() {
-        const selectService   = document.getElementById('select-service');
-        const selectCoiffeuse = document.getElementById('select-coiffeuse');
-        const prixInput       = document.getElementById('item-prix');
-    
-        if (!selectService?.value) {
-            App.showNotification('Veuillez choisir un service', 'error');
-            return;
-        }
-    
-        const serviceOpt = selectService.options[selectService.selectedIndex];
-        const coiffOpt   = selectCoiffeuse?.options[selectCoiffeuse.selectedIndex];
-    
-        const prix       = parseFloat(prixInput?.value) || 0;
-    
-        // ✅ Taux tiré directement du data-taux de la coiffeuse sélectionnée
-        const tauxComm   = parseFloat(coiffOpt?.dataset.taux) || 0;
-        const commission = Math.round((prix * tauxComm / 100) * 100) / 100;
-    
-        this.selectedItems.push({
-            id:              selectService.value,
-            nom:             serviceOpt.dataset.nom || serviceOpt.text,
-            item_nom:        serviceOpt.dataset.nom || serviceOpt.text,
-            item_type:       'Service',
-            prix_unitaire:   prix,
-            quantite:        1,
-            coiffeuse_id:    selectCoiffeuse?.value  || null,
-            coiffeuse_nom:   coiffOpt?.dataset.nom   || null,
-            taux_commission: tauxComm,
-            commission:      commission,
-        });
-    
-        this.renderSelectedItems();
-    
-        // Reset
-        selectService.value = '';
-        if (selectCoiffeuse) selectCoiffeuse.value = '';
-        if (prixInput)       prixInput.value       = '';
-        document.getElementById('commission-preview')?.classList.add('hidden');
-    },
+// addProduitItem() ✅ NOUVEAU — sans coiffeuse
+// =========================================================================
+addProduitItem() {
+    const selectProduit = document.getElementById('select-produit');
+    const prixInput     = document.getElementById('item-prix');
+    const qteInput      = document.getElementById('item-quantite');
+
+    if (!selectProduit?.value) {
+        App.showNotification('Veuillez choisir un produit', 'error');
+        return;
+    }
+
+    const produitOpt = selectProduit.options[selectProduit.selectedIndex];
+    const prix       = parseFloat(prixInput?.value)  || 0;
+    const quantite   = parseInt(qteInput?.value)     || 1;
+
+    // ✅ Vérifier stock disponible
+    const produit = this.produits.find(p => p.id === selectProduit.value);
+    if (produit && quantite > produit.stock_actuel) {
+        App.showNotification(`Stock insuffisant (disponible: ${produit.stock_actuel})`, 'error');
+        return;
+    }
+
+    this.selectedItems.push({
+        id:            selectProduit.value,
+        nom:           produitOpt.dataset.nom || produitOpt.text,
+        item_nom:      produitOpt.dataset.nom || produitOpt.text,
+        item_type:     'Produit',      // ✅ Pas de coiffeuse
+        prix_unitaire: prix,
+        quantite:      quantite,
+        coiffeuse_id:  null,           // ✅ Toujours null pour un produit
+        coiffeuse_nom: null,
+        taux_commission: 0,
+        commission:    0               // ✅ Pas de commission sur produit
+    });
+
+    this.renderSelectedItems();
+
+    // Reset
+    selectProduit.value    = '';
+    if (prixInput)  prixInput.value  = '';
+    if (qteInput)   qteInput.value   = 1;
+},
 
     // =========================================================================
     // 13. renderSelectedItems()  ✅ CORRIGÉ — badge type par item + commission mixte
@@ -884,17 +891,17 @@ const Ventes = {
                           :                              'Produit';
 
         const payload = {
-            type:             venteType,
-            client_telephone: telephone,
-            client_nom:       nomClient || null,
-            montant_total:    this.currentTotal,
-            commission:       Math.round(totalComm * 100) / 100,
-            mode_paiement:    modePaie,
-            montant_percu:    percu,
-            monnaie:          monnaie,
-            items:            JSON.stringify(this.selectedItems),
-            rdv_id:           rdvId,
-            date_vente:       new Date().toISOString(),
+            type:venteType,
+            client_telephone:telephone,
+            client_nom:nomClient || null,
+            montant_total:this.currentTotal,
+            commission:Math.round(totalComm * 100) / 100,
+            mode_paiement:modePaie,
+            montant_percu:percu,
+            monnaie:monnaie,
+            items:JSON.stringify(this.selectedItems),
+            date_vente:new Date().toISOString(),
+            // ✅ rdv_id supprimé — colonne inexistante en DB
         };
 
         // ✅ Champs raccourcis uniquement si 1 seul item
