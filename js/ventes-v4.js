@@ -823,6 +823,12 @@ addProduitItem() {
         this.calculateChange();
     },
 
+    // ✅ Ajouter dans l'objet Ventes
+    removeItem(index) {
+        this.selectedItems.splice(index, 1);
+        this.renderSelectedItems();
+        this.updateTotals();
+    },
     // =========================================================================
     // 14. calculateChange()
     // =========================================================================
@@ -925,9 +931,9 @@ addProduitItem() {
         try {
             App.showLoading?.();
             const result = await Utils.create('ventes', payload);
-
+        
             if (result.error) throw new Error(result.error.message);
-
+        
             // ✅ Décrémenter le stock uniquement pour les items Produit
             const produitItems = this.selectedItems.filter(i => i.item_type === 'Produit');
             for (const item of produitItems) {
@@ -937,20 +943,36 @@ addProduitItem() {
                     await Utils.update('produits', item.id, { stock_actuel: Math.max(0, newStock) });
                 }
             }
-
+        
             // Marquer le RDV comme terminé si lié
             if (rdvId) {
                 await Utils.update('rendez_vous', rdvId, { statut: 'Terminé' });
             }
-
+        
             App.hideLoading?.();
-            Utils.closeModal(modal);
+        
+            // ✅ CORRECTION — Fermeture modal via DOM (Utils.closeModal inexistant)
+            const modalEl = typeof modal === 'string'
+                ? document.getElementById(modal)
+                : modal;
+            if (modalEl) {
+                modalEl.classList.add('hidden');
+                modalEl.classList.remove('flex');
+            }
+        
             App.showNotification('Vente enregistrée avec succès !', 'success');
-
+        
+            // ✅ Reset du formulaire
+            this.selectedItems = [];
+            this.currentTotal  = 0;
+            this.currentType   = null;
+            document.getElementById('vente-form')?.reset();
+            this.renderSelectedItems();
+        
             await this.loadAllData();
             this.renderTable();
             this.updateStats();
-
+        
         } catch (error) {
             App.hideLoading?.();
             console.error('[Ventes] saveVente error:', error);
