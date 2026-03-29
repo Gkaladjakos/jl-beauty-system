@@ -584,23 +584,25 @@ const Ventes = {
                     </option>`
                 ).join('');
 
-            area.innerHTML = `
-                <div class="border-2 border-dashed border-green-300 bg-green-50 rounded-lg p-4 space-y-3">
-                    <h4 class="font-medium text-green-700">
-                        <i class="fas fa-shopping-bag mr-2"></i>Ajouter un produit
+                area.innerHTML = `
+                <div class="border-2 border-dashed border-blue-300 bg-blue-50 rounded-lg p-4 space-y-3">
+                    <h4 class="font-medium text-blue-700">
+                        <i class="fas fa-cut mr-2"></i>Ajouter un service
                     </h4>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Produit</label>
-                            <select id="select-produit" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
-                                <option value="">Choisir un produit...</option>
-                                ${produitsOptions}
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Service</label>
+                            <select id="select-service" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
+                                <option value="">Choisir un service...</option>
+                                ${servicesOptions}
                             </select>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Quantité</label>
-                            <input type="number" id="item-quantite" min="1" value="1"
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Coiffeuse</label>
+                            <select id="select-coiffeuse" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
+                                <option value="">Choisir une coiffeuse...</option>
+                                ${coiffeusesOptions}
+                            </select>
                         </div>
                     </div>
                     <div>
@@ -609,111 +611,132 @@ const Ventes = {
                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
                                placeholder="0.00">
                     </div>
-                    <button type="button" onclick="Ventes.addProduitItem()"
-                            class="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm">
-                        <i class="fas fa-plus mr-2"></i>Ajouter ce produit
+            
+                    <!-- ✅ Commission affichée automatiquement, non modifiable -->
+                    <div id="commission-preview" class="hidden bg-orange-50 border border-orange-200 rounded-lg px-4 py-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-orange-700">
+                                <i class="fas fa-percentage mr-1"></i>
+                                Commission <span id="comm-taux-label" class="font-bold"></span>
+                            </span>
+                            <span id="comm-montant-label" class="font-bold text-orange-700"></span>
+                        </div>
+                    </div>
+            
+                    <button type="button" onclick="Ventes.addServiceItem()"
+                            class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
+                        <i class="fas fa-plus mr-2"></i>Ajouter ce service
                     </button>
                 </div>`;
-
-            document.getElementById('select-produit')?.addEventListener('change', function() {
+            
+            // ✅ Listeners mis à jour — recalculent la commission automatiquement
+            document.getElementById('select-service')?.addEventListener('change', function() {
                 const opt = this.options[this.selectedIndex];
                 const prixInput = document.getElementById('item-prix');
                 if (prixInput) prixInput.value = opt.dataset.prix || 0;
+                Ventes.updateCommissionPreview();
+            });
+            
+            document.getElementById('select-coiffeuse')?.addEventListener('change', function() {
+                Ventes.updateCommissionPreview();
+            });
+            
+            document.getElementById('item-prix')?.addEventListener('input', function() {
+                Ventes.updateCommissionPreview();
             });
         }
     },
 
     // =========================================================================
-    // 11b. addServiceItem()  ✅ NOUVEAU — item_type: 'Service' explicite
-    // =========================================================================
+// addServiceItem() ✅ CORRIGÉ — commission tirée automatiquement de la coiffeuse
+// =========================================================================
     addServiceItem() {
         const selectService   = document.getElementById('select-service');
         const selectCoiffeuse = document.getElementById('select-coiffeuse');
         const prixInput       = document.getElementById('item-prix');
-        const commPctInput    = document.getElementById('item-commission-pct');
+
+        // ✅ Plus de commPctInput — on supprime cette ligne
+        // const commPctInput = document.getElementById('item-commission-pct'); ❌ SUPPRIMÉ
 
         if (!selectService?.value) {
             App.showNotification('Veuillez choisir un service', 'error');
             return;
         }
 
-        const serviceOpt  = selectService.options[selectService.selectedIndex];
-        const coiffOpt    = selectCoiffeuse?.options[selectCoiffeuse.selectedIndex];
-        const prix        = parseFloat(prixInput?.value) || 0;
-        const commPct     = parseFloat(commPctInput?.value) || 0;
-        const commission  = Math.round((prix * commPct / 100) * 100) / 100;
+        const serviceOpt = selectService.options[selectService.selectedIndex];
+        const coiffOpt   = selectCoiffeuse?.options[selectCoiffeuse?.selectedIndex];
+
+        const prix = parseFloat(prixInput?.value) || 0;
+
+        // ✅ Taux tiré du data-taux de la coiffeuse (défini dans coiffeusesOptions)
+        const tauxComm   = parseFloat(coiffOpt?.dataset?.taux) || 0;
+        const commission = Math.round((prix * tauxComm / 100) * 100) / 100;
 
         this.selectedItems.push({
             id:              selectService.value,
             nom:             serviceOpt.dataset.nom || serviceOpt.text,
             item_nom:        serviceOpt.dataset.nom || serviceOpt.text,
-            item_type:       'Service',              // ✅ typage explicite
+            item_type:       'Service',
             prix_unitaire:   prix,
             quantite:        1,
-            coiffeuse_id:    selectCoiffeuse?.value  || null,
-            coiffeuse_nom:   coiffOpt?.dataset.nom   || null,
-            taux_commission: commPct,
-            commission:      commission,
+            coiffeuse_id:    selectCoiffeuse?.value       || null,
+            coiffeuse_nom:   coiffOpt?.dataset?.nom       || null,
+            taux_commission: tauxComm,
+            commission:      commission
         });
 
         this.renderSelectedItems();
 
-        // Remettre le formulaire à zéro
+        // ✅ Reset des champs après ajout
         selectService.value = '';
         if (selectCoiffeuse) selectCoiffeuse.value = '';
         if (prixInput)       prixInput.value       = '';
-        if (commPctInput)    commPctInput.value     = '10';
+        document.getElementById('commission-preview')?.classList.add('hidden');
+
     },
 
     // =========================================================================
     // 11c. addProduitItem()  ✅ NOUVEAU — item_type: 'Produit' explicite, vérifie stock
     // =========================================================================
-    addProduitItem() {
-        const selectProduit = document.getElementById('select-produit');
-        const quantiteInput = document.getElementById('item-quantite');
-        const prixInput     = document.getElementById('item-prix');
-
-        if (!selectProduit?.value) {
-            App.showNotification('Veuillez choisir un produit', 'error');
+    addServiceItem() {
+        const selectService   = document.getElementById('select-service');
+        const selectCoiffeuse = document.getElementById('select-coiffeuse');
+        const prixInput       = document.getElementById('item-prix');
+    
+        if (!selectService?.value) {
+            App.showNotification('Veuillez choisir un service', 'error');
             return;
         }
-
-        const produitOpt = selectProduit.options[selectProduit.selectedIndex];
-        const quantite   = parseInt(quantiteInput?.value) || 1;
-        const stock      = parseInt(produitOpt.dataset.stock) || 0;
+    
+        const serviceOpt = selectService.options[selectService.selectedIndex];
+        const coiffOpt   = selectCoiffeuse?.options[selectCoiffeuse.selectedIndex];
+    
         const prix       = parseFloat(prixInput?.value) || 0;
-
-        if (quantite > stock) {
-            App.showNotification(`Stock insuffisant (disponible : ${stock})`, 'error');
-            return;
-        }
-
+    
+        // ✅ Taux tiré directement du data-taux de la coiffeuse sélectionnée
+        const tauxComm   = parseFloat(coiffOpt?.dataset.taux) || 0;
+        const commission = Math.round((prix * tauxComm / 100) * 100) / 100;
+    
         this.selectedItems.push({
-            id:            selectProduit.value,
-            nom:           produitOpt.dataset.nom || produitOpt.text,
-            item_nom:      produitOpt.dataset.nom || produitOpt.text,
-            item_type:     'Produit',              // ✅ typage explicite
-            prix_unitaire: prix,
-            quantite:      quantite,
-            coiffeuse_id:  null,
-            coiffeuse_nom: null,
-            commission:    0,
+            id:              selectService.value,
+            nom:             serviceOpt.dataset.nom || serviceOpt.text,
+            item_nom:        serviceOpt.dataset.nom || serviceOpt.text,
+            item_type:       'Service',
+            prix_unitaire:   prix,
+            quantite:        1,
+            coiffeuse_id:    selectCoiffeuse?.value  || null,
+            coiffeuse_nom:   coiffOpt?.dataset.nom   || null,
+            taux_commission: tauxComm,
+            commission:      commission,
         });
-
+    
         this.renderSelectedItems();
-
-        // Remettre le formulaire à zéro
-        selectProduit.value = '';
-        if (quantiteInput) quantiteInput.value = '1';
-        if (prixInput)     prixInput.value     = '';
-    },
-
-     // =========================================================================
-    // 12. removeItem()
-    // =========================================================================
-    removeItem(index) {
-        this.selectedItems.splice(index, 1);
-        this.renderSelectedItems();
+    
+        // Reset
+        selectService.value = '';
+        if (selectCoiffeuse) selectCoiffeuse.value = '';
+        if (prixInput)       prixInput.value       = '';
+        document.getElementById('commission-preview')?.classList.add('hidden');
     },
 
     // =========================================================================
@@ -894,7 +917,7 @@ const Ventes = {
 
         try {
             App.showLoading?.();
-            const result = await Utils.post('ventes', payload);
+            const result = await Utils.create('ventes', payload);
 
             if (result.error) throw new Error(result.error.message);
 
@@ -1175,4 +1198,35 @@ const Ventes = {
         App.showNotification(`Export réussi — ${filteredData.length} ventes`, 'success');
     },
 
-};
+// =========================================================================
+// updateCommissionPreview() ✅ NOUVEAU — calcule et affiche la commission auto
+// =========================================================================
+// 19. updateCommissionPreview() ✅ DÉPLACÉ ICI — à l'intérieur de l'objet
+    // =========================================================================
+    updateCommissionPreview() {
+        const selectCoiffeuse = document.getElementById('select-coiffeuse');
+        const prixInput       = document.getElementById('item-prix');
+        const preview         = document.getElementById('commission-preview');
+        const tauxLabel       = document.getElementById('comm-taux-label');
+        const montantLabel    = document.getElementById('comm-montant-label');
+
+        if (!selectCoiffeuse?.value || !prixInput?.value || !preview) {
+            preview?.classList.add('hidden');
+            return;
+        }
+
+        const coiffOpt   = selectCoiffeuse.options[selectCoiffeuse.selectedIndex];
+        const taux       = parseFloat(coiffOpt.dataset.taux) || 0;
+        const prix       = parseFloat(prixInput.value)       || 0;
+        const commission = Math.round((prix * taux / 100) * 100) / 100;
+
+        if (taux > 0 && prix > 0) {
+            preview.classList.remove('hidden');
+            if (tauxLabel)    tauxLabel.textContent    = `(${taux}%)`;
+            if (montantLabel) montantLabel.textContent = Utils.formatCurrency(commission);
+        } else {
+            preview.classList.add('hidden');
+        }
+    }
+
+    };
