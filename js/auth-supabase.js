@@ -7,9 +7,8 @@ const AuthSupabase = {
     supabase: null,
     currentUser: null,
 
-    // Initialize Supabase client
     init() {
-        if (this.supabase) return true; // ✅ Déjà initialisé, évite les appels répétés
+        if (this.supabase) return true;
 
         if (typeof window.supabase === 'undefined' || !window.supabase) {
             console.error('❌ Supabase client not found');
@@ -20,7 +19,6 @@ const AuthSupabase = {
         return true;
     },
 
-    // Login with email and password
     async login(email, password) {
         console.log('🔐 LOGIN ATTEMPT:', email);
 
@@ -29,7 +27,6 @@ const AuthSupabase = {
         }
 
         try {
-            // 1. Authenticate with Supabase Auth
             const { data, error } = await this.supabase.auth.signInWithPassword({
                 email: email,
                 password: password
@@ -47,7 +44,6 @@ const AuthSupabase = {
 
             console.log('✅ Supabase auth successful');
 
-            // 2. Try to get user profile from users table
             let userProfile = null;
             try {
                 const { data: profile, error: profileError } = await this.supabase
@@ -66,19 +62,28 @@ const AuthSupabase = {
                 console.warn('⚠️ Profile fetch failed, using defaults:', err.message);
             }
 
-            // 3. Build user data object
             const userData = {
                 id: data.user.id,
                 email: data.user.email,
                 nom: userProfile?.nom || data.user.email.split('@')[0],
                 role: userProfile?.role || 'gerant',
-                permissions: userProfile?.role === 'gerant' ? ['all'] : ['dashboard', 'clients', 'rendez-vous', 'ventes']
+                permissions: userProfile?.role === 'gerant'
+                    ? ['all']
+                    : ['dashboard', 'clients', 'rendez-vous', 'ventes']
             };
 
-            // 4. Save to localStorage
             this.currentUser = userData;
             localStorage.setItem('jlbeauty_user', JSON.stringify(userData));
             localStorage.setItem('jlbeauty_auth_type', 'supabase');
+
+            // ✅ Si des ops étaient en attente → lancer la sync au login
+            if (window.OfflineManager && navigator.onLine) {
+                const pending = await OfflineManager.getPendingCount();
+                if (pending > 0) {
+                    console.log(`🔄 ${pending} op(s) en attente → sync au login`);
+                    await OfflineManager.syncPendingOps();
+                }
+            }
 
             console.log('✅ LOGIN SUCCESS:', userData.email);
             return { success: true, user: userData };
@@ -92,14 +97,12 @@ const AuthSupabase = {
         }
     },
 
-    // ✅ checkAuth() — UNE SEULE DÉFINITION (version fusionnée et complète)
     async checkAuth() {
         console.log('🔍 checkAuth() called');
 
         try {
-            // PRIORITÉ 1 : localStorage TOUJOURS en premier
             const storedUser = localStorage.getItem('jlbeauty_user');
-            const authType = localStorage.getItem('jlbeauty_auth_type');
+            const authType   = localStorage.getItem('jlbeauty_auth_type');
 
             console.log('📦 localStorage check:', {
                 hasUser: !!storedUser,
@@ -112,16 +115,14 @@ const AuthSupabase = {
                     this.currentUser = userData;
                     console.log('✅ User loaded from localStorage:', userData.email);
                     console.log('📊 Role:', userData.role);
-                    return userData; // ✅ RETOUR IMMÉDIAT
+                    return userData;
                 } catch (e) {
                     console.error('❌ Error parsing stored user:', e);
-                    // Continue to Supabase check
                 }
             }
 
             console.log('⚠️ No valid localStorage, checking Supabase session...');
 
-            // PRIORITÉ 2 : Vérifier la session Supabase
             if (!this.init()) {
                 console.error('❌ Supabase not initialized');
                 return null;
@@ -144,7 +145,6 @@ const AuthSupabase = {
                 permissions: ['all']
             };
 
-            // Save to localStorage for next time
             this.currentUser = userData;
             localStorage.setItem('jlbeauty_user', JSON.stringify(userData));
             localStorage.setItem('jlbeauty_auth_type', 'supabase');
@@ -158,7 +158,6 @@ const AuthSupabase = {
         }
     },
 
-    // Get current user
     getCurrentUser() {
         if (this.currentUser) return this.currentUser;
 
@@ -174,44 +173,58 @@ const AuthSupabase = {
         }
     },
 
-    // Check if logged in
     isLoggedIn() {
         return this.getCurrentUser() !== null;
     },
 
-    // Check if user has permission
     hasPermission(module) {
         const user = this.getCurrentUser();
         if (!user) return false;
-
         if (user.permissions && user.permissions.includes('all')) return true;
         return user.permissions && user.permissions.includes(module);
     },
 
-    // Get user role
     getRole() {
         const user = this.getCurrentUser();
         return user ? user.role : null;
     },
 
-    // Logout
+    // ✅ MODIFICATION ICI — avertissement si ops en attente avant logout
     async logout() {
         try {
+            // ✅ Vérifier les ops en attente avant de déconnecter
+            if (window.OfflineManager) {
+                const pending = await OfflineManager.getPendingCount();
+                if (pending > 0) {
+                    const confirmed = window.confirm(
+                        `⚠️ Attention : ${pending} opération(s) n'ont pas encore été synchronisées.\n\n` +
+                        `Si vous vous déconnectez maintenant, elles seront perdues.\n\n` +
+                        `Voulez-vous quand même vous déconnecter ?`
+                    );
+                    if (!confirmed) {
+                        console.log('🚫 Logout annulé — ops en attente non synchronisées');
+                        return; // ✅ Annuler le logout
+                    }
+                }
+            }
+
             if (this.init()) {
                 await this.supabase.auth.signOut();
             }
+
         } catch (e) {
             console.warn('⚠️ Supabase signOut error:', e.message);
+
         } finally {
             this.currentUser = null;
             localStorage.removeItem('jlbeauty_user');
             localStorage.removeItem('jlbeauty_auth_type');
             console.log('✅ Logged out successfully');
+            window.location.href = 'login.html';
         }
     }
 };
 
-// Export global
 if (typeof window !== 'undefined') {
     window.AuthSupabase = AuthSupabase;
     console.log('✅ AuthSupabase loaded and ready');

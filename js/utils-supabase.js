@@ -120,86 +120,134 @@ const Utils = {
     async create(table, data) {
         try {
             if (!window.supabase) throw new Error('Supabase client not initialized');
-
-            // ✅ FIX PRINCIPAL : Supprime l'id avant insertion
-            // Supabase génère les UUIDs automatiquement côté serveur
-            const { id, ...cleanData } = data;
-
-            if (id) {
-                console.warn(`⚠️ [${table}] Champ "id" retiré automatiquement avant insertion Supabase.`);
+    
+            // ✅ Mode offline → stocker en local
+            if (!navigator.onLine && window.OfflineManager) {
+                await OfflineManager.addPendingOp('create', table, data);
+                console.warn(`📴 [${table}] Sauvegardé offline`);
+                return { ...data, id: 'offline_' + Date.now(), _offline: true };
             }
-
+    
+            const { id, ...cleanData } = data;
+            if (id) console.warn(`⚠️ [${table}] Champ "id" retiré automatiquement.`);
+    
             const { data: result, error } = await window.supabase
                 .from(table)
-                .insert([cleanData])   // ✅ cleanData sans id
+                .insert([cleanData])
                 .select()
                 .single();
-
+    
             if (error) {
                 console.error(`❌ Error creating ${table}:`, error.message);
-                console.error('📦 Data envoyée (sans id):', cleanData);
+                console.error('📦 Data envoyée:', cleanData);
                 throw error;
             }
-
+    
             console.log(`✅ [${table}] Enregistrement créé avec succès:`, result);
             return result;
-
+    
         } catch (error) {
+            // ✅ Erreur réseau → basculer offline automatiquement
+            if (
+                error.message?.includes('fetch') ||
+                error.message?.includes('network') ||
+                error.message?.includes('Failed to fetch')
+            ) {
+                console.warn(`⚠️ [${table}] Erreur réseau → mode offline`);
+                if (window.OfflineManager) {
+                    await OfflineManager.addPendingOp('create', table, data);
+                    OfflineManager.showBanner('offline');
+                    return { ...data, id: 'offline_' + Date.now(), _offline: true };
+                }
+            }
             console.error(`Error creating ${table}:`, error.message);
             throw error;
         }
     },
-
+    
     async update(table, id, data) {
         try {
             if (!window.supabase) throw new Error('Supabase client not initialized');
-
-            // ✅ Retire aussi l'id du payload de mise à jour
+    
+            // ✅ Mode offline → stocker en local
+            if (!navigator.onLine && window.OfflineManager) {
+                await OfflineManager.addPendingOp('update', table, { ...data, id });
+                console.warn(`📴 [${table}] Update sauvegardé offline`);
+                return { ...data, id, _offline: true };
+            }
+    
             const { id: _id, ...cleanData } = data;
-
+    
             const { data: result, error } = await window.supabase
                 .from(table)
                 .update(cleanData)
                 .eq('id', id)
                 .select()
                 .single();
-
+    
             if (error) {
                 console.error(`❌ Error updating ${table}:`, error.message);
                 throw error;
             }
-
+    
             console.log(`✅ [${table}] Enregistrement mis à jour:`, result);
             return result;
-
+    
         } catch (error) {
+            // ✅ Erreur réseau → basculer offline automatiquement
+            if (
+                error.message?.includes('fetch') ||
+                error.message?.includes('network') ||
+                error.message?.includes('Failed to fetch')
+            ) {
+                console.warn(`⚠️ [${table}] Erreur réseau → mode offline`);
+                if (window.OfflineManager) {
+                    await OfflineManager.addPendingOp('update', table, { ...data, id });
+                    OfflineManager.showBanner('offline');
+                    return { ...data, id, _offline: true };
+                }
+            }
             console.error(`Error updating ${table}:`, error);
             throw error;
         }
     },
-
+    
     async delete(table, id) {
         try {
             if (!window.supabase) throw new Error('Supabase client not initialized');
-
+    
+            // ✅ Mode offline → stocker en local
+            if (!navigator.onLine && window.OfflineManager) {
+                await OfflineManager.addPendingOp('delete', table, { id });
+                console.warn(`📴 [${table}] Delete sauvegardé offline`);
+                return { _offline: true };
+            }
+    
             const { error } = await window.supabase
                 .from(table)
                 .delete()
                 .eq('id', id);
-
+    
             if (error) throw error;
             return true;
-
+    
         } catch (error) {
+            // ✅ Erreur réseau → basculer offline automatiquement
+            if (
+                error.message?.includes('fetch') ||
+                error.message?.includes('network') ||
+                error.message?.includes('Failed to fetch')
+            ) {
+                console.warn(`⚠️ [${table}] Erreur réseau → mode offline`);
+                if (window.OfflineManager) {
+                    await OfflineManager.addPendingOp('delete', table, { id });
+                    OfflineManager.showBanner('offline');
+                    return { _offline: true };
+                }
+            }
             console.error(`Error deleting ${table}:`, error);
             throw error;
         }
-    },
-
-    // ⚠️ NE PAS UTILISER avec Supabase — IDs générés automatiquement
-    generateId() {
-        console.warn('⚠️ generateId() should not be used with Supabase. IDs are auto-generated.');
-        return 'id-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
     },
 
     // ─── UI Helpers ─────────────────────────────────────────────────────────────

@@ -5,15 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JL Beauty System - PRODUCTION</title>
     
-    <!-- CDN -->
+    <!-- ✅ Supabase EN PREMIER — obligatoire avant tous les scripts locaux -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- CDN CSS & JS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/jl-beauty-theme.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <!-- SUPABASE CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <style>
         body { font-family: 'Inter', sans-serif; }
@@ -34,6 +34,7 @@
     </style>
 </head>
 <body class="bg-gray-100">
+
     <!-- Sidebar -->
     <div class="flex h-screen overflow-hidden">
         <aside class="sidebar w-64 text-white flex-shrink-0">
@@ -98,13 +99,16 @@
                     </div>
                     <div class="flex items-center space-x-4">
                         <div class="flex items-center space-x-3 border-l border-gray-300 pl-4">
-                            <img id="user-avatar" src="https://ui-avatars.com/api/?name=Admin&background=9333ea&color=fff" 
+                            <img id="user-avatar" 
+                                 src="https://ui-avatars.com/api/?name=Admin&background=9333ea&color=fff" 
                                  class="w-10 h-10 rounded-full" alt="User">
                             <div id="user-info">
                                 <p class="text-sm font-medium text-gray-800">Administrateur</p>
                                 <p class="text-xs text-gray-600">Mode Production</p>
                             </div>
-                            <button onclick="AuthSupabase.logout()" class="ml-3 px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600" title="Se déconnecter">
+                            <button onclick="AuthSupabase.logout()" 
+                                    class="ml-3 px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600" 
+                                    title="Se déconnecter">
                                 <i class="fas fa-sign-out-alt"></i>
                             </button>
                         </div>
@@ -121,19 +125,30 @@
 
     <!-- Loading Spinner -->
     <div id="loading" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white rounded-lg p-8">
+        <div class="bg-white rounded-lg p-8 text-center">
             <i class="fas fa-spinner fa-spin text-4xl text-purple-600"></i>
             <p class="mt-4 text-gray-700">Chargement...</p>
         </div>
     </div>
 
-    <!-- SCRIPTS -->
+    <!-- ============================================ -->
+    <!-- SCRIPTS — ordre strict obligatoire           -->
+    <!-- ============================================ -->
+
+    <!-- Étape 1 : Config & Auth -->
     <script src="js/supabase-config.js"></script>
     <script src="js/auth-supabase.js"></script>
     <script src="js/permissions.js"></script>
     <script src="js/currency-config.js"></script>
+
+    <!-- Étape 2 : ✅ OfflineManager AVANT utils -->
+    <script src="js/offline-manager.js"></script>
     <script src="js/utils-supabase.js"></script>
+
+    <!-- Étape 3 : App principal -->
     <script src="js/app.js"></script>
+
+    <!-- Étape 4 : Modules métier -->
     <script src="js/dashboard.js"></script>
     <script src="js/clients.js"></script>
     <script src="js/coiffeuses.js"></script>
@@ -151,88 +166,108 @@
     <script src="js/ventes-v4-methods.js"></script>
     <script src="js/ventes-v4-save.js"></script>
     <script src="js/commissions-v3.js"></script>
-    
+
+    <!-- Étape 5 : Init dashboard — EN DERNIER -->
     <script>
-        // ============================================
-        // AUTHENTIFICATION - PRODUCTION FINALE
-        // ============================================
         console.log('='.repeat(60));
         console.log('🚀 JL BEAUTY SYSTEM - DASHBOARD LOADING');
         console.log('='.repeat(60));
-        
-        // Fonction principale d'authentification
+
         async function initDashboard() {
             try {
-                console.log('🔐 Step 1: Checking authentication...');
-                
-                // Vérifier l'authentification
+                // ✅ ÉTAPE 1 — OfflineManager en tout premier
+                if (window.OfflineManager) {
+                    await OfflineManager.init();
+                    OfflineManager.startListening();
+                    console.log('✅ OfflineManager initialisé');
+
+                    const pending = await OfflineManager.getPendingCount();
+                    if (pending > 0) {
+                        console.warn(`📴 ${pending} opération(s) en attente de sync`);
+                        // ⚠️ App.showNotification appelé plus bas, après init App
+                    }
+                }
+
+                // ✅ ÉTAPE 2 — Authentification
+                console.log('🔐 Checking authentication...');
                 const user = await AuthSupabase.checkAuth();
-                
                 console.log('📊 Auth result:', user ? '✅ USER FOUND' : '❌ NO USER');
-                
+
                 if (!user) {
                     console.log('🚪 Redirecting to login...');
                     window.location.href = 'login.html';
                     return;
                 }
-                
+
                 console.log('✅ User authenticated:', user.email);
                 console.log('📋 User role:', user.role);
-                console.log('🔑 User permissions:', user.permissions);
-                
-                // Mettre à jour l'interface utilisateur
-                const userInfo = document.getElementById('user-info');
+
+                // ✅ ÉTAPE 3 — Mise à jour interface utilisateur
+                const userInfo   = document.getElementById('user-info');
                 const userAvatar = document.getElementById('user-avatar');
-                
+
                 if (userInfo) {
-                    const nom = user.nom || user.email.split('@')[0];
+                    const nom  = user.nom || user.email.split('@')[0];
                     const role = user.role || 'Utilisateur';
-                    
+
                     userInfo.innerHTML = `
                         <p class="text-sm font-medium text-gray-800">${nom}</p>
                         <p class="text-xs text-gray-600">${role}</p>
                     `;
-                    
+
                     if (userAvatar) {
                         userAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(nom)}&background=9333ea&color=fff`;
                     }
                 }
-                
-                // Masquer les modules selon le rôle
+
+                // ✅ ÉTAPE 4 — Restrictions selon le rôle
                 if (typeof Permissions !== 'undefined' && user.role !== 'gerant') {
                     console.log('🔒 Hiding restricted modules for role:', user.role);
-                    
+
                     const gerantModules = ['coiffeuses', 'services', 'produits', 'materiels', 'commissions'];
-                    const sidebarItems = document.querySelectorAll('.sidebar-item');
-                    
-                    sidebarItems.forEach(item => {
+                    document.querySelectorAll('.sidebar-item').forEach(item => {
                         const page = item.getAttribute('data-page');
                         if (gerantModules.includes(page)) {
                             item.style.display = 'none';
                         }
                     });
                 }
-                
+
+                // ✅ ÉTAPE 5 — Init App principal
+                if (typeof App !== 'undefined') {
+                    App.init();
+                }
+
+                // ✅ ÉTAPE 6 — Notifier les ops en attente (après App.init)
+                if (window.OfflineManager && typeof App !== 'undefined') {
+                    const pending = await OfflineManager.getPendingCount();
+                    if (pending > 0) {
+                        App.showNotification(
+                            `📴 ${pending} opération(s) en attente de synchronisation`,
+                            'warning'
+                        );
+                    }
+                }
+
                 console.log('='.repeat(60));
                 console.log('✅ DASHBOARD READY - Welcome', user.email);
                 console.log('='.repeat(60));
-                
+
             } catch (error) {
                 console.error('💥 Dashboard initialization error:', error);
                 console.error('Stack:', error.stack);
-                
-                // En cas d'erreur, rediriger vers login
                 alert('Erreur lors du chargement du tableau de bord. Redirection...');
                 window.location.href = 'login.html';
             }
         }
-        
-        // Lancer l'initialisation au chargement de la page
+
+        // ✅ Lancement propre
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', initDashboard);
         } else {
             initDashboard();
         }
     </script>
+
 </body>
 </html>
