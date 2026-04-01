@@ -3,10 +3,39 @@
 // JL BEAUTY SYSTEM - PRODUCTION
 // ============================================
 
+// =========================================================================
+// ✅ PERMISSIONS PAR RÔLE — source de vérité unique
+// Modifier ici pour ajuster les accès de chaque rôle
+// =========================================================================
+const ROLE_PERMISSIONS = {
+    gerant: {
+        label: 'Gérant',
+        pages: ['all']   // accès total
+    },
+    caissiere: {
+        label: 'Caissière',
+        pages: [
+            'dashboard',
+            'clients',
+            'rendez-vous',
+            'produits',
+            'materiels',
+            'consommables',
+            'ventes'
+            // ❌ 'coiffeuses'  — interdit
+            // ❌ 'services'    — interdit
+            // ❌ 'commissions' — interdit
+        ]
+    }
+};
+
 const AuthSupabase = {
     supabase: null,
     currentUser: null,
 
+    // =========================================================================
+    // init()
+    // =========================================================================
     init() {
         if (this.supabase) return true;
 
@@ -19,6 +48,22 @@ const AuthSupabase = {
         return true;
     },
 
+    // =========================================================================
+    // ✅ UTILITAIRE — Résoudre les permissions d'un rôle
+    // =========================================================================
+    _resolvePermissions(role) {
+        const config = ROLE_PERMISSIONS[role];
+        if (!config) {
+            // Rôle inconnu → accès minimal par sécurité
+            console.warn(`[Auth] Rôle inconnu "${role}" → accès minimal`);
+            return ['dashboard'];
+        }
+        return config.pages;
+    },
+
+    // =========================================================================
+    // login()
+    // =========================================================================
     async login(email, password) {
         console.log('🔐 LOGIN ATTEMPT:', email);
 
@@ -28,8 +73,8 @@ const AuthSupabase = {
 
         try {
             const { data, error } = await this.supabase.auth.signInWithPassword({
-                email: email,
-                password: password
+                email,
+                password
             });
 
             if (error) {
@@ -44,13 +89,15 @@ const AuthSupabase = {
 
             console.log('✅ Supabase auth successful');
 
+            // Récupérer le profil utilisateur
             let userProfile = null;
             try {
-                const { data: profile, error: profileError } = await this.supabase
-                    .from('users')
-                    .select('*')
-                    .eq('email', email)
-                    .single();
+                const { data: profile, error: profileError } =
+                    await this.supabase
+                        .from('users')
+                        .select('*')
+                        .eq('email', email)
+                        .single();
 
                 if (!profileError && profile) {
                     userProfile = profile;
@@ -59,24 +106,26 @@ const AuthSupabase = {
                     console.warn('⚠️ No profile in users table, using defaults');
                 }
             } catch (err) {
-                console.warn('⚠️ Profile fetch failed, using defaults:', err.message);
+                console.warn('⚠️ Profile fetch failed:', err.message);
             }
 
+            // ✅ Rôle déterminé depuis le profil, sinon 'gerant' par défaut
+            const role = userProfile?.role || 'gerant';
+
             const userData = {
-                id: data.user.id,
-                email: data.user.email,
-                nom: userProfile?.nom || data.user.email.split('@')[0],
-                role: userProfile?.role || 'gerant',
-                permissions: userProfile?.role === 'gerant'
-                    ? ['all']
-                    : ['dashboard', 'clients', 'rendez-vous', 'ventes']
+                id:          data.user.id,
+                email:       data.user.email,
+                nom:         userProfile?.nom || data.user.email.split('@')[0],
+                role:        role,
+                // ✅ Permissions résolues via ROLE_PERMISSIONS
+                permissions: this._resolvePermissions(role)
             };
 
             this.currentUser = userData;
-            localStorage.setItem('jlbeauty_user', JSON.stringify(userData));
+            localStorage.setItem('jlbeauty_user',      JSON.stringify(userData));
             localStorage.setItem('jlbeauty_auth_type', 'supabase');
 
-            // ✅ Si des ops étaient en attente → lancer la sync au login
+            // Sync des opérations en attente au login
             if (window.OfflineManager && navigator.onLine) {
                 const pending = await OfflineManager.getPendingCount();
                 if (pending > 0) {
@@ -85,7 +134,9 @@ const AuthSupabase = {
                 }
             }
 
-            console.log('✅ LOGIN SUCCESS:', userData.email);
+            console.log('✅ LOGIN SUCCESS:', userData.email,
+                        '| Rôle:', userData.role,
+                        '| Pages:', userData.permissions);
             return { success: true, user: userData };
 
         } catch (error) {
@@ -97,27 +148,57 @@ const AuthSupabase = {
         }
     },
 
+    // =========================================================================
+    // checkAuth()
+    // =========================================================================
     async checkAuth() {
         console.log('🔍 checkAuth() called');
-
+    
         try {
             const storedUser = localStorage.getItem('jlbeauty_user');
             const authType   = localStorage.getItem('jlbeauty_auth_type');
-
-            console.log('📦 localStorage check:', {
-                hasUser: !!storedUser,
-                authType: authType
-            });
-
+    
             if (storedUser && authType === 'supabase') {
                 try {
                     const userData = JSON.parse(storedUser);
+    
+                    // ✅ NOUVEAU — Revalider le rôle depuis Supabase
+                    // au cas où le localStorage est obsolète
+                    if (this.init()) {
+                        try {
+                            const { data: profile } = await this.supabase
+                                .from('users')
+                                .select('role, nom')
+                                .eq('email', userData.email)
+                                .single();
+    
+                            if (profile?.role && profile.role !== userData.role) {
+                                console.warn(
+                                    `[Auth] Rôle corrigé : ${userData.role} → ${profile.role}`
+                                );
+                                userData.role = profile.role;
+                                userData.nom  = profile.nom || userData.nom;
+                            }
+                        } catch (e) {
+                            // Pas de connexion — on garde le localStorage
+                            console.warn('[Auth] Revalidation impossible (offline)');
+                        }
+                    }
+    
+                    // ✅ Recalculer les permissions après correction du rôle
+                    userData.permissions = this._resolvePermissions(userData.role);
+                    localStorage.setItem('jlbeauty_user', JSON.stringify(userData));
+    
                     this.currentUser = userData;
-                    console.log('✅ User loaded from localStorage:', userData.email);
-                    console.log('📊 Role:', userData.role);
+                    console.log('✅ User loaded:', userData.email,
+                                '| Rôle:', userData.role);
                     return userData;
+    
                 } catch (e) {
                     console.error('❌ Error parsing stored user:', e);
+                    // ✅ localStorage corrompu → nettoyer
+                    localStorage.removeItem('jlbeauty_user');
+                    localStorage.removeItem('jlbeauty_auth_type');
                 }
             }
 
@@ -135,18 +216,18 @@ const AuthSupabase = {
                 return null;
             }
 
-            console.log('✅ Supabase session found, creating user data...');
-
+            // Session Supabase trouvée — rôle par défaut gerant
+            const role = 'gerant';
             const userData = {
-                id: session.user.id,
-                email: session.user.email,
-                nom: session.user.email.split('@')[0],
-                role: 'gerant',
-                permissions: ['all']
+                id:          session.user.id,
+                email:       session.user.email,
+                nom:         session.user.email.split('@')[0],
+                role:        role,
+                permissions: this._resolvePermissions(role)
             };
 
             this.currentUser = userData;
-            localStorage.setItem('jlbeauty_user', JSON.stringify(userData));
+            localStorage.setItem('jlbeauty_user',      JSON.stringify(userData));
             localStorage.setItem('jlbeauty_auth_type', 'supabase');
 
             console.log('✅ User authenticated from Supabase session');
@@ -158,6 +239,9 @@ const AuthSupabase = {
         }
     },
 
+    // =========================================================================
+    // getCurrentUser()
+    // =========================================================================
     getCurrentUser() {
         if (this.currentUser) return this.currentUser;
 
@@ -173,37 +257,65 @@ const AuthSupabase = {
         }
     },
 
+    // =========================================================================
+    // isLoggedIn()
+    // =========================================================================
     isLoggedIn() {
         return this.getCurrentUser() !== null;
     },
 
-    hasPermission(module) {
+    // =========================================================================
+    // ✅ hasPermission() — vérifie si l'utilisateur peut accéder à une page
+    // =========================================================================
+    hasPermission(page) {
         const user = this.getCurrentUser();
         if (!user) return false;
+
+        // 'all' = accès total (gerant)
         if (user.permissions && user.permissions.includes('all')) return true;
-        return user.permissions && user.permissions.includes(module);
+
+        return user.permissions && user.permissions.includes(page);
     },
 
+    // =========================================================================
+    // getRole()
+    // =========================================================================
     getRole() {
         const user = this.getCurrentUser();
         return user ? user.role : null;
     },
 
-    // ✅ MODIFICATION ICI — avertissement si ops en attente avant logout
+    // =========================================================================
+    // isGerant() — raccourci pratique
+    // =========================================================================
+    isGerant() {
+        return this.getRole() === 'gerant';
+    },
+
+    // =========================================================================
+    // isCaisse() — raccourci pratique
+    // =========================================================================
+    isCaisse() {
+        return this.getRole() === 'caisse';
+    },
+
+    // =========================================================================
+    // logout()
+    // =========================================================================
     async logout() {
         try {
-            // ✅ Vérifier les ops en attente avant de déconnecter
             if (window.OfflineManager) {
                 const pending = await OfflineManager.getPendingCount();
                 if (pending > 0) {
                     const confirmed = window.confirm(
-                        `⚠️ Attention : ${pending} opération(s) n'ont pas encore été synchronisées.\n\n` +
+                        `⚠️ Attention : ${pending} opération(s) n'ont pas encore ` +
+                        `été synchronisées.\n\n` +
                         `Si vous vous déconnectez maintenant, elles seront perdues.\n\n` +
                         `Voulez-vous quand même vous déconnecter ?`
                     );
                     if (!confirmed) {
-                        console.log('🚫 Logout annulé — ops en attente non synchronisées');
-                        return; // ✅ Annuler le logout
+                        console.log('🚫 Logout annulé — ops en attente');
+                        return;
                     }
                 }
             }
@@ -226,6 +338,7 @@ const AuthSupabase = {
 };
 
 if (typeof window !== 'undefined') {
-    window.AuthSupabase = AuthSupabase;
+    window.AuthSupabase   = AuthSupabase;
+    window.ROLE_PERMISSIONS = ROLE_PERMISSIONS;
     console.log('✅ AuthSupabase loaded and ready');
 }

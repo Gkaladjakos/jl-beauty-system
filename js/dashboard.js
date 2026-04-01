@@ -21,16 +21,25 @@ const Dashboard = {
     // Utilise Chart.getChart() en priorité (plus fiable que this.charts[key])
     // =========================================================================
     _destroyChart(canvasId) {
-        // Méthode 1 — via Chart.getChart() (Chart.js v3+)
         const canvas = document.getElementById(canvasId);
-        if (canvas) {
+        if (!canvas) return;
+    
+        // 1) Détruire toutes les instances liées à ce canvas (boucle)
+        let attempt = 0;
+        while (attempt < 10) {
             const existing = Chart.getChart(canvas);
-            if (existing) {
-                existing.destroy();
-            }
+            if (!existing) break;
+            try { existing.destroy(); } catch (_) {}
+            attempt++;
         }
-
-        // Méthode 2 — via référence interne stockée
+    
+        // 2) Nettoyage du contexte
+        try {
+            const ctx = canvas.getContext('2d');
+            if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+        } catch (_) {}
+    
+        // 3) Références internes
         const key = Object.keys(this.charts).find(k => {
             return (
                 (canvasId === 'revenusChart'   && k === 'revenus')   ||
@@ -38,6 +47,7 @@ const Dashboard = {
                 (canvasId === 'evolutionChart' && k === 'evolution')
             );
         });
+    
         if (key && this.charts[key]) {
             try { this.charts[key].destroy(); } catch (_) {}
             this.charts[key] = null;
@@ -49,23 +59,31 @@ const Dashboard = {
     // Appelé avant chaque re-render complet du dashboard
     // =========================================================================
     _destroyAllCharts() {
-        // Via références internes
+        // Références internes
         Object.keys(this.charts).forEach(key => {
             if (this.charts[key]) {
                 try { this.charts[key].destroy(); } catch (_) {}
                 this.charts[key] = null;
             }
         });
-
-        // Via Chart.getChart() — filet de sécurité pour les canvas orphelins
+    
+        // Sécurité via Chart.getChart + boucle
         ['revenusChart', 'servicesChart', 'evolutionChart'].forEach(id => {
             const canvas = document.getElementById(id);
-            if (canvas) {
+            if (!canvas) return;
+    
+            let attempt = 0;
+            while (attempt < 10) {
                 const existing = Chart.getChart(canvas);
-                if (existing) {
-                    try { existing.destroy(); } catch (_) {}
-                }
+                if (!existing) break;
+                try { existing.destroy(); } catch (_) {}
+                attempt++;
             }
+    
+            try {
+                const ctx = canvas.getContext('2d');
+                if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+            } catch (_) {}
         });
     },
 
@@ -449,14 +467,23 @@ const Dashboard = {
     },
 
     // =========================================================================
-    // renderEvolutionChart()
-    // =========================================================================
-    async renderEvolutionChart(type) {
-        const canvas = document.getElementById('evolutionChart');
-        if (!canvas) return;
+   // =========================================================================
+// renderEvolutionChart()
+// =========================================================================
+async renderEvolutionChart(type) {
+    const canvas = document.getElementById('evolutionChart');
+    if (!canvas) return;
 
-        // ✅ Destruction ciblée avant création
+    // ✅ Verrou anti-réentrance (évite créations concurrentes)
+    if (this._evolutionRenderLock) return;
+    this._evolutionRenderLock = true;
+
+    try {
+        // ✅ Destruction ciblée
         this._destroyChart('evolutionChart');
+
+        // ✅ Micro-délai pour laisser Chart.js finir la libération
+        await new Promise(r => setTimeout(r, 50));
 
         const last30Days = [];
         const values     = [];
@@ -468,14 +495,17 @@ const Dashboard = {
             for (let i = 29; i >= 0; i--) {
                 const date = new Date();
                 date.setDate(date.getDate() - i);
+
                 last30Days.push(
                     date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
                 );
+
                 const dayRevenue = ventes
                     .filter(v =>
                         new Date(v.date_vente).toDateString() === date.toDateString()
                     )
                     .reduce((sum, v) => sum + (v.montant_total || 0), 0);
+
                 values.push(dayRevenue);
             }
 
@@ -523,14 +553,16 @@ const Dashboard = {
             for (let i = 29; i >= 0; i--) {
                 const date = new Date();
                 date.setDate(date.getDate() - i);
+
                 last30Days.push(
                     date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })
                 );
+
                 const dayClients = clients.filter(c => {
                     if (!c.date_inscription) return false;
-                    return new Date(c.date_inscription).toDateString() ===
-                           date.toDateString();
+                    return new Date(c.date_inscription).toDateString() === date.toDateString();
                 }).length;
+
                 values.push(dayClients);
             }
 
@@ -557,7 +589,10 @@ const Dashboard = {
                 }
             });
         }
-    },
+    } finally {
+        this._evolutionRenderLock = false;
+    }
+},
 
     // =========================================================================
     // switchEvolutionChart()
