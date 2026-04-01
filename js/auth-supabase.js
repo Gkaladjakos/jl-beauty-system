@@ -155,84 +155,71 @@ const AuthSupabase = {
         console.log('🔍 checkAuth() called');
     
         try {
-            const storedUser = localStorage.getItem('jlbeauty_user');
-            const authType   = localStorage.getItem('jlbeauty_auth_type');
+            // 1) Essayer localStorage
+            const storedUserStr = localStorage.getItem('jlbeauty_user');
+            const authType = localStorage.getItem('jlbeauty_auth_type');
     
-            if (storedUser && authType === 'supabase') {
+            let userData = null;
+    
+            if (storedUserStr && authType === 'supabase') {
                 try {
-                    const userData = JSON.parse(storedUser);
-    
-                    // ✅ NOUVEAU — Revalider le rôle depuis Supabase
-                    // au cas où le localStorage est obsolète
-                    if (this.init()) {
-                        try {
-                            const { data: profile } = await this.supabase
-                                .from('users')
-                                .select('role, nom')
-                                .eq('email', userData.email)
-                                .single();
-    
-                            if (profile?.role && profile.role !== userData.role) {
-                                console.warn(
-                                    `[Auth] Rôle corrigé : ${userData.role} → ${profile.role}`
-                                );
-                                userData.role = profile.role;
-                                userData.nom  = profile.nom || userData.nom;
-                            }
-                        } catch (e) {
-                            // Pas de connexion — on garde le localStorage
-                            console.warn('[Auth] Revalidation impossible (offline)');
-                        }
-                    }
-    
-                    // ✅ Recalculer les permissions après correction du rôle
-                    userData.permissions = this._resolvePermissions(userData.role);
-                    localStorage.setItem('jlbeauty_user', JSON.stringify(userData));
-    
-                    this.currentUser = userData;
-                    console.log('✅ User loaded:', userData.email,
-                                '| Rôle:', userData.role);
-                    return userData;
-    
+                    userData = JSON.parse(storedUserStr);
                 } catch (e) {
-                    console.error('❌ Error parsing stored user:', e);
-                    // ✅ localStorage corrompu → nettoyer
+                    console.warn('⚠️ localStorage parse failed, cleaning');
                     localStorage.removeItem('jlbeauty_user');
                     localStorage.removeItem('jlbeauty_auth_type');
+                    userData = null;
                 }
             }
-
-            console.log('⚠️ No valid localStorage, checking Supabase session...');
-
+    
+            // 2) Vérifier session Supabase (source vérité)
             if (!this.init()) {
                 console.error('❌ Supabase not initialized');
                 return null;
             }
-
+    
             const { data: { session } } = await this.supabase.auth.getSession();
-
             if (!session) {
+                // Aucun token => pas d’auth
                 console.log('❌ No active session found');
                 return null;
             }
-
-            // Session Supabase trouvée — rôle par défaut gerant
-            const role = 'gerant';
-            const userData = {
-                id:          session.user.id,
-                email:       session.user.email,
-                nom:         session.user.email.split('@')[0],
-                role:        role,
+    
+            // 3) Récupérer le profil côté Supabase (si possible)
+            let profile = null;
+            try {
+                const { data } = await this.supabase
+                    .from('users')
+                    .select('role, nom')
+                    .eq('email', session.user.email)
+                    .single();
+    
+                profile = data || null;
+            } catch (e) {
+                console.warn('⚠️ Profil users revalidation impossible:', e?.message || e);
+            }
+    
+            // 4) Déterminer le rôle final
+            const roleFromProfile = profile?.role;
+            const role = roleFromProfile || userData?.role || 'gerant';
+    
+            const finalUserData = {
+                id: session.user.id,
+                email: session.user.email,
+                nom: profile?.nom || userData?.nom || session.user.email.split('@')[0],
+                role,
                 permissions: this._resolvePermissions(role)
             };
-
-            this.currentUser = userData;
-            localStorage.setItem('jlbeauty_user',      JSON.stringify(userData));
+    
+            this.currentUser = finalUserData;
+            localStorage.setItem('jlbeauty_user', JSON.stringify(finalUserData));
             localStorage.setItem('jlbeauty_auth_type', 'supabase');
-
-            console.log('✅ User authenticated from Supabase session');
-            return userData;
-
+    
+            console.log('✅ User authenticated / revalidated:',
+                finalUserData.email, '| Rôle:', finalUserData.role);
+    
+            return finalUserData;
+    
         } catch (error) {
             console.error('💥 checkAuth error:', error);
             return null;
@@ -296,7 +283,7 @@ const AuthSupabase = {
     // isCaisse() — raccourci pratique
     // =========================================================================
     isCaisse() {
-        return this.getRole() === 'caisse';
+        return this.getRole() === 'caissiere';
     },
 
     // =========================================================================
