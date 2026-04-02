@@ -152,116 +152,106 @@ const AuthSupabase = {
     },
 
     // =========================================================================
-    // checkAuth()
-    // =========================================================================
-    async checkAuth() {
-        console.log('🔍 checkAuth() called');
+// checkAuth()
+// =========================================================================
+async checkAuth() {
+    console.log('🔍 checkAuth() called');
 
-        try {
-            // 1) Essayer localStorage
-            const storedUserStr = localStorage.getItem('jlbeauty_user');
-            const authType = localStorage.getItem('jlbeauty_auth_type');
+    try {
+        // 1) Essayer localStorage
+        const storedUserStr = localStorage.getItem('jlbeauty_user');
+        const authType = localStorage.getItem('jlbeauty_auth_type');
 
-            let cachedUser = null;
-            if (storedUserStr && authType === 'supabase') {
-                try {
-                    cachedUser = JSON.parse(storedUserStr);
-                } catch (e) {
-                    console.warn('⚠️ localStorage parse failed, cleaning');
-                    localStorage.removeItem('jlbeauty_user');
-                    localStorage.removeItem('jlbeauty_auth_type');
-                    cachedUser = null;
-                }
-            }
-
-            // 2) Vérifier session Supabase (source vérité)
-            if (!this.init()) {
-                console.error('❌ Supabase not initialized');
-                return null;
-            }
-
-            const { data: { session } } = await this.supabase.auth.getSession();
-            if (!session) {
-                console.log('❌ No active session found');
-                return null;
-            }
-
-            // 3) Revalider profil côté Supabase (si possible)
-            let profile = null;
-            let revalidated = false;
-
+        let cachedUser = null;
+        if (storedUserStr && authType === 'supabase') {
             try {
-                const { data, error } = await this.supabase
-                    .from('users')
-                    .select('role, nom')
-                    .eq('email', session.user.email);
-
-                if (error) {
-                    console.warn('⚠️ Profil users revalidation failed:', error);
-                } else {
-                    profile = (Array.isArray(data) && data.length > 0) ? data[0] : null;
-                    revalidated = true;
-                }
+                cachedUser = JSON.parse(storedUserStr);
             } catch (e) {
-                console.warn(
-                    '⚠️ Profil users revalidation exception (fallback):',
-                    e?.message || e
-                );
+                console.warn('⚠️ localStorage parse failed, cleaning');
+                localStorage.removeItem('jlbeauty_user');
+                localStorage.removeItem('jlbeauty_auth_type');
+                cachedUser = null;
             }
+        }
 
-            // 4) Déterminer le rôle final
-            // Règle anti-bug: ne jamais réutiliser un rôle cache si email mismatch.
-            let role = DEFAULT_ROLE;
-
-            if (profile?.role) {
-                role = profile.role;
-            } else {
-                const sameEmailAsCache =
-                    cachedUser?.email && cachedUser.email === session.user.email;
-
-                if (sameEmailAsCache && cachedUser?.role) {
-                    console.warn(
-                        `⚠️ Profil absent: rôle cache réutilisé (même email) => ${cachedUser.role}`
-                    );
-                    role = cachedUser.role;
-                } else {
-                    console.warn(
-                        '⚠️ Profil absent: rôle cache ignoré (email mismatch ou cache invalide).'
-                    );
-                    role = DEFAULT_ROLE;
-                }
-            }
-
-            const finalUserData = {
-                id: session.user.id,
-                email: session.user.email,
-                nom: profile?.nom || cachedUser?.nom || session.user.email.split('@')[0],
-                role,
-                permissions: this._resolvePermissions(role),
-                _revalidatedRole: revalidated
-            };
-
-            this.currentUser = finalUserData;
-            localStorage.setItem('jlbeauty_user', JSON.stringify(finalUserData));
-            localStorage.setItem('jlbeauty_auth_type', 'supabase');
-
-            console.log(
-                '✅ User authenticated / revalidated:',
-                finalUserData.email,
-                '| Rôle:', finalUserData.role,
-                '| revalidated:', revalidated
-            );
-
-            // Bonus debug : pour confirmer si profile a réellement été trouvé
-            // console.log('DEBUG profile=', profile);
-
-            return finalUserData;
-
-        } catch (error) {
-            console.error('💥 checkAuth error:', error);
+        // 2) Vérifier session Supabase (source vérité)
+        if (!this.init()) {
+            console.error('❌ Supabase not initialized');
             return null;
         }
-    },
+
+        const { data: { session } } = await this.supabase.auth.getSession();
+        if (!session) {
+            console.log('❌ No active session found');
+            return null;
+        }
+
+        // 3) Revalider profil côté Supabase (si possible)
+        let profile = null;
+        let revalidated = false;
+
+        try {
+            const { data, error } = await this.supabase
+                .from('users')
+                .select('role, nom')
+                .eq('email', session.user.email);
+
+            if (error) {
+                console.warn('⚠️ Profil users revalidation failed:', error);
+            } else {
+                profile = (Array.isArray(data) && data.length > 0) ? data[0] : null;
+                revalidated = true;
+            }
+        } catch (e) {
+            console.warn(
+                '⚠️ Profil users revalidation exception (fallback):',
+                e?.message || e
+            );
+        }
+
+        // 4) Déterminer le rôle final (sécurité: par défaut caissiere)
+        let role = DEFAULT_ROLE;
+
+        if (profile?.role) {
+            role = profile.role;
+        } else {
+            // ✅ Correction clé: ne PAS réutiliser le rôle du cache si profile absent
+            // (sinon admin pourrait hériter d'un rôle cache caissiere, comme observé)
+            console.warn('⚠️ Profil absent ou sans rôle: rôle cache ignoré -> DEFAULT_ROLE');
+            role = DEFAULT_ROLE;
+        }
+
+        const finalUserData = {
+            id: session.user.id,
+            email: session.user.email,
+            // On peut garder le nom depuis profile sinon cache sinon split mail
+            nom: profile?.nom || cachedUser?.nom || session.user.email.split('@')[0],
+            role,
+            permissions: this._resolvePermissions(role),
+            _revalidatedRole: revalidated
+        };
+
+        this.currentUser = finalUserData;
+        localStorage.setItem('jlbeauty_user', JSON.stringify(finalUserData));
+        localStorage.setItem('jlbeauty_auth_type', 'supabase');
+
+        console.log(
+            '✅ User authenticated / revalidated:',
+            finalUserData.email,
+            '| Rôle:', finalUserData.role,
+            '| revalidated:', revalidated
+        );
+
+        console.log('DEBUG profile=', profile);
+        console.log('DEBUG session email:', session.user.email);
+
+        return finalUserData;
+
+    } catch (error) {
+        console.error('💥 checkAuth error:', error);
+        return null;
+    }
+},
 
     // =========================================================================
     // getCurrentUser()
