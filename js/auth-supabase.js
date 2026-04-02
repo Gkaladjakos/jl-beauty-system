@@ -92,25 +92,24 @@ const AuthSupabase = {
             // Récupérer le profil utilisateur
             let userProfile = null;
             try {
-                const { data: profile, error: profileError } =
-                    await this.supabase
-                        .from('users')
-                        .select('*')
-                        .eq('email', email)
-                        .single();
+                const { data: profiles, error: profileError } = await this.supabase
+                    .from('users')
+                    .select('role, nom')
+                    .eq('email', session.user.email);
 
-                if (!profileError && profile) {
-                    userProfile = profile;
-                    console.log('✅ User profile found:', profile);
-                } else {
-                    console.warn('⚠️ No profile in users table, using defaults');
-                }
+                    if (profileError) {
+                    console.warn('[Auth] Profil revalidation failed:', profileError);
+                    } else if (Array.isArray(profiles) && profiles.length > 0) {
+                    const profile = profiles[0];
+                    if (profile.role) userData.role = profile.role;
+                    if (profile.nom)  userData.nom  = profile.nom;
+                    }
             } catch (err) {
                 console.warn('⚠️ Profile fetch failed:', err.message);
             }
 
             // ✅ Rôle déterminé depuis le profil, sinon 'gerant' par défaut
-            const role = userProfile?.role || 'gerant';
+            const role = userProfile?.role || 'caissiere';
 
             const userData = {
                 id:          data.user.id,
@@ -160,7 +159,6 @@ const AuthSupabase = {
             const authType = localStorage.getItem('jlbeauty_auth_type');
     
             let userData = null;
-    
             if (storedUserStr && authType === 'supabase') {
                 try {
                     userData = JSON.parse(storedUserStr);
@@ -180,43 +178,73 @@ const AuthSupabase = {
     
             const { data: { session } } = await this.supabase.auth.getSession();
             if (!session) {
-                // Aucun token => pas d’auth
                 console.log('❌ No active session found');
                 return null;
             }
     
             // 3) Récupérer le profil côté Supabase (si possible)
+            // IMPORTANT: si la requête users échoue (ex: 406), on ne doit PAS
+            // conserver un rôle obsolète automatiquement sans au moins vérifier.
             let profile = null;
+            let revalidated = false;
+    
             try {
-                const { data } = await this.supabase
+                const { data, error } = await this.supabase
                     .from('users')
                     .select('role, nom')
-                    .eq('email', session.user.email)
-                    .single();
+                    .eq('email', session.user.email);
     
-                profile = data || null;
+                profile = (data && data.length > 0) ? data[0] : null;
+                revalidated = true;
             } catch (e) {
-                console.warn('⚠️ Profil users revalidation impossible:', e?.message || e);
+                console.warn(
+                    '⚠️ Profil users revalidation impossible (fallback):',
+                    e?.message || e
+                );
+                // profile reste null
             }
     
             // 4) Déterminer le rôle final
+            // - Si profile ok => rôle du profil
+            // - Sinon => fallback contrôlé
             const roleFromProfile = profile?.role;
-            const role = roleFromProfile || userData?.role || 'gerant';
+    
+            let role;
+            if (roleFromProfile) {
+                role = roleFromProfile;
+            } else {
+                // fallback localStorage (seulement si même email)
+                if (userData?.email === session.user.email && userData?.role) {
+                    role = userData.role;
+                    console.warn(
+                        `⚠️ Using cached role from localStorage (${role}) because revalidation failed.`
+                    );
+                } else {
+                    // dernier recours
+                    role = 'caissiere';
+                }
+            }
     
             const finalUserData = {
                 id: session.user.id,
                 email: session.user.email,
                 nom: profile?.nom || userData?.nom || session.user.email.split('@')[0],
                 role,
-                permissions: this._resolvePermissions(role)
+                permissions: this._resolvePermissions(role),
+                // utile pour debug
+                _revalidatedRole: revalidated
             };
     
             this.currentUser = finalUserData;
             localStorage.setItem('jlbeauty_user', JSON.stringify(finalUserData));
             localStorage.setItem('jlbeauty_auth_type', 'supabase');
     
-            console.log('✅ User authenticated / revalidated:',
-                finalUserData.email, '| Rôle:', finalUserData.role);
+            console.log(
+                '✅ User authenticated / revalidated:',
+                finalUserData.email,
+                '| Rôle:', finalUserData.role,
+                '| revalidated:', revalidated
+            );
     
             return finalUserData;
     
