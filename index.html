@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JL Beauty System - PRODUCTION</title>
-    
-    <!-- ✅ Supabase EN PREMIER — obligatoire avant tous les scripts locaux -->
+
+    <!-- ✅ Supabase EN PREMIER -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <!-- CDN CSS & JS -->
@@ -14,36 +14,77 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/jl-beauty-theme.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
+
     <style>
         body { font-family: 'Inter', sans-serif; }
-        .sidebar-item:hover { background-color: rgba(255, 255, 255, 0.1); }
-        .sidebar-item.active { background-color: rgba(255, 255, 255, 0.2); border-left: 4px solid white; }
+        .sidebar-item:hover { background-color: rgba(255,255,255,0.1); }
+        .sidebar-item.active {
+            background-color: rgba(255,255,255,0.2);
+            border-left: 4px solid white;
+        }
         .card { transition: transform 0.2s; }
         .card:hover { transform: translateY(-2px); }
         .modal { display: none; }
         .modal.active { display: flex; }
-        .badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
         .table-container { overflow-x: auto; }
         table { min-width: 100%; }
-        .modal-overlay { display: flex; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); align-items: center; justify-content: center; z-index: 9999; }
-        .modal-content { background: white; border-radius: 0.5rem; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); max-width: 42rem; width: 100%; margin: 1rem; max-height: 90vh; overflow-y: auto; }
-        .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1.5rem; border-bottom: 1px solid #e5e7eb; }
-        .modal-body { padding: 1.5rem; }
-        .modal-footer { display: flex; justify-content: flex-end; gap: 0.75rem; padding: 1.5rem; border-top: 1px solid #e5e7eb; }
+        .modal-overlay {
+            display: flex;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+            max-width: 42rem;
+            width: 100%;
+            margin: 1rem;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1.5rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .modal-body  { padding: 1.5rem; }
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            padding: 1.5rem;
+            border-top: 1px solid #e5e7eb;
+        }
     </style>
 </head>
 <body class="bg-gray-100">
 
-    <!-- Sidebar -->
     <div class="flex h-screen overflow-hidden">
+
+        <!-- ── Sidebar ────────────────────────────────────────────────────── -->
         <aside class="sidebar w-64 text-white flex-shrink-0">
             <div class="p-6 text-center border-b border-gray-700">
-                <img src="images/jl-beauty-logo.png" alt="JL Beauty" class="w-24 h-24 mx-auto mb-2">
+                <img src="images/jl-beauty-logo.png"
+                     alt="JL Beauty"
+                     class="w-24 h-24 mx-auto mb-2">
                 <h1 class="text-xl font-bold" style="color: #E8B44C;">JL Beauty</h1>
                 <p class="text-sm text-gray-400 mt-1">Version Production</p>
             </div>
-            
+
             <nav class="mt-6">
                 <a href="#" class="sidebar-item active flex items-center px-6 py-3 text-white"
                    data-page="dashboard">
@@ -95,15 +136,12 @@
                     <i class="fas fa-money-bill-wave w-6"></i>
                     <span>Commissions</span>
                 </a>
-            
-                <!-- ✅ Rapports journaliers -->
                 <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
                    data-page="rapports">
                     <i class="fas fa-chart-bar w-6"></i>
                     <span>Rapports</span>
                 </a>
-            
-                <!-- ✅ NOUVEAU — Comptabilité OHADA -->
+                <!-- ✅ Comptabilité OHADA -->
                 <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
                    data-page="comptabilite">
                     <i class="fas fa-book w-6"></i>
@@ -112,13 +150,15 @@
             </nav>
         </aside>
 
-        <!-- Main Content -->
+        <!-- ── Main Content ───────────────────────────────────────────────── -->
         <main class="flex-1 overflow-y-auto">
+
             <!-- Header -->
             <header class="bg-white shadow-sm">
                 <div class="flex items-center justify-between px-8 py-4">
                     <div>
-                        <h2 id="page-title" class="text-2xl font-semibold text-gray-800">
+                        <h2 id="page-title"
+                            class="text-2xl font-semibold text-gray-800">
                             Tableau de bord
                         </h2>
                         <p id="page-subtitle" class="text-sm text-gray-600">
@@ -126,19 +166,22 @@
                         </p>
                     </div>
                     <div class="flex items-center space-x-4">
-                        <div class="flex items-center space-x-3 border-l border-gray-300 pl-4">
-                            <img id="user-avatar" 
-                                 src="https://ui-avatars.com/api/?name=Admin&background=9333ea&color=fff" 
+                        <div class="flex items-center space-x-3
+                                    border-l border-gray-300 pl-4">
+                            <img id="user-avatar"
+                                 src="https://ui-avatars.com/api/?name=Admin&background=9333ea&color=fff"
                                  class="w-10 h-10 rounded-full" alt="User">
                             <div id="user-info">
-                                <p class="text-sm font-medium text-gray-800">Administrateur</p>
+                                <p class="text-sm font-medium text-gray-800">
+                                    Administrateur
+                                </p>
                                 <p class="text-xs text-gray-600">Mode Production</p>
                             </div>
-                            <!-- ✅ Badge rôle (injecté par App._renderRoleBadge) -->
+                            <!-- Badge rôle injecté par App._renderRoleBadge -->
                             <div id="user-role-badge"></div>
-                            <button onclick="AuthSupabase.logout()" 
-                                    class="ml-3 px-3 py-1 bg-red-500 text-white text-xs
-                                           rounded hover:bg-red-600" 
+                            <button onclick="AuthSupabase.logout()"
+                                    class="ml-3 px-3 py-1 bg-red-500 text-white
+                                           text-xs rounded hover:bg-red-600"
                                     title="Se déconnecter">
                                 <i class="fas fa-sign-out-alt"></i>
                             </button>
@@ -164,9 +207,9 @@
         </div>
     </div>
 
-    <!-- ============================================================ -->
-    <!-- SCRIPTS — ordre strict obligatoire                           -->
-    <!-- ============================================================ -->
+    <!-- ================================================================== -->
+    <!-- SCRIPTS — ordre strict                                             -->
+    <!-- ================================================================== -->
 
     <!-- Étape 1 : Config & Auth -->
     <script src="js/supabase-config.js"></script>
@@ -174,21 +217,28 @@
     <script src="js/permissions.js"></script>
     <script src="js/currency-config.js"></script>
 
-    <!-- Étape 2 : OfflineManager AVANT utils -->
+    <!-- Étape 2 : OfflineManager + Utils -->
     <script src="js/offline-manager.js"></script>
     <script src="js/utils-supabase.js"></script>
 
-    <!-- Étape 3 : App principal -->
-    <script src="js/app.js"></script>
-
-    <!-- Étape 4 : Modules métier -->
+    <!-- Étape 3 : Modules métier — TOUS avant app.js -->
     <script src="js/dashboard.js"></script>
     <script src="js/clients.js"></script>
     <script src="js/coiffeuses.js"></script>
     <script src="js/services.js"></script>
-    <script src="js/rendez-vous-date-validator.js"></script>
+
+    <!--
+        ✅ FIX rendez-vous — DateValidator already declared
+        rendez-vous-date-validator.js déclare DateValidator
+        rendez-vous.js le redéclare → conflit
+        SOLUTION : charger SEULEMENT rendez-vous.js
+        (il embarque déjà DateValidator en interne)
+        Si votre rendez-vous.js a besoin du validator externe,
+        retirez la déclaration dans rendez-vous.js à la place
+    -->
     <script src="js/rendez-vous-calendar.js"></script>
     <script src="js/rendez-vous.js"></script>
+
     <script src="js/categories-manager.js"></script>
     <script src="js/produits-v3.js"></script>
     <script src="js/materiels.js"></script>
@@ -197,10 +247,13 @@
     <script src="js/thermal-receipt.js"></script>
     <script src="js/ventes-v4.js"></script>
     <script src="js/commissions-v3.js"></script>
-    <script src="js/app.js"></script>
-
-    <!-- ✅ NOUVEAU — Module Rapports -->
     <script src="js/rapports.js"></script>
+
+    <!-- ✅ Comptabilité OHADA -->
+    <script src="js/comptabilite.js"></script>
+
+    <!-- Étape 4 : app.js — UNE SEULE FOIS, APRÈS tous les modules -->
+    <script src="js/app.js"></script>
 
     <!-- Étape 5 : Init — EN DERNIER -->
     <script>
@@ -210,17 +263,18 @@
 
         async function initDashboard() {
             try {
-                // ── ÉTAPE 1 — OfflineManager ──────────────────────────────
+                // ── 1 — OfflineManager ────────────────────────────────────
                 if (window.OfflineManager) {
                     await OfflineManager.init();
                     OfflineManager.startListening();
                     console.log('✅ OfflineManager initialisé');
                 }
 
-                // ── ÉTAPE 2 — Authentification ────────────────────────────
+                // ── 2 — Authentification ──────────────────────────────────
                 console.log('🔐 Checking authentication...');
                 const user = await AuthSupabase.checkAuth();
-                console.log('📊 Auth result:', user ? '✅ USER FOUND' : '❌ NO USER');
+                console.log('📊 Auth result:',
+                    user ? '✅ USER FOUND' : '❌ NO USER');
 
                 if (!user) {
                     console.log('🚪 Redirecting to login...');
@@ -231,7 +285,7 @@
                 console.log('✅ User authenticated:', user.email);
                 console.log('📋 User role:', user.role);
 
-                // ── ÉTAPE 3 — Interface utilisateur ──────────────────────
+                // ── 3 — Interface utilisateur ─────────────────────────────
                 const userInfo   = document.getElementById('user-info');
                 const userAvatar = document.getElementById('user-avatar');
 
@@ -241,8 +295,7 @@
 
                     userInfo.innerHTML = `
                         <p class="text-sm font-medium text-gray-800">${nom}</p>
-                        <p class="text-xs text-gray-600">${role}</p>
-                    `;
+                        <p class="text-xs text-gray-600">${role}</p>`;
 
                     if (userAvatar) {
                         userAvatar.src =
@@ -250,18 +303,21 @@
                     }
                 }
 
-                // ── ÉTAPE 4 — Restrictions selon le rôle ─────────────────
-                if (typeof Permissions !== 'undefined' && user.role !== 'gerant') {
-                    console.log('🔒 Hiding restricted modules for role:', user.role);
+                // ── 4 — Restrictions selon le rôle ───────────────────────
+                if (typeof Permissions !== 'undefined' &&
+                    user.role !== 'gerant') {
 
-                    // ✅ 'rapports' ajouté — données CA + commissions sensibles
+                    console.log('🔒 Hiding restricted modules for role:',
+                        user.role);
+
                     const gerantOnlyModules = [
                         'coiffeuses',
                         'services',
                         'produits',
                         'materiels',
                         'commissions',
-                        'rapports'    // ← NOUVEAU
+                        'rapports',
+                        'comptabilite'   // ✅ AJOUTÉ
                     ];
 
                     document.querySelectorAll('.sidebar-item').forEach(item => {
@@ -272,20 +328,18 @@
                     });
                 }
 
-                // ── ÉTAPE 5 — Init App ────────────────────────────────────
-                // ⚠️ App.init() est aussi appelé via DOMContentLoaded dans app.js
-                // On utilise un flag pour éviter le double appel
+                // ── 5 — Init App (anti double-appel) ─────────────────────
                 if (typeof App !== 'undefined' && !App._initialized) {
                     App._initialized = true;
                     App.init();
                 }
 
-                // ── ÉTAPE 6 — Notifier les ops en attente ─────────────────
+                // ── 6 — Ops en attente ────────────────────────────────────
                 if (window.OfflineManager && typeof App !== 'undefined') {
                     const pending = await OfflineManager.getPendingCount();
                     if (pending > 0) {
                         App.showNotification(
-                            `📴 ${pending} opération(s) en attente de synchronisation`,
+                            `📴 ${pending} opération(s) en attente`,
                             'warning'
                         );
                     }
@@ -298,19 +352,17 @@
             } catch (error) {
                 console.error('💥 Dashboard initialization error:', error);
                 console.error('Stack:', error.stack);
-                alert('Erreur lors du chargement du tableau de bord. Redirection...');
+                alert('Erreur lors du chargement. Redirection...');
                 window.location.href = 'login.html';
             }
         }
 
-        // ✅ Lancement propre
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', initDashboard);
         } else {
             initDashboard();
         }
     </script>
-    <script src="js/comptabilite.js"></script>
 
 </body>
 </html>
