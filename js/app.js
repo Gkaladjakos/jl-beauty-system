@@ -1,4 +1,6 @@
-// Main Application Controller
+// =========================================================================
+// app.js — COMPLET avec intégration des modules Rapports + Comptabilité
+// =========================================================================
 const App = {
     currentPage: null,
 
@@ -19,23 +21,22 @@ const App = {
             }
         }
 
-        // ✅ Appliquer les restrictions de menu selon le rôle
         this.applyRoleRestrictions();
-
         this.setupNavigation();
         this.loadPage('dashboard');
     },
 
     // =========================================================================
-    // ✅ applyRoleRestrictions()
-    // Masque les items du sidebar interdits pour le rôle courant
+    // applyRoleRestrictions()
     // =========================================================================
     applyRoleRestrictions() {
         // Pages interdites pour la caissière
         const PAGES_INTERDITES_CAISSE = [
             'coiffeuses',
             'services',
-            'commissions'
+            'commissions',
+            'rapports',
+            'comptabilite'   // ✅ AJOUTÉ — données financières sensibles
         ];
 
         const user = typeof AuthSupabase !== 'undefined'
@@ -47,7 +48,6 @@ const App = {
         console.log(`[App] Rôle détecté : ${user.role}`);
 
         if (user.role === 'caissiere') {
-            // ✅ Masquer les items de menu interdits
             PAGES_INTERDITES_CAISSE.forEach(page => {
                 const items = document.querySelectorAll(
                     `.sidebar-item[data-page="${page}"]`
@@ -62,12 +62,11 @@ const App = {
                         PAGES_INTERDITES_CAISSE);
         }
 
-        // ✅ Afficher le badge du rôle dans la sidebar (optionnel)
         this._renderRoleBadge(user);
     },
 
     // =========================================================================
-    // ✅ _renderRoleBadge() — badge visuel du rôle dans la sidebar
+    // _renderRoleBadge()
     // =========================================================================
     _renderRoleBadge(user) {
         const badgeContainer = document.getElementById('user-role-badge');
@@ -77,8 +76,7 @@ const App = {
             ? ROLE_PERMISSIONS[user.role]
             : null;
 
-        const label = config?.label || user.role;
-
+        const label      = config?.label || user.role;
         const colorClass = user.role === 'gerant'
             ? 'bg-purple-100 text-purple-700'
             : 'bg-blue-100 text-blue-700';
@@ -98,7 +96,7 @@ const App = {
                 e.preventDefault();
                 const page = item.getAttribute('data-page');
 
-                // ✅ Ne pas recharger si déjà sur la page
+                // Ne pas recharger si déjà sur la page
                 if (page === this.currentPage) return;
 
                 this.loadPage(page);
@@ -120,19 +118,28 @@ const App = {
             return;
         }
 
-        // ✅ Vérification des permissions AVANT tout chargement
+        // Vérification des permissions AVANT tout chargement
         if (!this._canAccessPage(page)) {
-            console.warn(`[App] Accès refusé à "${page}" pour le rôle`,
-                         AuthSupabase?.getRole?.());
+            console.warn(
+                `[App] Accès refusé à "${page}" pour le rôle`,
+                AuthSupabase?.getRole?.()
+            );
             this._renderAccessDenied(contentArea, page);
             return;
         }
 
-        // ✅ Nettoyer les charts Dashboard en quittant
+        // Nettoyer les charts Dashboard en quittant
         if (this.currentPage === 'dashboard' &&
             page !== 'dashboard' &&
             typeof Dashboard !== 'undefined') {
-            Dashboard._destroyAllCharts();
+            Dashboard._destroyAllCharts?.();
+        }
+
+        // Nettoyer les ressources Rapports en quittant
+        if (this.currentPage === 'rapports' &&
+            page !== 'rapports' &&
+            typeof Rapports !== 'undefined') {
+            Rapports._cleanup?.();
         }
 
         this.currentPage = page;
@@ -140,46 +147,72 @@ const App = {
         try {
             switch (page) {
 
+                // ── Dashboard ──────────────────────────────────────────────
                 case 'dashboard':
                     this.updateHeader(
                         'Tableau de bord',
                         'Vue d\'ensemble de votre salon'
                     );
-                    Dashboard.render(contentArea);
+                    if (typeof Dashboard !== 'undefined') {
+                        Dashboard.render(contentArea);
+                    } else {
+                        this._moduleNotFound(contentArea, 'Dashboard');
+                    }
                     break;
 
+                // ── Clients ────────────────────────────────────────────────
                 case 'clients':
                     this.updateHeader(
                         'Gestion des Clients',
                         'Gérer vos clients et leur fidélité'
                     );
-                    Clients.render(contentArea);
+                    if (typeof Clients !== 'undefined') {
+                        Clients.render(contentArea);
+                    } else {
+                        this._moduleNotFound(contentArea, 'Clients');
+                    }
                     break;
 
+                // ── Coiffeuses ─────────────────────────────────────────────
                 case 'coiffeuses':
                     this.updateHeader(
                         'Gestion des Coiffeuses',
                         'Gérer votre équipe et leurs performances'
                     );
-                    Coiffeuses.render(contentArea);
+                    if (typeof Coiffeuses !== 'undefined') {
+                        Coiffeuses.render(contentArea);
+                    } else {
+                        this._moduleNotFound(contentArea, 'Coiffeuses');
+                    }
                     break;
 
+                // ── Services ───────────────────────────────────────────────
                 case 'services':
                     this.updateHeader(
                         'Catalogue de Services',
                         'Gérer vos services et tarifs'
                     );
-                    Services.render(contentArea);
+                    if (typeof Services !== 'undefined') {
+                        Services.render(contentArea);
+                    } else {
+                        this._moduleNotFound(contentArea, 'Services');
+                    }
                     break;
 
+                // ── Rendez-vous ────────────────────────────────────────────
                 case 'rendez-vous':
                     this.updateHeader(
                         'Gestion des Rendez-vous',
                         'Planifier et gérer les rendez-vous'
                     );
-                    RendezVous.render(contentArea);
+                    if (typeof RendezVous !== 'undefined') {
+                        RendezVous.render(contentArea);
+                    } else {
+                        this._moduleNotFound(contentArea, 'RendezVous');
+                    }
                     break;
 
+                // ── Produits ───────────────────────────────────────────────
                 case 'produits':
                     this.updateHeader(
                         'Gestion des Produits',
@@ -187,27 +220,40 @@ const App = {
                     );
                     if (typeof ProduitsV3 !== 'undefined') {
                         ProduitsV3.render(contentArea);
-                    } else {
+                    } else if (typeof Produits !== 'undefined') {
                         Produits.render(contentArea);
+                    } else {
+                        this._moduleNotFound(contentArea, 'Produits');
                     }
                     break;
 
+                // ── Matériels ──────────────────────────────────────────────
                 case 'materiels':
                     this.updateHeader(
                         'Gestion des Matériels',
                         'Gérer vos équipements et maintenance'
                     );
-                    Materiels.render(contentArea);
+                    if (typeof Materiels !== 'undefined') {
+                        Materiels.render(contentArea);
+                    } else {
+                        this._moduleNotFound(contentArea, 'Materiels');
+                    }
                     break;
 
+                // ── Consommables ───────────────────────────────────────────
                 case 'consommables':
                     this.updateHeader(
                         'Gestion des Consommables',
                         'Gérer le stock des produits consommés'
                     );
-                    Consommables.render(contentArea);
+                    if (typeof Consommables !== 'undefined') {
+                        Consommables.render(contentArea);
+                    } else {
+                        this._moduleNotFound(contentArea, 'Consommables');
+                    }
                     break;
 
+                // ── Ventes ─────────────────────────────────────────────────
                 case 'ventes':
                     this.updateHeader(
                         'Gestion des Ventes',
@@ -215,11 +261,14 @@ const App = {
                     );
                     if (typeof VentesV4 !== 'undefined') {
                         VentesV4.render(contentArea);
-                    } else {
+                    } else if (typeof Ventes !== 'undefined') {
                         Ventes.render(contentArea);
+                    } else {
+                        this._moduleNotFound(contentArea, 'Ventes');
                     }
                     break;
 
+                // ── Commissions ────────────────────────────────────────────
                 case 'commissions':
                     this.updateHeader(
                         'Calcul des Commissions',
@@ -227,11 +276,40 @@ const App = {
                     );
                     if (typeof CommissionsV3 !== 'undefined') {
                         CommissionsV3.render(contentArea);
-                    } else {
+                    } else if (typeof Commissions !== 'undefined') {
                         Commissions.render(contentArea);
+                    } else {
+                        this._moduleNotFound(contentArea, 'Commissions');
                     }
                     break;
 
+                // ── Rapports ───────────────────────────────────────────────
+                case 'rapports':
+                    this.updateHeader(
+                        'Rapports journaliers',
+                        'Analyse des services par coiffeuse'
+                    );
+                    if (typeof Rapports !== 'undefined') {
+                        Rapports.render(contentArea);
+                    } else {
+                        this._moduleNotFound(contentArea, 'Rapports');
+                    }
+                    break;
+
+                // ── Comptabilité ← NOUVEAU ─────────────────────────────────
+                case 'comptabilite':
+                    this.updateHeader(
+                        'Comptabilité OHADA',
+                        'Mouvements de caisse et bilan comptable'
+                    );
+                    if (typeof Comptabilite !== 'undefined') {
+                        Comptabilite.render(contentArea);
+                    } else {
+                        this._moduleNotFound(contentArea, 'Comptabilite');
+                    }
+                    break;
+
+                // ── Page inconnue ──────────────────────────────────────────
                 default:
                     console.warn(`[App] Page inconnue : "${page}"`);
                     contentArea.innerHTML = `
@@ -239,51 +317,59 @@ const App = {
                                     h-64 text-gray-400">
                             <i class="fas fa-question-circle text-5xl mb-4"></i>
                             <p class="text-lg font-medium">
-                                Page introuvable : ${page}
+                                Page introuvable : <strong>${page}</strong>
                             </p>
+                            <button onclick="App.loadPage('dashboard')"
+                                    class="mt-4 px-4 py-2 bg-purple-600 text-white
+                                           rounded-lg hover:bg-purple-700 text-sm">
+                                <i class="fas fa-home mr-1"></i> Accueil
+                            </button>
                         </div>`;
             }
 
         } catch (error) {
-            console.error(
-                `[App] Erreur lors du chargement de "${page}":`, error
-            );
+            console.error(`[App] Erreur lors du chargement de "${page}" :`, error);
+
             contentArea.innerHTML = `
                 <div class="flex flex-col items-center justify-center
                             h-64 text-red-400">
-                    <i class="fas fa-exclamation-triangle text-5xl mb-4"></i>
-                    <p class="text-lg font-medium">
-                        Erreur lors du chargement de la page
-                    </p>
-                    <p class="text-sm mt-2 text-gray-500">${error.message}</p>
-                    <button onclick="App.loadPage('${page}')"
-                            class="mt-4 px-4 py-2 bg-purple-600 text-white
-                                   rounded-lg hover:bg-purple-700 text-sm">
-                        <i class="fas fa-redo mr-1"></i> Réessayer
-                    </button>
+                    <div class="bg-red-50 border border-red-200 rounded-2xl
+                                p-10 text-center max-w-md">
+                        <i class="fas fa-exclamation-triangle text-5xl
+                                  text-red-400 mb-4"></i>
+                        <p class="text-lg font-medium text-red-600">
+                            Erreur lors du chargement
+                        </p>
+                        <p class="text-sm mt-2 text-gray-500">
+                            ${error.message}
+                        </p>
+                        <button onclick="App.loadPage('${page}')"
+                                class="mt-4 px-4 py-2 bg-purple-600 text-white
+                                       rounded-lg hover:bg-purple-700 text-sm">
+                            <i class="fas fa-redo mr-1"></i> Réessayer
+                        </button>
+                    </div>
                 </div>`;
+
             this.hideLoading();
         }
     },
 
     // =========================================================================
-    // ✅ _canAccessPage() — vérifie les permissions avant chargement
+    // _canAccessPage()
     // =========================================================================
     _canAccessPage(page) {
-        // Si AuthSupabase n'est pas chargé, on laisse passer
         if (typeof AuthSupabase === 'undefined') return true;
-
         return AuthSupabase.hasPermission(page);
     },
 
     // =========================================================================
-    // ✅ _renderAccessDenied() — page de refus d'accès propre
+    // _renderAccessDenied()
     // =========================================================================
     _renderAccessDenied(container, page) {
         this.currentPage = null;
         container.innerHTML = `
-            <div class="flex flex-col items-center justify-center
-                        h-64 text-gray-400">
+            <div class="flex flex-col items-center justify-center h-64">
                 <div class="bg-red-50 border border-red-200 rounded-2xl
                             p-10 text-center max-w-md">
                     <i class="fas fa-lock text-5xl text-red-400 mb-4"></i>
@@ -300,6 +386,35 @@ const App = {
                         <i class="fas fa-home mr-2"></i>
                         Retour au tableau de bord
                     </button>
+                </div>
+            </div>`;
+    },
+
+    // =========================================================================
+    // _moduleNotFound()
+    // =========================================================================
+    _moduleNotFound(container, moduleName) {
+        console.error(
+            `[App] Module "${moduleName}" introuvable — vérifiez le <script>`
+        );
+        container.innerHTML = `
+            <div class="flex flex-col items-center justify-center h-64">
+                <div class="bg-yellow-50 border border-yellow-200 rounded-2xl
+                            p-10 text-center max-w-md">
+                    <i class="fas fa-puzzle-piece text-5xl text-yellow-400 mb-4"></i>
+                    <h2 class="text-xl font-bold text-yellow-600 mb-2">
+                        Module non chargé
+                    </h2>
+                    <p class="text-gray-500 text-sm mb-2">
+                        Le module <strong>${moduleName}</strong> n'est pas disponible.
+                    </p>
+                    <p class="text-xs text-gray-400">
+                        Vérifiez que le fichier
+                        <code class="bg-gray-100 px-1 rounded">
+                            ${moduleName.toLowerCase()}.js
+                        </code>
+                        est bien inclus dans votre HTML.
+                    </p>
                 </div>
             </div>`;
     },
@@ -343,7 +458,7 @@ const App = {
             type === 'warning' ? 'exclamation-triangle' :
             'info-circle';
 
-        // Éviter les doublons
+        // Éviter les doublons exacts
         const existing = document.querySelector('[data-notification]');
         if (existing && existing.textContent.includes(message)) return;
 
@@ -351,11 +466,17 @@ const App = {
         notification.setAttribute('data-notification', type);
         notification.className =
             `fixed top-4 right-4 px-6 py-4 rounded-lg shadow-lg z-50
-             ${bgColor} text-white transition-opacity duration-300`;
+             ${bgColor} text-white transition-opacity duration-300
+             max-w-sm`;
+
         notification.innerHTML = `
-            <div class="flex items-center space-x-2">
-                <i class="fas fa-${icon}"></i>
-                <span>${message}</span>
+            <div class="flex items-start gap-3">
+                <i class="fas fa-${icon} mt-0.5 flex-shrink-0"></i>
+                <span class="text-sm leading-relaxed">${message}</span>
+                <button onclick="this.closest('[data-notification]').remove()"
+                        class="ml-2 opacity-70 hover:opacity-100 flex-shrink-0">
+                    <i class="fas fa-times text-xs"></i>
+                </button>
             </div>`;
 
         document.body.appendChild(notification);
@@ -372,5 +493,7 @@ const App = {
     }
 };
 
+// =========================================================================
 // ✅ Point d'entrée unique
+// =========================================================================
 document.addEventListener('DOMContentLoaded', () => App.init());

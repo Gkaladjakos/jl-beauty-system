@@ -1,19 +1,35 @@
 // =============================================================================
-// VENTES MODULE — Fichier unique et complet
+// VENTES MODULE — Version corrigée complète
+// Corrections :
+//   ✅ Impression thermique 50×80 mm fonctionnelle
+//   ✅ Commission supprimée du ticket client
+//   ✅ Saisie de date antérieure possible
+//   ✅ updateTotals() manquante ajoutée
+//   ✅ Fermeture modal robuste
+//   ✅ parseItems() helper centralisé
 // =============================================================================
 
 const Ventes = {
 
     // ─── État ────────────────────────────────────────────────────────────────
-    data: [],
-    clients: [],
-    coiffeuses: [],
-    services: [],
-    produits: [],
-    rendezVous: [],
-    currentType: 'Service',
-    selectedItems: [],
+    data:        [],
+    clients:     [],
+    coiffeuses:  [],
+    services:    [],
+    produits:    [],
+    rendezVous:  [],
+    currentType:  'Service',
+    selectedItems:[],
     currentTotal: 0,
+
+    // =========================================================================
+    // HELPER — parseItems() centralisé (évite la répétition × 5)
+    // =========================================================================
+    parseItems(raw) {
+        if (!raw) return [];
+        if (Array.isArray(raw)) return raw;
+        try { return JSON.parse(raw); } catch(e) { return []; }
+    },
 
     // =========================================================================
     // 1. render()
@@ -26,11 +42,13 @@ const Ventes = {
 
             <div class="mb-6 flex justify-between items-center">
                 <button onclick="Ventes.showAddModal()"
-                        class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                        class="px-4 py-2 bg-purple-600 text-white rounded-lg
+                               hover:bg-purple-700">
                     <i class="fas fa-plus mr-2"></i>Enregistrer une vente
                 </button>
                 <div class="flex space-x-3">
-                    <select id="filter-type" class="px-4 py-2 border border-gray-300 rounded-lg">
+                    <select id="filter-type"
+                            class="px-4 py-2 border border-gray-300 rounded-lg">
                         <option value="">Tous les types</option>
                         <option value="Service">Service</option>
                         <option value="Produit">Produit</option>
@@ -42,19 +60,23 @@ const Ventes = {
             <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
                 <div class="bg-white rounded-lg shadow-md p-6">
                     <p class="text-sm text-gray-600">Ventes période</p>
-                    <p id="ventes-periode" class="text-2xl font-bold text-purple-600 mt-2">$0.00</p>
+                    <p id="ventes-periode"
+                       class="text-2xl font-bold text-purple-600 mt-2">$0.00</p>
                 </div>
                 <div class="bg-white rounded-lg shadow-md p-6">
                     <p class="text-sm text-gray-600">Services</p>
-                    <p id="ventes-services" class="text-2xl font-bold text-blue-600 mt-2">$0.00</p>
+                    <p id="ventes-services"
+                       class="text-2xl font-bold text-blue-600 mt-2">$0.00</p>
                 </div>
                 <div class="bg-white rounded-lg shadow-md p-6">
                     <p class="text-sm text-gray-600">Produits</p>
-                    <p id="ventes-produits" class="text-2xl font-bold text-green-600 mt-2">$0.00</p>
+                    <p id="ventes-produits"
+                       class="text-2xl font-bold text-green-600 mt-2">$0.00</p>
                 </div>
                 <div class="bg-white rounded-lg shadow-md p-6">
                     <p class="text-sm text-gray-600">Commissions</p>
-                    <p id="total-commissions" class="text-2xl font-bold text-orange-600 mt-2">$0.00</p>
+                    <p id="total-commissions"
+                       class="text-2xl font-bold text-orange-600 mt-2">$0.00</p>
                 </div>
             </div>
 
@@ -63,20 +85,27 @@ const Ventes = {
                     <table class="w-full">
                         <thead class="bg-gray-50 border-b">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Détails</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Montant</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Paiement</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium
+                                           text-gray-500 uppercase">Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium
+                                           text-gray-500 uppercase">Type</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium
+                                           text-gray-500 uppercase">Client</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium
+                                           text-gray-500 uppercase">Détails</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium
+                                           text-gray-500 uppercase">Montant</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium
+                                           text-gray-500 uppercase">Paiement</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium
+                                           text-gray-500 uppercase">Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="ventes-table" class="divide-y divide-gray-200"></tbody>
+                        <tbody id="ventes-table"
+                               class="divide-y divide-gray-200"></tbody>
                     </table>
                 </div>
-            </div>
-        `;
+            </div>`;
 
         PeriodFilter.setup(() => {
             this.renderTable();
@@ -94,7 +123,8 @@ const Ventes = {
     // =========================================================================
     async loadAllData() {
         try {
-            const [ventesData, clientsData, coiffeusesData, servicesData, produitsData, rdvData] = await Promise.all([
+            const [ventesData, clientsData, coiffeusesData,
+                   servicesData, produitsData, rdvData] = await Promise.all([
                 Utils.get('ventes'),
                 Utils.get('clients'),
                 Utils.get('coiffeuses'),
@@ -102,19 +132,20 @@ const Ventes = {
                 Utils.get('produits'),
                 Utils.get('rendez_vous')
             ]);
-            this.data       = ventesData.data      || [];
-            this.clients    = clientsData.data     || [];
-            this.coiffeuses = coiffeusesData.data  || [];
-            this.services   = servicesData.data    || [];
-            this.produits   = produitsData.data    || [];
-            this.rendezVous = rdvData.data         || [];
+            this.data        = ventesData.data      || [];
+            this.clients     = clientsData.data     || [];
+            this.coiffeuses  = coiffeusesData.data  || [];
+            this.services    = servicesData.data    || [];
+            this.produits    = produitsData.data    || [];
+            this.rendezVous  = rdvData.data         || [];
         } catch (error) {
             console.error('[Ventes] loadAllData error:', error);
+            App.showNotification('Erreur de chargement des données', 'error');
         }
     },
 
     // =========================================================================
-    // 3. updateStats()  ✅ CORRIGÉ — ventile les ventes Mixte item par item
+    // 3. updateStats()
     // =========================================================================
     updateStats() {
         const filteredData = PeriodFilter.filterData(this.data, 'date_vente');
@@ -131,18 +162,11 @@ const Ventes = {
             } else if (v.type === 'Produit') {
                 totalProduits += v.montant_total || 0;
             } else if (v.type === 'Mixte') {
-                // Ventiler via les items individuels
-                const items = typeof v.items === 'string'
-                    ? (() => { try { return JSON.parse(v.items); } catch(e) { return []; } })()
-                    : (v.items || []);
-
+                const items = this.parseItems(v.items);
                 items.forEach(item => {
-                    const subtotal = (item.prix_unitaire || 0) * (item.quantite || 1);
-                    if (item.item_type === 'Service') {
-                        totalServices += subtotal;
-                    } else {
-                        totalProduits += subtotal;
-                    }
+                    const sub = (item.prix_unitaire || 0) * (item.quantite || 1);
+                    if (item.item_type === 'Service') totalServices += sub;
+                    else                              totalProduits += sub;
                 });
             }
         });
@@ -154,7 +178,7 @@ const Ventes = {
     },
 
     // =========================================================================
-    // 4. renderTable()  ✅ CORRIGÉ — badge 3 cas + détails mixte
+    // 4. renderTable()
     // =========================================================================
     renderTable() {
         const tbody = document.getElementById('ventes-table');
@@ -180,40 +204,30 @@ const Ventes = {
         tbody.innerHTML = filteredData.map(vente => {
             const date = Utils.formatDateTime(vente.date_vente);
 
-            // ✅ Badge 3 cas : Service / Produit / Mixte
-            let typeBadge;
-            if (vente.type === 'Service') {
-                typeBadge = '<span class="badge bg-blue-100 text-blue-800">Service</span>';
-            } else if (vente.type === 'Produit') {
-                typeBadge = '<span class="badge bg-green-100 text-green-800">Produit</span>';
-            } else {
-                typeBadge = '<span class="badge bg-purple-100 text-purple-800">Mixte</span>';
-            }
+            const typeBadge =
+                vente.type === 'Service'
+                    ? '<span class="badge bg-blue-100 text-blue-800">Service</span>'
+                : vente.type === 'Produit'
+                    ? '<span class="badge bg-green-100 text-green-800">Produit</span>'
+                    : '<span class="badge bg-purple-100 text-purple-800">Mixte</span>';
 
-            const items = typeof vente.items === 'string'
-                ? (() => { try { return JSON.parse(vente.items); } catch(e) { return null; } })()
-                : vente.items;
-
+            const items = this.parseItems(vente.items);
             let details = '';
-            if (items && Array.isArray(items) && items.length > 0) {
-                if (items.length > 1) {
-                    // ✅ Pour les ventes mixtes, indiquer la composition
-                    const nbServices = items.filter(i => i.item_type === 'Service').length;
-                    const nbProduits = items.filter(i => i.item_type === 'Produit').length;
-                    if (nbServices > 0 && nbProduits > 0) {
-                        details = `${nbServices} service(s) + ${nbProduits} produit(s)`;
-                    } else {
-                        details = `${items.length} articles`;
-                    }
-                } else {
-                    details = items[0].item_nom || items[0].service_nom || items[0].nom || '-';
-                }
+            if (items.length > 1) {
+                const nbS = items.filter(i => i.item_type === 'Service').length;
+                const nbP = items.filter(i => i.item_type === 'Produit').length;
+                details = (nbS > 0 && nbP > 0)
+                    ? `${nbS} service(s) + ${nbP} produit(s)`
+                    : `${items.length} articles`;
+            } else if (items.length === 1) {
+                details = items[0].item_nom || items[0].nom || '-';
             } else {
                 details = vente.item_nom || '-';
             }
 
             const paiementInfo = vente.montant_percu
-                ? `Perçu: ${Utils.formatCurrency(vente.montant_percu)}<br>Monnaie: ${Utils.formatCurrency(vente.monnaie || 0)}`
+                ? `Perçu: ${Utils.formatCurrency(vente.montant_percu)}<br>
+                   Monnaie: ${Utils.formatCurrency(vente.monnaie || 0)}`
                 : (vente.mode_paiement || '-');
 
             return `
@@ -222,18 +236,24 @@ const Ventes = {
                     <td class="px-6 py-4">${typeBadge}</td>
                     <td class="px-6 py-4 text-sm">
                         <div class="font-medium">${vente.client_nom || 'Anonyme'}</div>
-                        <div class="text-gray-500 text-xs">${vente.client_telephone || ''}</div>
+                        <div class="text-gray-500 text-xs">
+                            ${vente.client_telephone || ''}
+                        </div>
                     </td>
                     <td class="px-6 py-4 text-sm">${details}</td>
-                    <td class="px-6 py-4 text-sm font-semibold">${Utils.formatCurrency(vente.montant_total)}</td>
+                    <td class="px-6 py-4 text-sm font-semibold">
+                        ${Utils.formatCurrency(vente.montant_total)}
+                    </td>
                     <td class="px-6 py-4 text-xs text-gray-600">${paiementInfo}</td>
                     <td class="px-6 py-4">
                         <button onclick="Ventes.showDetails('${vente.id}')"
-                                class="text-blue-600 hover:text-blue-800 mr-2" title="Détails">
+                                class="text-blue-600 hover:text-blue-800 mr-2"
+                                title="Détails">
                             <i class="fas fa-eye"></i>
                         </button>
                         <button onclick="Ventes.printReceipt('${vente.id}')"
-                                class="text-green-600 hover:text-green-800" title="Imprimer reçu">
+                                class="text-green-600 hover:text-green-800"
+                                title="Imprimer reçu">
                             <i class="fas fa-print"></i>
                         </button>
                     </td>
@@ -245,24 +265,42 @@ const Ventes = {
     // 5. setupFilters()
     // =========================================================================
     setupFilters() {
-        const typeFilter = document.getElementById('filter-type');
-        if (typeFilter) {
-            typeFilter.addEventListener('change', () => {
+        document.getElementById('filter-type')
+            ?.addEventListener('change', () => {
                 this.renderTable();
                 this.updateStats();
             });
-        }
     },
 
     // =========================================================================
-    // 6. showAddModal()  ✅ CORRIGÉ — label boutons mis à jour pour vente mixte
+    // 6. showAddModal()  ✅ Date antérieure possible
     // =========================================================================
     showAddModal() {
         this.selectedItems = [];
         this.currentTotal  = 0;
 
+        // ✅ Date du jour formatée pour le champ date (valeur par défaut)
+        const today = new Date().toISOString().slice(0, 10);
+
         const modalContent = `
             <form id="vente-form" class="space-y-4">
+
+                <!-- ✅ NOUVEAU — Sélection de date (antérieure autorisée) -->
+                <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <label class="block text-sm font-medium text-amber-800 mb-1">
+                        <i class="fas fa-calendar-alt mr-2"></i>
+                        Date de la vente
+                    </label>
+                    <input type="date" id="vente-date"
+                           value="${today}"
+                           max="${today}"
+                           class="w-full px-3 py-2 border border-amber-300
+                                  rounded-lg bg-white text-sm">
+                    <p class="text-xs text-amber-600 mt-1">
+                        Modifiez la date pour enregistrer une vente antérieure
+                    </p>
+                </div>
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">
                         Ajouter un article — cliquez sur le type voulu
@@ -270,26 +308,34 @@ const Ventes = {
                     <div class="grid grid-cols-2 gap-4">
                         <button type="button" onclick="Ventes.setType('Service')"
                                 id="btn-type-service"
-                                class="px-4 py-3 border-2 border-blue-600 bg-blue-50 text-blue-700 rounded-lg font-medium hover:bg-blue-100">
+                                class="px-4 py-3 border-2 border-blue-600 bg-blue-50
+                                       text-blue-700 rounded-lg font-medium
+                                       hover:bg-blue-100">
                             <i class="fas fa-cut mr-2"></i>+ Service
                         </button>
                         <button type="button" onclick="Ventes.setType('Produit')"
                                 id="btn-type-produit"
-                                class="px-4 py-2 border-2 border-gray-300 text-gray-600 rounded-lg font-medium hover:bg-gray-50">
+                                class="px-4 py-2 border-2 border-gray-300
+                                       text-gray-600 rounded-lg font-medium
+                                       hover:bg-gray-50">
                             <i class="fas fa-shopping-bag mr-2"></i>+ Produit
                         </button>
                     </div>
                 </div>
 
-                <div id="service-rdv-option" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div id="service-rdv-option"
+                     class="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <label class="flex items-center cursor-pointer">
-                        <input type="checkbox" id="link-rdv" class="mr-3 w-4 h-4" onchange="Ventes.toggleRdvLink()">
+                        <input type="checkbox" id="link-rdv" class="mr-3 w-4 h-4"
+                               onchange="Ventes.toggleRdvLink()">
                         <span class="text-sm font-medium text-blue-800">
-                            <i class="fas fa-link mr-2"></i>Lier à un rendez-vous existant
+                            <i class="fas fa-link mr-2"></i>
+                            Lier à un rendez-vous existant
                         </span>
                     </label>
                     <div id="rdv-selector" class="hidden mt-3">
-                        <select id="select-rdv" class="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        <select id="select-rdv"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg"
                                 onchange="Ventes.loadFromRdv()">
                             <option value="">Sélectionner un rendez-vous...</option>
                         </select>
@@ -298,13 +344,17 @@ const Ventes = {
 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Téléphone client *</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Téléphone client *
+                        </label>
                         <input type="tel" id="client-telephone" required
                                class="w-full px-3 py-2 border border-gray-300 rounded-lg"
                                placeholder="+243 XXX XXX XXX">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Nom client (optionnel)</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Nom client (optionnel)
+                        </label>
                         <input type="text" id="client-nom"
                                class="w-full px-3 py-2 border border-gray-300 rounded-lg"
                                placeholder="Nom du client">
@@ -328,13 +378,10 @@ const Ventes = {
                             </thead>
                             <tbody id="selected-items-table"></tbody>
                         </table>
-                        <div class="border-t border-gray-300 mt-3 pt-3 flex justify-between font-bold">
+                        <div class="border-t border-gray-300 mt-3 pt-3
+                                    flex justify-between font-bold">
                             <span>TOTAL :</span>
                             <span id="total-amount">$0.00</span>
-                        </div>
-                        <div id="commission-total" class="hidden text-sm text-gray-600 mt-2 flex justify-between">
-                            <span>Commission totale :</span>
-                            <span id="total-commission">$0.00</span>
                         </div>
                     </div>
                 </div>
@@ -343,7 +390,9 @@ const Ventes = {
                     <h4 class="font-medium text-gray-700 mb-3">Paiement</h4>
                     <div class="grid grid-cols-2 gap-4 mb-4">
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Mode de paiement *</label>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                Mode de paiement *
+                            </label>
                             <select name="mode_paiement" required
                                     class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                                 <option value="Espèces">Espèces</option>
@@ -353,28 +402,39 @@ const Ventes = {
                             </select>
                         </div>
                         <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Montant perçu</label>
-                            <input type="number" id="montant-percu" step="0.01" min="0"
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                Montant perçu
+                            </label>
+                            <input type="number" id="montant-percu"
+                                   step="0.01" min="0"
                                    class="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                                   placeholder="0.00" oninput="Ventes.calculateChange()">
+                                   placeholder="0.00"
+                                   oninput="Ventes.calculateChange()">
                         </div>
                     </div>
 
-                    <div id="change-display" class="hidden bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div id="change-display"
+                         class="hidden bg-green-50 border border-green-200
+                                rounded-lg p-4">
                         <div class="flex justify-between items-center">
-                            <span class="text-sm font-medium text-green-800">Monnaie à rendre :</span>
-                            <span id="change-amount" class="text-xl font-bold text-green-700">$0.00</span>
+                            <span class="text-sm font-medium text-green-800">
+                                Monnaie à rendre :
+                            </span>
+                            <span id="change-amount"
+                                  class="text-xl font-bold text-green-700">$0.00</span>
                         </div>
                     </div>
 
-                    <div id="insufficient-payment" class="hidden bg-red-50 border border-red-200 rounded-lg p-4 mt-2">
+                    <div id="insufficient-payment"
+                         class="hidden bg-red-50 border border-red-200
+                                rounded-lg p-4 mt-2">
                         <p class="text-sm text-red-800">
-                            <i class="fas fa-exclamation-triangle mr-2"></i>Montant insuffisant
+                            <i class="fas fa-exclamation-triangle mr-2"></i>
+                            Montant insuffisant
                         </p>
                     </div>
                 </div>
-            </form>
-        `;
+            </form>`;
 
         const modal = Utils.createModal(
             '<i class="fas fa-cash-register mr-2"></i>Enregistrer une vente',
@@ -388,12 +448,10 @@ const Ventes = {
     },
 
     // =========================================================================
-    // 7. setType()  ✅ CORRIGÉ — ne vide plus selectedItems (vente mixte)
+    // 7. setType()
     // =========================================================================
     setType(type) {
         this.currentType = type;
-        // ✅ On ne réinitialise PAS selectedItems ici
-        // → permet d'ajouter des services ET des produits sur la même vente
 
         const btnService = document.getElementById('btn-type-service');
         const btnProduit = document.getElementById('btn-type-produit');
@@ -401,11 +459,19 @@ const Ventes = {
 
         if (btnService && btnProduit) {
             if (type === 'Service') {
-                btnService.className = 'px-4 py-3 border-2 border-blue-600 bg-blue-50 text-blue-700 rounded-lg font-medium hover:bg-blue-100';
-                btnProduit.className = 'px-4 py-2 border-2 border-gray-300 text-gray-600 rounded-lg font-medium hover:bg-gray-50';
+                btnService.className =
+                    'px-4 py-3 border-2 border-blue-600 bg-blue-50 ' +
+                    'text-blue-700 rounded-lg font-medium hover:bg-blue-100';
+                btnProduit.className =
+                    'px-4 py-2 border-2 border-gray-300 text-gray-600 ' +
+                    'rounded-lg font-medium hover:bg-gray-50';
             } else {
-                btnProduit.className = 'px-4 py-3 border-2 border-green-600 bg-green-50 text-green-700 rounded-lg font-medium hover:bg-green-100';
-                btnService.className = 'px-4 py-2 border-2 border-gray-300 text-gray-600 rounded-lg font-medium hover:bg-gray-50';
+                btnProduit.className =
+                    'px-4 py-3 border-2 border-green-600 bg-green-50 ' +
+                    'text-green-700 rounded-lg font-medium hover:bg-green-100';
+                btnService.className =
+                    'px-4 py-2 border-2 border-gray-300 text-gray-600 ' +
+                    'rounded-lg font-medium hover:bg-gray-50';
             }
         }
 
@@ -443,21 +509,25 @@ const Ventes = {
         const today    = new Date().setHours(0, 0, 0, 0);
         const rdvToday = this.rendezVous.filter(rdv => {
             const rdvDate = new Date(rdv.date_rdv).setHours(0, 0, 0, 0);
-            return rdvDate === today && ['Programmé', 'En cours'].includes(rdv.statut);
+            return rdvDate === today &&
+                   ['Programmé', 'En cours'].includes(rdv.statut);
         });
 
         select.innerHTML = '<option value="">Sélectionner un rendez-vous...</option>';
         rdvToday.forEach(rdv => {
-            const time   = new Date(rdv.date_rdv).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+            const time   = new Date(rdv.date_rdv).toLocaleTimeString('fr-FR', {
+                hour: '2-digit', minute: '2-digit'
+            });
             const option = document.createElement('option');
             option.value       = rdv.id;
-            option.textContent = `${time} — ${rdv.client_nom} — ${rdv.service_nom} (${rdv.coiffeuse_nom})`;
+            option.textContent =
+                `${time} — ${rdv.client_nom} — ${rdv.service_nom} (${rdv.coiffeuse_nom})`;
             select.appendChild(option);
         });
     },
 
     // =========================================================================
-    // 10. loadFromRdv()  ✅ CORRIGÉ — item_type explicite
+    // 10. loadFromRdv()
     // =========================================================================
     loadFromRdv() {
         const rdvId = document.getElementById('select-rdv')?.value;
@@ -477,16 +547,18 @@ const Ventes = {
         if (service) {
             const prixService = service.prix || 0;
             const tauxComm    = coiffeuse?.taux_commission || 0;
-            const commission  = Math.round((prixService * tauxComm / 100) * 100) / 100;
+            const commission  =
+                Math.round((prixService * tauxComm / 100) * 100) / 100;
 
-            // ✅ Éviter les doublons si déjà chargé depuis ce RDV
-            const alreadyLoaded = this.selectedItems.find(i => i.id === service.id && i.item_type === 'Service');
+            const alreadyLoaded = this.selectedItems.find(
+                i => i.id === service.id && i.item_type === 'Service'
+            );
             if (!alreadyLoaded) {
                 this.selectedItems.push({
                     id:              service.id,
                     nom:             service.nom,
                     item_nom:        service.nom,
-                    item_type:       'Service',        // ✅ typage explicite pour ventes mixtes
+                    item_type:       'Service',
                     prix_unitaire:   prixService,
                     quantite:        1,
                     coiffeuse_id:    coiffeuse?.id  || null,
@@ -500,169 +572,156 @@ const Ventes = {
     },
 
     // =========================================================================
-// renderItemsArea() ✅ CORRIGÉ
-// Services  → liste services + coiffeuse associée
-// Produits  → liste produits uniquement (pas de coiffeuse)
-// =========================================================================
-renderItemsArea() {
-    const area = document.getElementById('items-area');
-    if (!area) return;
+    // 11. renderItemsArea()
+    // =========================================================================
+    renderItemsArea() {
+        const area = document.getElementById('items-area');
+        if (!area) return;
 
-    // ✅ CORRECTION 1 — Construire servicesOptions ET coiffeusesOptions ICI
-    const servicesOptions = (this.services || [])
-        .filter(s => s.actif !== false)
-        .map(s => `
-            <option 
-                value="${s.id}" 
-                data-nom="${s.nom}" 
-                data-prix="${s.prix || 0}">
-                ${s.nom} — ${Utils.formatCurrency(s.prix || 0)}
-            </option>`)
-        .join('');
+        const servicesOptions = (this.services || [])
+            .filter(s => s.actif !== false)
+            .map(s => `
+                <option value="${s.id}"
+                        data-nom="${s.nom}"
+                        data-prix="${s.prix || 0}">
+                    ${s.nom} — ${Utils.formatCurrency(s.prix || 0)}
+                </option>`)
+            .join('');
 
-    const coiffeusesOptions = (this.coiffeuses || [])
-        .filter(c => c.statut === 'Actif')
-        .map(c => `
-            <option 
-                value="${c.id}" 
-                data-nom="${c.nom}" 
-                data-taux="${c.taux_commission || 0}">
-                ${c.nom} (${c.taux_commission || 0}%)
-            </option>`)
-        .join('');
+        const coiffeusesOptions = (this.coiffeuses || [])
+            .filter(c => c.statut === 'Actif')
+            .map(c => `
+                <option value="${c.id}"
+                        data-nom="${c.nom}"
+                        data-taux="${c.taux_commission || 0}">
+                    ${c.nom}
+                </option>`)
+            .join('');
 
-    const produitsOptions = (this.produits || [])
-        .filter(p => p.stock_actuel > 0)
-        .map(p => `
-            <option 
-                value="${p.id}" 
-                data-nom="${p.nom}" 
-                data-prix="${p.prix_vente || 0}">
-                ${p.nom} — ${Utils.formatCurrency(p.prix_vente || 0)} 
-                (stock: ${p.stock_actuel})
-            </option>`)
-        .join('');
+        const produitsOptions = (this.produits || [])
+            .filter(p => p.stock_actuel > 0)
+            .map(p => `
+                <option value="${p.id}"
+                        data-nom="${p.nom}"
+                        data-prix="${p.prix_vente || 0}">
+                    ${p.nom} — ${Utils.formatCurrency(p.prix_vente || 0)}
+                    (stock: ${p.stock_actuel})
+                </option>`)
+            .join('');
 
-    // ✅ CORRECTION 2 — Deux zones séparées selon le type
-    if (this.currentType === 'Service') {
-        area.innerHTML = `
-            <div class="border-2 border-dashed border-blue-300 bg-blue-50 rounded-lg p-4 space-y-3">
-                <h4 class="font-medium text-blue-700">
-                    <i class="fas fa-cut mr-2"></i>Ajouter un service
-                </h4>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Service</label>
-                        <select id="select-service" 
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
-                            <option value="">Choisir un service...</option>
-                            ${servicesOptions}
-                        </select>
+        if (this.currentType === 'Service') {
+            area.innerHTML = `
+                <div class="border-2 border-dashed border-blue-300 bg-blue-50
+                            rounded-lg p-4 space-y-3">
+                    <h4 class="font-medium text-blue-700">
+                        <i class="fas fa-cut mr-2"></i>Ajouter un service
+                    </h4>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium
+                                          text-gray-700 mb-1">Service</label>
+                            <select id="select-service"
+                                    class="w-full px-3 py-2 border border-gray-300
+                                           rounded-lg text-sm bg-white">
+                                <option value="">Choisir un service...</option>
+                                ${servicesOptions}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium
+                                          text-gray-700 mb-1">
+                                Coiffeuse <span class="text-red-500">*</span>
+                            </label>
+                            <select id="select-coiffeuse"
+                                    class="w-full px-3 py-2 border border-gray-300
+                                           rounded-lg text-sm bg-white">
+                                <option value="">Choisir une coiffeuse...</option>
+                                ${coiffeusesOptions}
+                            </select>
+                        </div>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">
-                            Coiffeuse <span class="text-red-500">*</span>
-                        </label>
-                        <select id="select-coiffeuse" 
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
-                            <option value="">Choisir une coiffeuse...</option>
-                            ${coiffeusesOptions}
-                        </select>
+                        <label class="block text-sm font-medium
+                                      text-gray-700 mb-1">Prix</label>
+                        <input type="number" id="item-prix"
+                               step="0.01" min="0"
+                               class="w-full px-3 py-2 border border-gray-300
+                                      rounded-lg text-sm"
+                               placeholder="0.00">
                     </div>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Prix</label>
-                    <input type="number" id="item-prix" step="0.01" min="0"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                           placeholder="0.00">
-                </div>
+                    <button type="button" onclick="Ventes.addServiceItem()"
+                            class="w-full px-4 py-2 bg-blue-600 text-white
+                                   rounded-lg hover:bg-blue-700 text-sm">
+                        <i class="fas fa-plus mr-2"></i>Ajouter ce service
+                    </button>
+                </div>`;
 
-                <!-- ✅ Commission auto — lecture seule -->
-                <div id="commission-preview" 
-                     class="hidden bg-orange-50 border border-orange-200 rounded-lg px-4 py-3">
-                    <div class="flex justify-between items-center">
-                        <span class="text-sm text-orange-700">
-                            <i class="fas fa-percentage mr-1"></i>
-                            Commission <span id="comm-taux-label" class="font-bold"></span>
-                        </span>
-                        <span id="comm-montant-label" class="font-bold text-orange-700"></span>
-                    </div>
-                </div>
+            document.getElementById('select-service')
+                ?.addEventListener('change', function() {
+                    const opt = this.options[this.selectedIndex];
+                    const prixInput = document.getElementById('item-prix');
+                    if (prixInput) prixInput.value = opt.dataset.prix || 0;
+                });
 
-                <button type="button" onclick="Ventes.addServiceItem()"
-                        class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
-                    <i class="fas fa-plus mr-2"></i>Ajouter ce service
-                </button>
-            </div>`;
-
-        // ✅ Listeners service
-        document.getElementById('select-service')?.addEventListener('change', function() {
-            const opt = this.options[this.selectedIndex];
-            const prixInput = document.getElementById('item-prix');
-            if (prixInput) prixInput.value = opt.dataset.prix || 0;
-            Ventes.updateCommissionPreview();
-        });
-        document.getElementById('select-coiffeuse')?.addEventListener('change', function() {
-            Ventes.updateCommissionPreview();
-        });
-        document.getElementById('item-prix')?.addEventListener('input', function() {
-            Ventes.updateCommissionPreview();
-        });
-
-    } else if (this.currentType === 'Produit') {
-        // ✅ CORRECTION 3 — Produit : pas de coiffeuse
-        area.innerHTML = `
-            <div class="border-2 border-dashed border-green-300 bg-green-50 rounded-lg p-4 space-y-3">
-                <h4 class="font-medium text-green-700">
-                    <i class="fas fa-box mr-2"></i>Ajouter un produit
-                </h4>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Produit</label>
-                        <select id="select-produit" 
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
-                            <option value="">Choisir un produit...</option>
-                            ${produitsOptions}
-                        </select>
+        } else {
+            area.innerHTML = `
+                <div class="border-2 border-dashed border-green-300 bg-green-50
+                            rounded-lg p-4 space-y-3">
+                    <h4 class="font-medium text-green-700">
+                        <i class="fas fa-box mr-2"></i>Ajouter un produit
+                    </h4>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium
+                                          text-gray-700 mb-1">Produit</label>
+                            <select id="select-produit"
+                                    class="w-full px-3 py-2 border border-gray-300
+                                           rounded-lg text-sm bg-white">
+                                <option value="">Choisir un produit...</option>
+                                ${produitsOptions}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium
+                                          text-gray-700 mb-1">Quantité</label>
+                            <input type="number" id="item-quantite"
+                                   min="1" value="1"
+                                   class="w-full px-3 py-2 border border-gray-300
+                                          rounded-lg text-sm">
+                        </div>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Quantité</label>
-                        <input type="number" id="item-quantite" min="1" value="1"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                        <label class="block text-sm font-medium
+                                      text-gray-700 mb-1">Prix unitaire</label>
+                        <input type="number" id="item-prix"
+                               step="0.01" min="0"
+                               class="w-full px-3 py-2 border border-gray-300
+                                      rounded-lg text-sm"
+                               placeholder="0.00">
                     </div>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Prix unitaire</label>
-                    <input type="number" id="item-prix" step="0.01" min="0"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                           placeholder="0.00">
-                </div>
+                    <button type="button" onclick="Ventes.addProduitItem()"
+                            class="w-full px-4 py-2 bg-green-600 text-white
+                                   rounded-lg hover:bg-green-700 text-sm">
+                        <i class="fas fa-plus mr-2"></i>Ajouter ce produit
+                    </button>
+                </div>`;
 
-                <button type="button" onclick="Ventes.addProduitItem()"
-                        class="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm">
-                    <i class="fas fa-plus mr-2"></i>Ajouter ce produit
-                </button>
-            </div>`;
-
-        // ✅ Listener produit — remplir prix auto
-        document.getElementById('select-produit')?.addEventListener('change', function() {
-            const opt = this.options[this.selectedIndex];
-            const prixInput = document.getElementById('item-prix');
-            if (prixInput) prixInput.value = opt.dataset.prix || 0;
-        });
-    }
-},
+            document.getElementById('select-produit')
+                ?.addEventListener('change', function() {
+                    const opt = this.options[this.selectedIndex];
+                    const prixInput = document.getElementById('item-prix');
+                    if (prixInput) prixInput.value = opt.dataset.prix || 0;
+                });
+        }
+    },
 
     // =========================================================================
-// addServiceItem() ✅ CORRIGÉ — commission tirée automatiquement de la coiffeuse
-// =========================================================================
+    // 12. addServiceItem()
+    // =========================================================================
     addServiceItem() {
         const selectService   = document.getElementById('select-service');
         const selectCoiffeuse = document.getElementById('select-coiffeuse');
         const prixInput       = document.getElementById('item-prix');
-
-        // ✅ Plus de commPctInput — on supprime cette ligne
-        // const commPctInput = document.getElementById('item-commission-pct'); ❌ SUPPRIMÉ
 
         if (!selectService?.value) {
             App.showNotification('Veuillez choisir un service', 'error');
@@ -671,12 +730,10 @@ renderItemsArea() {
 
         const serviceOpt = selectService.options[selectService.selectedIndex];
         const coiffOpt   = selectCoiffeuse?.options[selectCoiffeuse?.selectedIndex];
-
-        const prix = parseFloat(prixInput?.value) || 0;
-
-        // ✅ Taux tiré du data-taux de la coiffeuse (défini dans coiffeusesOptions)
+        const prix       = parseFloat(prixInput?.value) || 0;
         const tauxComm   = parseFloat(coiffOpt?.dataset?.taux) || 0;
-        const commission = Math.round((prix * tauxComm / 100) * 100) / 100;
+        const commission =
+            Math.round((prix * tauxComm / 100) * 100) / 100;
 
         this.selectedItems.push({
             id:              selectService.value,
@@ -685,76 +742,86 @@ renderItemsArea() {
             item_type:       'Service',
             prix_unitaire:   prix,
             quantite:        1,
-            coiffeuse_id:    selectCoiffeuse?.value       || null,
-            coiffeuse_nom:   coiffOpt?.dataset?.nom       || null,
+            coiffeuse_id:    selectCoiffeuse?.value   || null,
+            coiffeuse_nom:   coiffOpt?.dataset?.nom   || null,
             taux_commission: tauxComm,
             commission:      commission
         });
 
         this.renderSelectedItems();
 
-        // ✅ Reset des champs après ajout
         selectService.value = '';
         if (selectCoiffeuse) selectCoiffeuse.value = '';
         if (prixInput)       prixInput.value       = '';
-        document.getElementById('commission-preview')?.classList.add('hidden');
-
     },
 
     // =========================================================================
-// addProduitItem() ✅ NOUVEAU — sans coiffeuse
-// =========================================================================
-addProduitItem() {
-    const selectProduit = document.getElementById('select-produit');
-    const prixInput     = document.getElementById('item-prix');
-    const qteInput      = document.getElementById('item-quantite');
+    // 13. addProduitItem()
+    // =========================================================================
+    addProduitItem() {
+        const selectProduit = document.getElementById('select-produit');
+        const prixInput     = document.getElementById('item-prix');
+        const qteInput      = document.getElementById('item-quantite');
 
-    if (!selectProduit?.value) {
-        App.showNotification('Veuillez choisir un produit', 'error');
-        return;
-    }
+        if (!selectProduit?.value) {
+            App.showNotification('Veuillez choisir un produit', 'error');
+            return;
+        }
 
-    const produitOpt = selectProduit.options[selectProduit.selectedIndex];
-    const prix       = parseFloat(prixInput?.value)  || 0;
-    const quantite   = parseInt(qteInput?.value)     || 1;
+        const produitOpt = selectProduit.options[selectProduit.selectedIndex];
+        const prix       = parseFloat(prixInput?.value) || 0;
+        const quantite   = parseInt(qteInput?.value)    || 1;
 
-    // ✅ Vérifier stock disponible
-    const produit = this.produits.find(p => p.id === selectProduit.value);
-    if (produit && quantite > produit.stock_actuel) {
-        App.showNotification(`Stock insuffisant (disponible: ${produit.stock_actuel})`, 'error');
-        return;
-    }
+        const produit = this.produits.find(p => p.id === selectProduit.value);
+        if (produit && quantite > produit.stock_actuel) {
+            App.showNotification(
+                `Stock insuffisant (disponible: ${produit.stock_actuel})`, 'error'
+            );
+            return;
+        }
 
-    this.selectedItems.push({
-        id:            selectProduit.value,
-        nom:           produitOpt.dataset.nom || produitOpt.text,
-        item_nom:      produitOpt.dataset.nom || produitOpt.text,
-        item_type:     'Produit',      // ✅ Pas de coiffeuse
-        prix_unitaire: prix,
-        quantite:      quantite,
-        coiffeuse_id:  null,           // ✅ Toujours null pour un produit
-        coiffeuse_nom: null,
-        taux_commission: 0,
-        commission:    0               // ✅ Pas de commission sur produit
-    });
+        this.selectedItems.push({
+            id:              selectProduit.value,
+            nom:             produitOpt.dataset.nom || produitOpt.text,
+            item_nom:        produitOpt.dataset.nom || produitOpt.text,
+            item_type:       'Produit',
+            prix_unitaire:   prix,
+            quantite:        quantite,
+            coiffeuse_id:    null,
+            coiffeuse_nom:   null,
+            taux_commission: 0,
+            commission:      0
+        });
 
-    this.renderSelectedItems();
+        this.renderSelectedItems();
 
-    // Reset
-    selectProduit.value    = '';
-    if (prixInput)  prixInput.value  = '';
-    if (qteInput)   qteInput.value   = 1;
-},
+        selectProduit.value = '';
+        if (prixInput) prixInput.value = '';
+        if (qteInput)  qteInput.value  = 1;
+    },
 
     // =========================================================================
-    // 13. renderSelectedItems()  ✅ CORRIGÉ — badge type par item + commission mixte
+    // 14. removeItem()  ✅ updateTotals() remplacé par renderSelectedItems()
+    // =========================================================================
+    removeItem(index) {
+        this.selectedItems.splice(index, 1);
+        this.renderSelectedItems();
+    },
+
+    // =========================================================================
+    // 15. updateTotals()  ✅ AJOUTÉ — était appelée mais inexistante
+    // =========================================================================
+    updateTotals() {
+        this.renderSelectedItems();
+    },
+
+    // =========================================================================
+    // 16. renderSelectedItems()
     // =========================================================================
     renderSelectedItems() {
         const display = document.getElementById('selected-items-display');
         const tbody   = document.getElementById('selected-items-table');
         const totalEl = document.getElementById('total-amount');
-        const commDiv = document.getElementById('commission-total');
-        const commEl  = document.getElementById('total-commission');
 
         if (!display || !tbody) return;
 
@@ -766,22 +833,15 @@ addProduitItem() {
 
         display.classList.remove('hidden');
 
-        let total     = 0;
-        let totalComm = 0;
+        let total = 0;
 
         tbody.innerHTML = this.selectedItems.map((item, index) => {
             const subtotal = (item.prix_unitaire || 0) * (item.quantite || 1);
-            total     += subtotal;
-            totalComm += (item.commission || 0);
+            total += subtotal;
 
-            // ✅ Badge couleur selon item_type
             const typePill = item.item_type === 'Service'
-                ? '<span class="text-xs bg-blue-100 text-blue-700 px-1 rounded">Service</span>'
-                : '<span class="text-xs bg-green-100 text-green-700 px-1 rounded">Produit</span>';
-
-            const commInfo = item.commission
-                ? `<div class="text-xs text-orange-500">Comm: ${Utils.formatCurrency(item.commission)}</div>`
-                : '';
+                ? '<span class="text-xs bg-blue-100 text-blue-700 px-1 rounded">S</span>'
+                : '<span class="text-xs bg-green-100 text-green-700 px-1 rounded">P</span>';
 
             const coiffInfo = item.coiffeuse_nom
                 ? `<div class="text-xs text-gray-400">${item.coiffeuse_nom}</div>`
@@ -790,15 +850,21 @@ addProduitItem() {
             return `
                 <tr class="border-b border-gray-200">
                     <td class="py-2">
-                        <div class="font-medium">${item.item_nom || item.nom} ${typePill}</div>
+                        <div class="font-medium">
+                            ${item.item_nom || item.nom} ${typePill}
+                        </div>
                         ${coiffInfo}
-                        ${commInfo}
                     </td>
                     <td class="py-2 text-center">${item.quantite || 1}</td>
-                    <td class="py-2 text-right">${Utils.formatCurrency(item.prix_unitaire || 0)}</td>
-                    <td class="py-2 text-right font-medium">${Utils.formatCurrency(subtotal)}</td>
+                    <td class="py-2 text-right">
+                        ${Utils.formatCurrency(item.prix_unitaire || 0)}
+                    </td>
+                    <td class="py-2 text-right font-medium">
+                        ${Utils.formatCurrency(subtotal)}
+                    </td>
                     <td class="py-2 text-center">
-                        <button type="button" onclick="Ventes.removeItem(${index})"
+                        <button type="button"
+                                onclick="Ventes.removeItem(${index})"
                                 class="text-red-500 hover:text-red-700">
                             <i class="fas fa-trash-alt"></i>
                         </button>
@@ -809,31 +875,15 @@ addProduitItem() {
         this.currentTotal = total;
         if (totalEl) totalEl.textContent = Utils.formatCurrency(total);
 
-        // ✅ Afficher la commission si au moins un item Service a une commission
-        if (commDiv && commEl) {
-            const hasServiceItems = this.selectedItems.some(i => i.item_type === 'Service');
-            if (hasServiceItems && totalComm > 0) {
-                commDiv.classList.remove('hidden');
-                commEl.textContent = Utils.formatCurrency(totalComm);
-            } else {
-                commDiv.classList.add('hidden');
-            }
-        }
-
         this.calculateChange();
     },
 
-    // ✅ Ajouter dans l'objet Ventes
-    removeItem(index) {
-        this.selectedItems.splice(index, 1);
-        this.renderSelectedItems();
-        this.updateTotals();
-    },
     // =========================================================================
-    // 14. calculateChange()
+    // 17. calculateChange()
     // =========================================================================
     calculateChange() {
-        const percu           = parseFloat(document.getElementById('montant-percu')?.value) || 0;
+        const percu           = parseFloat(
+            document.getElementById('montant-percu')?.value) || 0;
         const changeDisplay   = document.getElementById('change-display');
         const changeAmount    = document.getElementById('change-amount');
         const insufficientDiv = document.getElementById('insufficient-payment');
@@ -859,7 +909,7 @@ addProduitItem() {
     },
 
     // =========================================================================
-    // 15. saveVente()  ✅ CORRIGÉ — type Mixte + coiffeuse_nom null-safe + stock
+    // 18. saveVente()  ✅ Date antérieure prise en compte
     // =========================================================================
     async saveVente(modal) {
         if (this.selectedItems.length === 0) {
@@ -871,10 +921,18 @@ addProduitItem() {
         const telephone = document.getElementById('client-telephone')?.value?.trim();
         const nomClient = document.getElementById('client-nom')?.value?.trim();
         const modePaie  = form?.querySelector('[name="mode_paiement"]')?.value;
-        const percu     = parseFloat(document.getElementById('montant-percu')?.value) || null;
+        const percu     = parseFloat(
+            document.getElementById('montant-percu')?.value) || null;
         const rdvId     = document.getElementById('link-rdv')?.checked
             ? (document.getElementById('select-rdv')?.value || null)
             : null;
+
+        // ✅ Récupérer la date saisie (antérieure autorisée)
+        const dateInput    = document.getElementById('vente-date')?.value;
+        const dateVente    = dateInput
+            ? new Date(dateInput + 'T' + new Date().toTimeString().slice(0, 8))
+                .toISOString()
+            : new Date().toISOString();
 
         if (!telephone) {
             App.showNotification('Le téléphone client est obligatoire', 'error');
@@ -886,10 +944,13 @@ addProduitItem() {
             return;
         }
 
-        const monnaie   = percu !== null ? Math.round((percu - this.currentTotal) * 100) / 100 : 0;
-        const totalComm = this.selectedItems.reduce((s, i) => s + (i.commission || 0), 0);
+        const monnaie   = percu !== null
+            ? Math.round((percu - this.currentTotal) * 100) / 100
+            : 0;
+        const totalComm = this.selectedItems.reduce(
+            (s, i) => s + (i.commission || 0), 0
+        );
 
-        // ✅ Calculer le type réel de la vente
         const hasServices = this.selectedItems.some(i => i.item_type === 'Service');
         const hasProduits = this.selectedItems.some(i => i.item_type === 'Produit');
         const venteType   = hasServices && hasProduits ? 'Mixte'
@@ -897,365 +958,578 @@ addProduitItem() {
                           :                              'Produit';
 
         const payload = {
-            type:venteType,
-            client_telephone:telephone,
-            client_nom:nomClient || null,
-            montant_total:this.currentTotal,
-            commission:Math.round(totalComm * 100) / 100,
-            mode_paiement:modePaie,
-            montant_percu:percu,
-            monnaie:monnaie,
-            items:JSON.stringify(this.selectedItems),
-            date_vente:new Date().toISOString(),
-            // ✅ rdv_id supprimé — colonne inexistante en DB
+            type:             venteType,
+            client_telephone: telephone,
+            client_nom:       nomClient || null,
+            montant_total:    this.currentTotal,
+            commission:       Math.round(totalComm * 100) / 100,
+            mode_paiement:    modePaie,
+            montant_percu:    percu,
+            monnaie:          monnaie,
+            items:            JSON.stringify(this.selectedItems),
+            date_vente:       dateVente,   // ✅ date choisie par l'utilisateur
         };
 
-        // ✅ Champs raccourcis uniquement si 1 seul item
         if (this.selectedItems.length === 1) {
             const only = this.selectedItems[0];
             payload.item_id  = only.id;
             payload.item_nom = only.item_nom || only.nom;
 
-            // ✅ coiffeuse_nom seulement si c'est un Service avec coiffeuse renseignée
-            if (only.item_type === 'Service' && only.coiffeuse_id && only.coiffeuse_nom) {
+            if (only.item_type === 'Service' && only.coiffeuse_id) {
                 payload.coiffeuse_id  = only.coiffeuse_id;
                 payload.coiffeuse_nom = only.coiffeuse_nom;
             } else {
-                // Ne pas envoyer coiffeuse_nom si null (évite violation NOT NULL en DB)
-                payload.coiffeuse_id  = null;
-                // coiffeuse_nom volontairement absent du payload
+                payload.coiffeuse_id = null;
             }
         }
-        // Si plusieurs items : pas de champs raccourcis coiffeuse (vente mixte)
 
         try {
             App.showLoading?.();
             const result = await Utils.create('ventes', payload);
-        
             if (result.error) throw new Error(result.error.message);
-        
-            // ✅ Décrémenter le stock uniquement pour les items Produit
-            const produitItems = this.selectedItems.filter(i => i.item_type === 'Produit');
-            for (const item of produitItems) {
+
+            // Décrémenter le stock pour les produits
+            for (const item of this.selectedItems.filter(i => i.item_type === 'Produit')) {
                 const produit = this.produits.find(p => p.id === item.id);
                 if (produit) {
-                    const newStock = (produit.stock_actuel || 0) - (item.quantite || 1);
-                    await Utils.update('produits', item.id, { stock_actuel: Math.max(0, newStock) });
+                    const newStock =
+                        (produit.stock_actuel || 0) - (item.quantite || 1);
+                    await Utils.update('produits', item.id, {
+                        stock_actuel: Math.max(0, newStock)
+                    });
                 }
             }
-        
-            // Marquer le RDV comme terminé si lié
+
             if (rdvId) {
                 await Utils.update('rendez_vous', rdvId, { statut: 'Terminé' });
             }
-        
+
             App.hideLoading?.();
-        
-            // ✅ CORRECTION — Fermeture modal via DOM (Utils.closeModal inexistant)
-            const modalEl = typeof modal === 'string'
-                ? document.getElementById(modal)
-                : modal;
-            if (modalEl) {
-                modalEl.classList.add('hidden');
-                modalEl.classList.remove('flex');
+
+            // ✅ Fermeture modal robuste
+            if (modal && modal.parentNode) {
+                modal.parentNode.removeChild(modal);
+            } else if (modal) {
+                modal.style.display = 'none';
             }
-        
+
             App.showNotification('Vente enregistrée avec succès !', 'success');
-        
-            // ✅ Reset du formulaire
+
             this.selectedItems = [];
             this.currentTotal  = 0;
-            this.currentType   = null;
-            document.getElementById('vente-form')?.reset();
-            this.renderSelectedItems();
-        
+
             await this.loadAllData();
             this.renderTable();
             this.updateStats();
-        
+
         } catch (error) {
             App.hideLoading?.();
             console.error('[Ventes] saveVente error:', error);
-            App.showNotification('Erreur lors de l\'enregistrement : ' + error.message, 'error');
+            App.showNotification(
+                'Erreur lors de l\'enregistrement : ' + error.message, 'error'
+            );
         }
     },
 
-    // =========================================================================
-    // 16. showDetails()  ✅ CORRIGÉ — affiche le type par item pour les ventes mixtes
-    // =========================================================================
-    showDetails(venteId) {
-        const vente = this.data.find(v => v.id === venteId);
-        if (!vente) return;
+      // =========================================================================  
+    // 19. showDetails()  ✅ Commission retirée de l'affichage client  
+    // =========================================================================  
+    showDetails(venteId) {  
+        const vente = this.data.find(v => v.id === venteId);  
+        if (!vente) return;  
 
-        const items = typeof vente.items === 'string'
-            ? (() => { try { return JSON.parse(vente.items); } catch(e) { return []; } })()
-            : (vente.items || []);
+        const items = this.parseItems(vente.items);  
 
-        const itemsHTML = items.length > 0
-            ? items.map(item => {
-                const typePill = item.item_type === 'Service'
-                    ? '<span class="text-xs bg-blue-100 text-blue-700 px-1 rounded ml-1">S</span>'
-                    : item.item_type === 'Produit'
-                        ? '<span class="text-xs bg-green-100 text-green-700 px-1 rounded ml-1">P</span>'
-                        : '';
-                return `
-                <tr class="border-b border-gray-100">
-                    <td class="py-2">${item.item_nom || item.nom || '-'}${typePill}</td>
-                    <td class="py-2 text-center">${item.quantite || 1}</td>
-                    <td class="py-2 text-right">${Utils.formatCurrency(item.prix_unitaire || 0)}</td>
-                    <td class="py-2 text-right font-medium">
-                        ${Utils.formatCurrency((item.prix_unitaire || 0) * (item.quantite || 1))}
-                    </td>
-                    <td class="py-2 text-right text-orange-500">
-                        ${item.commission ? Utils.formatCurrency(item.commission) : '-'}
-                        ${item.coiffeuse_nom ? `<div class="text-xs text-gray-400">${item.coiffeuse_nom}</div>` : ''}
-                    </td>
-                </tr>`;
-            }).join('')
-            : `<tr><td colspan="5" class="py-4 text-center text-gray-400">Aucun détail disponible</td></tr>`;
+        const itemsHTML = items.length > 0  
+            ? items.map(item => {  
+                const typePill = item.item_type === 'Service'  
+                    ? '<span class="text-xs bg-blue-100 text-blue-700 px-1 rounded ml-1">S</span>'  
+                    : '<span class="text-xs bg-green-100 text-green-700 px-1 rounded ml-1">P</span>';  
 
-        const content = `
-            <div class="space-y-4">
-                <div class="grid grid-cols-2 gap-4 bg-gray-50 rounded-lg p-4">
-                    <div>
-                        <p class="text-xs text-gray-500">Date</p>
-                        <p class="font-medium">${Utils.formatDateTime(vente.date_vente)}</p>
-                    </div>
-                    <div>
-                        <p class="text-xs text-gray-500">Type</p>
-                        <p class="font-medium">${vente.type}</p>
-                    </div>
-                    <div>
-                        <p class="text-xs text-gray-500">Client</p>
-                        <p class="font-medium">${vente.client_nom || 'Anonyme'}</p>
-                        <p class="text-xs text-gray-400">${vente.client_telephone || ''}</p>
-                    </div>
-                    <div>
-                        <p class="text-xs text-gray-500">Mode de paiement</p>
-                        <p class="font-medium">${vente.mode_paiement || '-'}</p>
-                    </div>
-                </div>
+                return `  
+                    <tr class="border-b border-gray-100">  
+                        <td class="py-2">  
+                            ${item.item_nom || item.nom || '-'}${typePill}  
+                            ${item.coiffeuse_nom  
+                                ? `<div class="text-xs text-gray-400">  
+                                       ${item.coiffeuse_nom}  
+                                   </div>`  
+                                : ''}  
+                        </td>  
+                        <td class="py-2 text-center">${item.quantite || 1}</td>  
+                        <td class="py-2 text-right">  
+                            ${Utils.formatCurrency(item.prix_unitaire || 0)}  
+                        </td>  
+                        <td class="py-2 text-right font-medium">  
+                            ${Utils.formatCurrency(  
+                                (item.prix_unitaire || 0) * (item.quantite || 1)  
+                            )}  
+                        </td>  
+                    </tr>`;  
+            }).join('')  
+            : `<tr>  
+                   <td colspan="4" class="py-4 text-center text-gray-400">  
+                       Aucun détail disponible  
+                   </td>  
+               </tr>`;  
 
-                <div>
-                    <h4 class="font-medium text-gray-700 mb-2">Articles</h4>
-                    <table class="w-full text-sm">
-                        <thead class="border-b border-gray-200">
-                            <tr>
-                                <th class="text-left py-2">Article</th>
-                                <th class="text-center py-2">Qté</th>
-                                <th class="text-right py-2">P.U.</th>
-                                <th class="text-right py-2">Total</th>
-                                <th class="text-right py-2">Commission</th>
-                            </tr>
-                        </thead>
-                        <tbody>${itemsHTML}</tbody>
-                    </table>
-                </div>
+        const content = `  
+            <div class="space-y-4">  
+                <div class="grid grid-cols-2 gap-4 bg-gray-50 rounded-lg p-4">  
+                    <div>  
+                        <p class="text-xs text-gray-500">Date</p>  
+                        <p class="font-medium">  
+                            ${Utils.formatDateTime(vente.date_vente)}  
+                        </p>  
+                    </div>  
+                    <div>  
+                        <p class="text-xs text-gray-500">Type</p>  
+                        <p class="font-medium">${vente.type}</p>  
+                    </div>  
+                    <div>  
+                        <p class="text-xs text-gray-500">Client</p>  
+                        <p class="font-medium">${vente.client_nom || 'Anonyme'}</p>  
+                        <p class="text-xs text-gray-400">  
+                            ${vente.client_telephone || ''}  
+                        </p>  
+                    </div>  
+                    <div>  
+                        <p class="text-xs text-gray-500">Mode de paiement</p>  
+                        <p class="font-medium">${vente.mode_paiement || '-'}</p>  
+                    </div>  
+                </div>  
 
-                <div class="bg-gray-50 rounded-lg p-4 space-y-2">
-                    <div class="flex justify-between font-bold text-lg">
-                        <span>Total</span>
-                        <span>${Utils.formatCurrency(vente.montant_total)}</span>
-                    </div>
-                    ${vente.montant_percu ? `
-                    <div class="flex justify-between text-sm text-gray-600">
-                        <span>Montant perçu</span>
-                        <span>${Utils.formatCurrency(vente.montant_percu)}</span>
-                    </div>
-                    <div class="flex justify-between text-sm text-gray-600">
-                        <span>Monnaie rendue</span>
-                        <span>${Utils.formatCurrency(vente.monnaie || 0)}</span>
-                    </div>` : ''}
-                    ${vente.commission ? `
-                    <div class="flex justify-between text-sm text-orange-600">
-                        <span>Commission totale</span>
-                        <span>${Utils.formatCurrency(vente.commission)}</span>
-                    </div>` : ''}
-                </div>
-            </div>
-        `;
+                <div>  
+                    <h4 class="font-medium text-gray-700 mb-2">Articles</h4>  
+                    <table class="w-full text-sm">  
+                        <thead class="border-b border-gray-200">  
+                            <tr>  
+                                <th class="text-left py-2">Article</th>  
+                                <th class="text-center py-2">Qté</th>  
+                                <th class="text-right py-2">P.U.</th>  
+                                <th class="text-right py-2">Total</th>  
+                            </tr>  
+                        </thead>  
+                        <tbody>${itemsHTML}</tbody>  
+                    </table>  
+                </div>  
 
-        const modal = Utils.createModal(
-            `<i class="fas fa-receipt mr-2"></i>Détails de la vente`,
-            content,
-            null,
-            { hideConfirm: true, closeLabel: 'Fermer' }
-        );
-        document.body.appendChild(modal);
-    },
+                <div class="bg-gray-50 rounded-lg p-4 space-y-2">  
+                    <div class="flex justify-between font-bold text-lg border-t  
+                                border-gray-200 pt-2">  
+                        <span>Total</span>  
+                        <span>${Utils.formatCurrency(vente.montant_total)}</span>  
+                    </div>  
+                    ${vente.montant_percu ? `  
+                    <div class="flex justify-between text-sm text-gray-600">  
+                        <span>Montant perçu</span>  
+                        <span>${Utils.formatCurrency(vente.montant_percu)}</span>  
+                    </div>  
+                    <div class="flex justify-between text-sm text-gray-600">  
+                        <span>Monnaie rendue</span>  
+                        <span>${Utils.formatCurrency(vente.monnaie || 0)}</span>  
+                    </div>` : ''}  
+                </div>  
+            </div>`;  
 
-    // =========================================================================
-    // 17. printReceipt()
-    // =========================================================================
-    printReceipt(venteId) {
-        const vente = this.data.find(v => v.id === venteId);
-        if (!vente) return;
+        const modal = Utils.createModal(  
+            `<i class="fas fa-receipt mr-2"></i>Détails de la vente`,  
+            content,  
+            null,  
+            { hideConfirm: true, closeLabel: 'Fermer' }  
+        );  
+        document.body.appendChild(modal);  
+    },  
 
-        const items = typeof vente.items === 'string'
-            ? (() => { try { return JSON.parse(vente.items); } catch(e) { return []; } })()
-            : (vente.items || []);
+    // =========================================================================  
+    // 20. printReceipt()  ✅ Format thermique 50×80 mm — sans commission  
+    // =========================================================================  
+    printReceipt(venteId) {  
+        const vente = this.data.find(v => v.id === venteId);  
+        if (!vente) {  
+            App.showNotification('Vente introuvable', 'error');  
+            return;  
+        }  
 
-        if (typeof ThermalReceipt !== 'undefined') {
-            ThermalReceipt.print({
-                title:         'REÇU DE VENTE',
-                date:          vente.date_vente,
-                client_nom:    vente.client_nom     || 'Anonyme',
-                client_tel:    vente.client_telephone || '',
-                items:         items,
-                total:         vente.montant_total,
-                mode_paiement: vente.mode_paiement,
-                montant_percu: vente.montant_percu,
-                monnaie:       vente.monnaie,
-                type:          vente.type,
-            });
-        } else {
-            const itemsRows = items.map(item =>
-                `<tr>
-                    <td>${item.item_nom || item.nom || '-'}</td>
-                    <td style="text-align:center">${item.quantite || 1}</td>
-                    <td style="text-align:right">${Utils.formatCurrency(item.prix_unitaire || 0)}</td>
-                    <td style="text-align:right">${Utils.formatCurrency((item.prix_unitaire || 0) * (item.quantite || 1))}</td>
-                </tr>`
-            ).join('');
+        const items = this.parseItems(vente.items);  
 
-            const win = window.open('', '_blank');
-            win.document.write(`
-                <!DOCTYPE html><html><head>
-                <title>Reçu</title>
-                <style>
-                    body { font-family: monospace; max-width: 300px; margin: 0 auto; padding: 10px; }
-                    h2   { text-align: center; }
-                    table{ width: 100%; border-collapse: collapse; }
-                    td   { padding: 3px 4px; font-size: 12px; }
-                    .total  { font-weight: bold; border-top: 1px solid #000; }
-                    .center { text-align: center; }
-                </style></head><body>
-                <h2>REÇU DE VENTE</h2>
-                <p class="center">${Utils.formatDateTime(vente.date_vente)}</p>
-                <p>Client : ${vente.client_nom || 'Anonyme'}<br>
-                   Tél    : ${vente.client_telephone || '-'}</p>
-                <hr>
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="text-align:left">Article</th>
-                            <th>Qté</th>
-                            <th style="text-align:right">P.U.</th>
-                            <th style="text-align:right">Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>${itemsRows}</tbody>
-                    <tfoot>
-                        <tr class="total">
-                            <td colspan="3">TOTAL</td>
-                            <td style="text-align:right">${Utils.formatCurrency(vente.montant_total)}</td>
-                        </tr>
-                        ${vente.montant_percu ? `
-                        <tr>
-                            <td colspan="3">Perçu</td>
-                            <td style="text-align:right">${Utils.formatCurrency(vente.montant_percu)}</td>
-                        </tr>
-                        <tr>
-                            <td colspan="3">Monnaie</td>
-                            <td style="text-align:right">${Utils.formatCurrency(vente.monnaie || 0)}</td>
-                        </tr>` : ''}
-                    </tfoot>
-                </table>
-                <hr>
-                <p class="center">Paiement : ${vente.mode_paiement || '-'}</p>
-                <p class="center">Merci de votre visite !</p>
-                <script>window.onload = () => { window.print(); window.close(); }<\/script>
-                </body></html>
-            `);
-            win.document.close();
-        }
-    },
+        // ── Lignes articles (sans commission) ────────────────────────────────  
+        const itemsRows = items.length > 0  
+            ? items.map(item => {  
+                const subtotal =  
+                    (item.prix_unitaire || 0) * (item.quantite || 1);  
+                const nom = (item.item_nom || item.nom || '-')  
+                    .substring(0, 22); // tronquer si trop long pour 50mm  
+                return `  
+                    <tr>  
+                        <td colspan="3" class="item-name">${nom}</td>  
+                    </tr>  
+                    <tr>  
+                        <td>${item.quantite || 1} x</td>  
+                        <td class="price">  
+                            ${Utils.formatCurrency(item.prix_unitaire || 0)}  
+                        </td>  
+                        <td class="price bold">  
+                            ${Utils.formatCurrency(subtotal)}  
+                        </td>  
+                    </tr>`;  
+            }).join('')  
+            : `<tr>  
+                   <td colspan="3" class="center">  
+                       ${vente.item_nom || 'Article'}  
+                   </td>  
+               </tr>  
+               <tr>  
+                   <td>1 x</td>  
+                   <td class="price">  
+                       ${Utils.formatCurrency(vente.montant_total)}  
+                   </td>  
+                   <td class="price bold">  
+                       ${Utils.formatCurrency(vente.montant_total)}  
+                   </td>  
+               </tr>`;  
 
-    // =========================================================================
-    // 18. exportPeriod()
-    // =========================================================================
-    exportPeriod() {
-        const filteredData = PeriodFilter.filterData(this.data, 'date_vente');
+        const dateStr = new Date(vente.date_vente).toLocaleString('fr-FR', {  
+            day:    '2-digit',  
+            month:  '2-digit',  
+            year:   'numeric',  
+            hour:   '2-digit',  
+            minute: '2-digit'  
+        });  
 
-        if (filteredData.length === 0) {
-            App.showNotification('Aucune donnée à exporter pour cette période', 'warning');
-            return;
-        }
+        const receiptHTML = `<!DOCTYPE html>  
+<html lang="fr">  
+<head>  
+    <meta charset="UTF-8">  
+    <title>Reçu #${venteId.slice(-6).toUpperCase()}</title>  
+    <style>  
+        /* ── Format thermique 50 mm × 80 mm ── */  
+        @page {  
+            size: 50mm 80mm;  
+            margin: 1mm 2mm;  
+        }  
 
-        const rows = [
-            ['Date', 'Type', 'Client', 'Téléphone', 'Détails', 'Montant', 'Commission', 'Mode paiement', 'Perçu', 'Monnaie']
-        ];
+        * {  
+            box-sizing: border-box;  
+            margin: 0;  
+            padding: 0;  
+        }  
 
-        filteredData.forEach(v => {
-            const items = typeof v.items === 'string'
-                ? (() => { try { return JSON.parse(v.items); } catch(e) { return []; } })()
-                : (v.items || []);
+        body {  
+            font-family: 'Courier New', Courier, monospace;  
+            font-size: 7.5pt;  
+            width: 46mm;  
+            color: #000;  
+            background: #fff;  
+        }  
 
-            const details = items.length > 1
-                ? `${items.length} articles`
-                : (items[0]?.item_nom || v.item_nom || '-');
+        /* ── En-tête ── */  
+        .header {  
+            text-align: center;  
+            padding-bottom: 2mm;  
+            border-bottom: 1px dashed #000;  
+            margin-bottom: 2mm;  
+        }  
+        .header .salon-name {  
+            font-size: 10pt;  
+            font-weight: bold;  
+            letter-spacing: 1px;  
+        }  
+        .header .receipt-title {  
+            font-size: 8pt;  
+            font-weight: bold;  
+            margin-top: 1mm;  
+        }  
+        .header .meta {  
+            font-size: 6.5pt;  
+            color: #333;  
+            margin-top: 1mm;  
+        }  
 
-            rows.push([
-                Utils.formatDateTime(v.date_vente),
-                v.type,
-                v.client_nom        || 'Anonyme',
-                v.client_telephone  || '',
-                details,
-                v.montant_total     || 0,
-                v.commission        || 0,
-                v.mode_paiement     || '',
-                v.montant_percu     || '',
-                v.monnaie           || '',
-            ]);
-        });
+        /* ── Client ── */  
+        .client-section {  
+            padding: 1.5mm 0;  
+            border-bottom: 1px dashed #000;  
+            margin-bottom: 2mm;  
+            font-size: 7pt;  
+        }  
 
-        const totalMontant = filteredData.reduce((s, v) => s + (v.montant_total || 0), 0);
-        const totalComm    = filteredData.reduce((s, v) => s + (v.commission    || 0), 0);
-        rows.push(['', '', '', '', 'TOTAL', totalMontant, totalComm, '', '', '']);
+        /* ── Articles ── */  
+        table {  
+            width: 100%;  
+            border-collapse: collapse;  
+        }  
+        td {  
+            font-size: 7pt;  
+            padding: 0.5mm 0;  
+            vertical-align: top;  
+        }  
+        td.price {  
+            text-align: right;  
+        }  
+        td.item-name {  
+            font-style: italic;  
+            padding-top: 1.5mm;  
+            color: #444;  
+        }  
+        td.bold {  
+            font-weight: bold;  
+        }  
 
-        const csv    = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
-        const blob   = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-        const url    = URL.createObjectURL(blob);
-        const link   = document.createElement('a');
-        const period = PeriodFilter.getLabel?.() || 'periode';
+        /* ── Séparateurs ── */  
+        .separator {  
+            border-top: 1px dashed #000;  
+            margin: 1.5mm 0;  
+        }  
+        .separator-solid {  
+            border-top: 1px solid #000;  
+            margin: 1.5mm 0;  
+        }  
 
-        link.href     = url;
-        link.download = `ventes_${period}_${new Date().toISOString().slice(0, 10)}.csv`;
-        link.click();
-        URL.revokeObjectURL(url);
+        /* ── Total ── */  
+        .total-line {  
+            display: flex;  
+            justify-content: space-between;  
+            font-size: 9pt;  
+            font-weight: bold;  
+            margin: 1.5mm 0;  
+        }  
+        .sub-line {  
+            display: flex;  
+            justify-content: space-between;  
+            font-size: 7pt;  
+            margin: 0.8mm 0;  
+            color: #333;  
+        }  
 
-        App.showNotification(`Export réussi — ${filteredData.length} ventes`, 'success');
-    },
+        /* ── Pied de page ── */  
+        .footer {  
+            text-align: center;  
+            margin-top: 2mm;  
+            padding-top: 2mm;  
+            border-top: 1px dashed #000;  
+            font-size: 6.5pt;  
+            color: #444;  
+        }  
 
-// =========================================================================
-// updateCommissionPreview() ✅ NOUVEAU — calcule et affiche la commission auto
-// =========================================================================
-// 19. updateCommissionPreview() ✅ DÉPLACÉ ICI — à l'intérieur de l'objet
-    // =========================================================================
-    updateCommissionPreview() {
-        const selectCoiffeuse = document.getElementById('select-coiffeuse');
-        const prixInput       = document.getElementById('item-prix');
-        const preview         = document.getElementById('commission-preview');
-        const tauxLabel       = document.getElementById('comm-taux-label');
-        const montantLabel    = document.getElementById('comm-montant-label');
+        /* Utilitaires */  
+        .center { text-align: center; }  
+        .right  { text-align: right; }  
+        .bold   { font-weight: bold; }  
 
-        if (!selectCoiffeuse?.value || !prixInput?.value || !preview) {
-            preview?.classList.add('hidden');
-            return;
-        }
+        /* ── Masquer au print les éléments non ticket ── */  
+        @media print {  
+            html, body { height: 80mm; overflow: hidden; }  
+        }  
+    </style>  
+</head>  
+<body>  
 
-        const coiffOpt   = selectCoiffeuse.options[selectCoiffeuse.selectedIndex];
-        const taux       = parseFloat(coiffOpt.dataset.taux) || 0;
-        const prix       = parseFloat(prixInput.value)       || 0;
-        const commission = Math.round((prix * taux / 100) * 100) / 100;
+    <!-- EN-TÊTE -->  
+    <div class="header">  
+        <div class="salon-name">JL BEAUTY</div>  
+        <div class="receipt-title">REÇU DE VENTE</div>  
+        <div class="meta">${dateStr}</div>  
+        <div class="meta">N° ${venteId.slice(-8).toUpperCase()}</div>  
+    </div>  
 
-        if (taux > 0 && prix > 0) {
-            preview.classList.remove('hidden');
-            if (tauxLabel)    tauxLabel.textContent    = `(${taux}%)`;
-            if (montantLabel) montantLabel.textContent = Utils.formatCurrency(commission);
-        } else {
-            preview.classList.add('hidden');
-        }
+    <!-- CLIENT -->  
+    <div class="client-section">  
+        <div><strong>Client :</strong> ${vente.client_nom || 'Anonyme'}</div>  
+        ${vente.client_telephone  
+            ? `<div><strong>Tél :</strong> ${vente.client_telephone}</div>`  
+            : ''}  
+    </div>  
+
+    <!-- ARTICLES — sans commission -->  
+    <table>  
+        <tbody>  
+            ${itemsRows}  
+        </tbody>  
+    </table>  
+
+    <!-- TOTAUX -->  
+    <div class="separator-solid"></div>  
+
+    <div class="total-line">  
+        <span>TOTAL</span>  
+        <span>${Utils.formatCurrency(vente.montant_total)}</span>  
+    </div>  
+
+    ${vente.montant_percu ? `  
+    <div class="separator"></div>  
+    <div class="sub-line">  
+        <span>Reçu</span>  
+        <span>${Utils.formatCurrency(vente.montant_percu)}</span>  
+    </div>  
+    <div class="sub-line bold">  
+        <span>Monnaie</span>  
+        <span>${Utils.formatCurrency(vente.monnaie || 0)}</span>  
+    </div>` : ''}  
+
+    <div class="separator"></div>  
+    <div class="sub-line">  
+        <span>Paiement</span>  
+        <span>${vente.mode_paiement || '-'}</span>  
+    </div>  
+
+    <!-- PIED DE PAGE -->  
+    <div class="footer">  
+        <div>Merci de votre visite !</div>  
+        <div>À bientôt chez JL Beauty</div>  
+    </div>  
+
+</body>  
+</html>`;  
+
+        // ✅ Ouverture et impression dans une nouvelle fenêtre  
+        const win = window.open('', '_blank', 'width=300,height=500');  
+        if (!win) {  
+            App.showNotification(  
+                'Fenêtre bloquée — autorisez les popups pour ce site', 'warning'  
+            );  
+            return;  
+        }  
+
+        win.document.open();  
+        win.document.write(receiptHTML);  
+        win.document.close();  
+ // ✅ Attendre le chargement complet avant d'imprimer
+ win.addEventListener('load', () => {
+    setTimeout(() => {
+        win.focus();
+        win.print();
+        // Fermer après impression (optionnel)
+        win.addEventListener('afterprint', () => win.close());
+    }, 300);
+});
+
+// ✅ Fallback si l'événement load ne se déclenche pas
+setTimeout(() => {
+    if (!win.closed) {
+        win.focus();
+        win.print();
     }
+}, 1200);
+},
 
-    };
+// =========================================================================
+// 21. exportPeriod()
+// =========================================================================
+exportPeriod() {
+const filteredData = PeriodFilter.filterData(this.data, 'date_vente');
+
+if (filteredData.length === 0) {
+    App.showNotification('Aucune donnée à exporter', 'warning');
+    return;
+}
+
+// ── Construire les lignes CSV ─────────────────────────────────────────
+const headers = [
+    'Date',
+    'Type',
+    'Client',
+    'Téléphone',
+    'Articles',
+    'Montant Total',
+    'Mode Paiement',
+    'Montant Perçu',
+    'Monnaie Rendue',
+    'Commission'
+];
+
+const rows = filteredData.map(vente => {
+    const items    = this.parseItems(vente.items);
+    const articles = items.length > 0
+        ? items.map(i =>
+            `${i.item_nom || i.nom || '-'} x${i.quantite || 1}`
+          ).join(' | ')
+        : (vente.item_nom || '-');
+
+    const date = new Date(vente.date_vente).toLocaleString('fr-FR', {
+        day:    '2-digit',
+        month:  '2-digit',
+        year:   'numeric',
+        hour:   '2-digit',
+        minute: '2-digit'
+    });
+
+    return [
+        `"${date}"`,
+        `"${vente.type || ''}"`,
+        `"${vente.client_nom || 'Anonyme'}"`,
+        `"${vente.client_telephone || ''}"`,
+        `"${articles}"`,
+        (vente.montant_total   || 0).toFixed(2),
+        `"${vente.mode_paiement || ''}"`,
+        (vente.montant_percu   || 0).toFixed(2),
+        (vente.monnaie         || 0).toFixed(2),
+        (vente.commission      || 0).toFixed(2)
+    ].join(',');
+});
+
+const csvContent =
+    '\uFEFF' +                          // BOM pour Excel
+    headers.join(',') + '\n' +
+    rows.join('\n');
+
+// ── Télécharger le fichier ────────────────────────────────────────────
+const blob = new Blob([csvContent], {
+    type: 'text/csv;charset=utf-8;'
+});
+const url  = URL.createObjectURL(blob);
+const link = document.createElement('a');
+
+const { start, end } = PeriodFilter.getCurrentDates?.() || {};
+const suffix = start && end
+    ? `_${start}_au_${end}`
+    : `_${new Date().toISOString().slice(0, 10)}`;
+
+link.href     = url;
+link.download = `ventes${suffix}.csv`;
+link.click();
+
+URL.revokeObjectURL(url);
+App.showNotification(
+    `${filteredData.length} vente(s) exportée(s)`, 'success'
+);
+},
+
+// =========================================================================
+// 22. updateCommissionPreview()  — usage interne seulement, pas sur le reçu
+// =========================================================================
+updateCommissionPreview() {
+const selectService   = document.getElementById('select-service');
+const selectCoiffeuse = document.getElementById('select-coiffeuse');
+const prixInput       = document.getElementById('item-prix');
+const preview         = document.getElementById('commission-preview');
+
+if (!preview) return;
+
+const prix     = parseFloat(prixInput?.value)             || 0;
+const coiffOpt = selectCoiffeuse?.options[
+                     selectCoiffeuse?.selectedIndex
+                 ];
+const taux     = parseFloat(coiffOpt?.dataset?.taux)      || 0;
+
+if (prix > 0 && taux > 0 && selectService?.value) {
+    const comm = Math.round((prix * taux / 100) * 100) / 100;
+    preview.classList.remove('hidden');
+
+    const tauxLabel = document.getElementById('comm-taux-label');
+    const commLabel = document.getElementById('comm-montant-label');
+    if (tauxLabel) tauxLabel.textContent = `(${taux}%)`;
+    if (commLabel) commLabel.textContent = Utils.formatCurrency(comm);
+} else {
+    preview.classList.add('hidden');
+}
+},
+
+};  // ── Fin de l'objet Ventes ─────────────────────────────────────────────────
+
+// =============================================================================
+// Export global (si nécessaire selon votre architecture)
+// =============================================================================
+if (typeof module !== 'undefined' && module.exports) {
+module.exports = Ventes;
+}

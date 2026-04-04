@@ -45,45 +45,69 @@
             </div>
             
             <nav class="mt-6">
-                <a href="#" class="sidebar-item active flex items-center px-6 py-3 text-white" data-page="dashboard">
+                <a href="#" class="sidebar-item active flex items-center px-6 py-3 text-white"
+                   data-page="dashboard">
                     <i class="fas fa-home w-6"></i>
                     <span>Tableau de bord</span>
                 </a>
-                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white" data-page="rendez-vous">
+                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
+                   data-page="rendez-vous">
                     <i class="fas fa-calendar-alt w-6"></i>
                     <span>Rendez-vous</span>
                 </a>
-                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white" data-page="clients">
+                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
+                   data-page="clients">
                     <i class="fas fa-users w-6"></i>
                     <span>Clients</span>
                 </a>
-                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white" data-page="coiffeuses">
+                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
+                   data-page="coiffeuses">
                     <i class="fas fa-user-tie w-6"></i>
                     <span>Coiffeuses</span>
                 </a>
-                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white" data-page="services">
+                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
+                   data-page="services">
                     <i class="fas fa-briefcase w-6"></i>
                     <span>Services</span>
                 </a>
-                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white" data-page="produits">
+                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
+                   data-page="produits">
                     <i class="fas fa-box w-6"></i>
                     <span>Produits</span>
                 </a>
-                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white" data-page="materiels">
+                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
+                   data-page="materiels">
                     <i class="fas fa-tools w-6"></i>
                     <span>Matériels</span>
                 </a>
-                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white" data-page="consommables">
+                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
+                   data-page="consommables">
                     <i class="fas fa-flask w-6"></i>
                     <span>Consommables</span>
                 </a>
-                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white" data-page="ventes">
+                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
+                   data-page="ventes">
                     <i class="fas fa-cash-register w-6"></i>
                     <span>Ventes</span>
                 </a>
-                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white" data-page="commissions">
+                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
+                   data-page="commissions">
                     <i class="fas fa-money-bill-wave w-6"></i>
                     <span>Commissions</span>
+                </a>
+            
+                <!-- ✅ Rapports journaliers -->
+                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
+                   data-page="rapports">
+                    <i class="fas fa-chart-bar w-6"></i>
+                    <span>Rapports</span>
+                </a>
+            
+                <!-- ✅ NOUVEAU — Comptabilité OHADA -->
+                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
+                   data-page="comptabilite">
+                    <i class="fas fa-book w-6"></i>
+                    <span>Comptabilité</span>
                 </a>
             </nav>
         </aside>
@@ -94,8 +118,12 @@
             <header class="bg-white shadow-sm">
                 <div class="flex items-center justify-between px-8 py-4">
                     <div>
-                        <h2 id="page-title" class="text-2xl font-semibold text-gray-800">Tableau de bord</h2>
-                        <p id="page-subtitle" class="text-sm text-gray-600">Vue d'ensemble de votre salon</p>
+                        <h2 id="page-title" class="text-2xl font-semibold text-gray-800">
+                            Tableau de bord
+                        </h2>
+                        <p id="page-subtitle" class="text-sm text-gray-600">
+                            Vue d'ensemble de votre salon
+                        </p>
                     </div>
                     <div class="flex items-center space-x-4">
                         <div class="flex items-center space-x-3 border-l border-gray-300 pl-4">
@@ -106,8 +134,11 @@
                                 <p class="text-sm font-medium text-gray-800">Administrateur</p>
                                 <p class="text-xs text-gray-600">Mode Production</p>
                             </div>
+                            <!-- ✅ Badge rôle (injecté par App._renderRoleBadge) -->
+                            <div id="user-role-badge"></div>
                             <button onclick="AuthSupabase.logout()" 
-                                    class="ml-3 px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600" 
+                                    class="ml-3 px-3 py-1 bg-red-500 text-white text-xs
+                                           rounded hover:bg-red-600" 
                                     title="Se déconnecter">
                                 <i class="fas fa-sign-out-alt"></i>
                             </button>
@@ -118,22 +149,24 @@
 
             <!-- Content Area -->
             <div id="content-area" class="p-8">
-                <!-- Dashboard content will be loaded here -->
+                <!-- Chargé dynamiquement par App.loadPage() -->
             </div>
         </main>
     </div>
 
     <!-- Loading Spinner -->
-    <div id="loading" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div id="loading"
+         class="hidden fixed inset-0 bg-black bg-opacity-50
+                flex items-center justify-center z-50">
         <div class="bg-white rounded-lg p-8 text-center">
             <i class="fas fa-spinner fa-spin text-4xl text-purple-600"></i>
             <p class="mt-4 text-gray-700">Chargement...</p>
         </div>
     </div>
 
-    <!-- ============================================ -->
-    <!-- SCRIPTS — ordre strict obligatoire           -->
-    <!-- ============================================ -->
+    <!-- ============================================================ -->
+    <!-- SCRIPTS — ordre strict obligatoire                           -->
+    <!-- ============================================================ -->
 
     <!-- Étape 1 : Config & Auth -->
     <script src="js/supabase-config.js"></script>
@@ -141,7 +174,7 @@
     <script src="js/permissions.js"></script>
     <script src="js/currency-config.js"></script>
 
-    <!-- Étape 2 : ✅ OfflineManager AVANT utils -->
+    <!-- Étape 2 : OfflineManager AVANT utils -->
     <script src="js/offline-manager.js"></script>
     <script src="js/utils-supabase.js"></script>
 
@@ -164,8 +197,12 @@
     <script src="js/thermal-receipt.js"></script>
     <script src="js/ventes-v4.js"></script>
     <script src="js/commissions-v3.js"></script>
+    <script src="js/app.js"></script>
 
-    <!-- Étape 5 : Init dashboard — EN DERNIER -->
+    <!-- ✅ NOUVEAU — Module Rapports -->
+    <script src="js/rapports.js"></script>
+
+    <!-- Étape 5 : Init — EN DERNIER -->
     <script>
         console.log('='.repeat(60));
         console.log('🚀 JL BEAUTY SYSTEM - DASHBOARD LOADING');
@@ -173,20 +210,14 @@
 
         async function initDashboard() {
             try {
-                // ✅ ÉTAPE 1 — OfflineManager en tout premier
+                // ── ÉTAPE 1 — OfflineManager ──────────────────────────────
                 if (window.OfflineManager) {
                     await OfflineManager.init();
                     OfflineManager.startListening();
                     console.log('✅ OfflineManager initialisé');
-
-                    const pending = await OfflineManager.getPendingCount();
-                    if (pending > 0) {
-                        console.warn(`📴 ${pending} opération(s) en attente de sync`);
-                        // ⚠️ App.showNotification appelé plus bas, après init App
-                    }
                 }
 
-                // ✅ ÉTAPE 2 — Authentification
+                // ── ÉTAPE 2 — Authentification ────────────────────────────
                 console.log('🔐 Checking authentication...');
                 const user = await AuthSupabase.checkAuth();
                 console.log('📊 Auth result:', user ? '✅ USER FOUND' : '❌ NO USER');
@@ -200,7 +231,7 @@
                 console.log('✅ User authenticated:', user.email);
                 console.log('📋 User role:', user.role);
 
-                // ✅ ÉTAPE 3 — Mise à jour interface utilisateur
+                // ── ÉTAPE 3 — Interface utilisateur ──────────────────────
                 const userInfo   = document.getElementById('user-info');
                 const userAvatar = document.getElementById('user-avatar');
 
@@ -214,29 +245,42 @@
                     `;
 
                     if (userAvatar) {
-                        userAvatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(nom)}&background=9333ea&color=fff`;
+                        userAvatar.src =
+                            `https://ui-avatars.com/api/?name=${encodeURIComponent(nom)}&background=9333ea&color=fff`;
                     }
                 }
 
-                // ✅ ÉTAPE 4 — Restrictions selon le rôle
+                // ── ÉTAPE 4 — Restrictions selon le rôle ─────────────────
                 if (typeof Permissions !== 'undefined' && user.role !== 'gerant') {
                     console.log('🔒 Hiding restricted modules for role:', user.role);
 
-                    const gerantModules = ['coiffeuses', 'services', 'produits', 'materiels', 'commissions'];
+                    // ✅ 'rapports' ajouté — données CA + commissions sensibles
+                    const gerantOnlyModules = [
+                        'coiffeuses',
+                        'services',
+                        'produits',
+                        'materiels',
+                        'commissions',
+                        'rapports'    // ← NOUVEAU
+                    ];
+
                     document.querySelectorAll('.sidebar-item').forEach(item => {
                         const page = item.getAttribute('data-page');
-                        if (gerantModules.includes(page)) {
+                        if (gerantOnlyModules.includes(page)) {
                             item.style.display = 'none';
                         }
                     });
                 }
 
-                // ✅ ÉTAPE 5 — Init App principal
-                if (typeof App !== 'undefined') {
+                // ── ÉTAPE 5 — Init App ────────────────────────────────────
+                // ⚠️ App.init() est aussi appelé via DOMContentLoaded dans app.js
+                // On utilise un flag pour éviter le double appel
+                if (typeof App !== 'undefined' && !App._initialized) {
+                    App._initialized = true;
                     App.init();
                 }
 
-                // ✅ ÉTAPE 6 — Notifier les ops en attente (après App.init)
+                // ── ÉTAPE 6 — Notifier les ops en attente ─────────────────
                 if (window.OfflineManager && typeof App !== 'undefined') {
                     const pending = await OfflineManager.getPendingCount();
                     if (pending > 0) {
@@ -266,6 +310,7 @@
             initDashboard();
         }
     </script>
+    <script src="js/comptabilite.js"></script>
 
 </body>
 </html>
