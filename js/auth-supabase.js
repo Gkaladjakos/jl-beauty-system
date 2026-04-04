@@ -151,16 +151,16 @@ const AuthSupabase = {
         }
     },
 
-    // =========================================================================
+// =========================================================================
 // checkAuth()
 // =========================================================================
 async checkAuth() {
     console.log('🔍 checkAuth() called');
 
     try {
-        // 1) Essayer localStorage
+        // 1) Lire le cache localStorage
         const storedUserStr = localStorage.getItem('jlbeauty_user');
-        const authType = localStorage.getItem('jlbeauty_auth_type');
+        const authType      = localStorage.getItem('jlbeauty_auth_type');
 
         let cachedUser = null;
         if (storedUserStr && authType === 'supabase') {
@@ -170,11 +170,10 @@ async checkAuth() {
                 console.warn('⚠️ localStorage parse failed, cleaning');
                 localStorage.removeItem('jlbeauty_user');
                 localStorage.removeItem('jlbeauty_auth_type');
-                cachedUser = null;
             }
         }
 
-        // 2) Vérifier session Supabase (source vérité)
+        // 2) Vérifier session Supabase (source de vérité)
         if (!this.init()) {
             console.error('❌ Supabase not initialized');
             return null;
@@ -186,9 +185,9 @@ async checkAuth() {
             return null;
         }
 
-        // 3) Revalider profil côté Supabase (si possible)
-        let profile = null;
-        let revalidated = false;
+        // 3) Revalider profil côté Supabase
+        let profile     = null;
+        let dbReachable = false; // true = DB a répondu (même si 0 row)
 
         try {
             const { data, error } = await this.supabase
@@ -197,53 +196,74 @@ async checkAuth() {
                 .eq('email', session.user.email);
 
             if (error) {
-                console.warn('⚠️ Profil users revalidation failed:', error);
+                console.warn('⚠️ users table error:', error.message);
+                // dbReachable reste false → fallback cache autorisé
             } else {
+                dbReachable = true;
                 profile = (Array.isArray(data) && data.length > 0) ? data[0] : null;
-                revalidated = true;
+                console.log('🔎 Profile from DB:', profile);
             }
         } catch (e) {
-            console.warn(
-                '⚠️ Profil users revalidation exception (fallback):',
-                e?.message || e
-            );
+            console.warn('⚠️ users table exception:', e?.message || e);
+            // dbReachable reste false → fallback cache autorisé
         }
 
-        // 4) Déterminer le rôle final (sécurité: par défaut caissiere)
+        // 4) Déterminer le rôle final
+        // ┌─────────────────────────────────────────────────────────────────┐
+        // │ DB OK + profil trouvé  → rôle DB                               │
+        // │ DB OK + 0 row          → DEFAULT_ROLE (cache IGNORÉ)           │
+        // │ DB KO (erreur/réseau)  → fallback cache si même email          │
+        // │ DB KO + pas de cache   → DEFAULT_ROLE                          │
+        // └─────────────────────────────────────────────────────────────────┘
         let role = DEFAULT_ROLE;
 
         if (profile?.role) {
+            // Cas 1 : DB a répondu et profil trouvé → rôle fiable
             role = profile.role;
-        } else {
-            // ✅ Correction clé: ne PAS réutiliser le rôle du cache si profile absent
-            // (sinon admin pourrait hériter d'un rôle cache caissiere, comme observé)
-            console.warn('⚠️ Profil absent ou sans rôle: rôle cache ignoré -> DEFAULT_ROLE');
+            console.log(`✅ Rôle issu de la DB: ${role}`);
+
+        } else if (dbReachable) {
+            // Cas 2 : DB a répondu mais 0 row → profil manquant en DB
+            // On n'utilise PAS le cache (il pourrait être obsolète)
             role = DEFAULT_ROLE;
+            console.warn(
+                `⚠️ Aucun profil trouvé en DB pour ${session.user.email}.` +
+                ` Rôle par défaut: ${DEFAULT_ROLE}.` +
+                ` → Vérifier la table users dans Supabase.`
+            );
+
+        } else {
+            // Cas 3 : DB inaccessible → fallback cache uniquement si même email
+            const sameEmail = cachedUser?.email === session.user.email;
+            if (sameEmail && cachedUser?.role) {
+                role = cachedUser.role;
+                console.warn(`⚠️ DB inaccessible → rôle cache utilisé: ${role}`);
+            } else {
+                role = DEFAULT_ROLE;
+                console.warn('⚠️ DB inaccessible + cache invalide → DEFAULT_ROLE');
+            }
         }
 
+        // 5) Construire et persister l'utilisateur final
         const finalUserData = {
-            id: session.user.id,
-            email: session.user.email,
-            // On peut garder le nom depuis profile sinon cache sinon split mail
-            nom: profile?.nom || cachedUser?.nom || session.user.email.split('@')[0],
+            id:               session.user.id,
+            email:            session.user.email,
+            nom:              profile?.nom || cachedUser?.nom || session.user.email.split('@')[0],
             role,
-            permissions: this._resolvePermissions(role),
-            _revalidatedRole: revalidated
+            permissions:      this._resolvePermissions(role),
+            _revalidatedRole: dbReachable
         };
 
         this.currentUser = finalUserData;
         localStorage.setItem('jlbeauty_user', JSON.stringify(finalUserData));
         localStorage.setItem('jlbeauty_auth_type', 'supabase');
 
-        console.log(
-            '✅ User authenticated / revalidated:',
-            finalUserData.email,
-            '| Rôle:', finalUserData.role,
-            '| revalidated:', revalidated
-        );
-
-        console.log('DEBUG profile=', profile);
-        console.log('DEBUG session email:', session.user.email);
+        console.log('✅ checkAuth OK', {
+            email:       finalUserData.email,
+            role:        finalUserData.role,
+            permissions: finalUserData.permissions,
+            dbReachable
+        });
 
         return finalUserData;
 
