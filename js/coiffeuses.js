@@ -1,5 +1,5 @@
 // =========================================================================
-// coiffeuses.js — avec support Salariée / Commission
+// coiffeuses.js — avec support Salariée / Commission — VERSION CORRIGÉE
 // =========================================================================
 const Coiffeuses = {
     data: [],
@@ -20,7 +20,8 @@ const Coiffeuses = {
                 </div>
                 <div>
                     <input type="text" id="search-coiffeuses" placeholder="Rechercher..."
-                           class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:outline-none">
+                           class="px-4 py-2 border border-gray-300 rounded-lg
+                                  focus:ring-2 focus:ring-purple-500 focus:outline-none">
                 </div>
             </div>
 
@@ -40,8 +41,7 @@ const Coiffeuses = {
                         <tbody id="coiffeuses-table" class="divide-y divide-gray-200"></tbody>
                     </table>
                 </div>
-            </div>
-        `;
+            </div>`;
 
         this.renderTable();
         this.setupSearch();
@@ -55,35 +55,90 @@ const Coiffeuses = {
             const response = await Utils.get('coiffeuses');
             this.data = response.data || [];
         } catch (error) {
-            console.error('Error loading coiffeuses:', error);
+            console.error('[Coiffeuses] loadData error:', error);
             this.data = [];
         }
     },
 
     // =========================================================================
-    // _renderRemunerationBadge() — affichage selon type de contrat
+    // ✅ FIX — _normalizeTaux()
+    // Supabase contrainte : taux_commission BETWEEN 0 AND 100
+    // Détecte si l'utilisateur a saisi 0.15 au lieu de 15 et corrige
+    // =========================================================================
+    _normalizeTaux(valeur) {
+        const v = parseFloat(valeur) || 0;
+        if (v > 0 && v < 1) {
+            console.warn(
+                `[Coiffeuses] Taux ${v} détecté comme décimal → converti en ${v * 100}%`
+            );
+            return Math.round(v * 100);
+        }
+        return v;
+    },
+
+    // =========================================================================
+    // ✅ FIX — _handleSaveError() — messages ciblés selon le code d'erreur
+    // =========================================================================
+    _handleSaveError(result) {
+        const msg  = result?.error?.message || result?.message || '';
+        const code = result?.error?.code    || result?.code    || '';
+
+        console.error('[Coiffeuses] Erreur Supabase :', { code, msg });
+
+        if (msg.includes('taux_commission_check') ||
+            msg.includes('check constraint')) {
+            App.showNotification(
+                '❌ Taux de commission invalide — doit être entre 0 et 100',
+                'error'
+            );
+        } else if (code === '23505' || msg.includes('duplicate key')) {
+            App.showNotification(
+                '⚠️ Une coiffeuse avec ce nom ou email existe déjà',
+                'warning'
+            );
+        } else if (code === '42501' || msg.includes('row-level security')) {
+            App.showNotification(
+                '🔒 Accès refusé — vérifiez les politiques RLS Supabase',
+                'error'
+            );
+        } else if (msg.includes('violates not-null')) {
+            App.showNotification(
+                '❌ Champ obligatoire manquant — vérifiez le formulaire',
+                'error'
+            );
+        } else {
+            App.showNotification(
+                '❌ Erreur : ' + (msg || 'Erreur inconnue'),
+                'error'
+            );
+        }
+    },
+
+    // =========================================================================
+    // _renderRemunerationBadge()
     // =========================================================================
     _renderRemunerationBadge(coiffeuse) {
         if (coiffeuse.type_contrat === 'Salariée') {
             return `
-                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                <span class="inline-flex items-center px-2 py-1 rounded-full
+                             text-xs font-medium bg-blue-100 text-blue-800">
                     <i class="fas fa-id-badge mr-1"></i> Salariée
                 </span>
                 ${coiffeuse.salaire_base
                     ? `<p class="text-xs text-gray-500 mt-1">
                            ${Utils.formatCurrency(coiffeuse.salaire_base)} / mois
                        </p>`
-                    : ''}
-            `;
+                    : ''}`;
         }
 
-        // Commission (par défaut)
         return `
-            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+            <span class="inline-flex items-center px-2 py-1 rounded-full
+                         text-xs font-medium bg-purple-100 text-purple-800">
                 <i class="fas fa-percent mr-1"></i> Commission
             </span>
-            <p class="text-xs text-gray-500 mt-1">${coiffeuse.taux_commission || 0}%</p>
-        `;
+            <p class="text-xs text-gray-500 mt-1">
+                ${coiffeuse.taux_commission || 0}%
+            </p>`;
     },
 
     // =========================================================================
@@ -113,7 +168,8 @@ const Coiffeuses = {
                             'https://ui-avatars.com/api/?name=' +
                             encodeURIComponent(coiffeuse.nom) +
                             '&background=9333ea&color=fff'}"
-                             class="w-10 h-10 rounded-full mr-3" alt="${coiffeuse.nom}">
+                             class="w-10 h-10 rounded-full mr-3"
+                             alt="${coiffeuse.nom}">
                         <div>
                             <p class="font-medium text-gray-800">${coiffeuse.nom}</p>
                             <p class="text-sm text-gray-500">
@@ -129,7 +185,9 @@ const Coiffeuses = {
                 <td class="px-6 py-4">
                     <div class="flex flex-wrap gap-1">
                         ${(coiffeuse.specialites || []).map(spec =>
-                            `<span class="badge bg-purple-100 text-purple-800 text-xs">${spec}</span>`
+                            `<span class="badge bg-purple-100 text-purple-800 text-xs">
+                                 ${spec}
+                             </span>`
                         ).join('')}
                     </div>
                 </td>
@@ -141,16 +199,17 @@ const Coiffeuses = {
                 </td>
                 <td class="px-6 py-4">
                     <button onclick="Coiffeuses.showEditModal('${coiffeuse.id}')"
-                            class="text-blue-600 hover:text-blue-800 mr-3" title="Modifier">
+                            class="text-blue-600 hover:text-blue-800 mr-3"
+                            title="Modifier">
                         <i class="fas fa-edit"></i>
                     </button>
                     <button onclick="Coiffeuses.deleteCoiffeuse('${coiffeuse.id}')"
-                            class="text-red-600 hover:text-red-800" title="Supprimer">
+                            class="text-red-600 hover:text-red-800"
+                            title="Supprimer">
                         <i class="fas fa-trash"></i>
                     </button>
                 </td>
-            </tr>
-        `).join('');
+            </tr>`).join('');
     },
 
     // =========================================================================
@@ -172,14 +231,14 @@ const Coiffeuses = {
     },
 
     // =========================================================================
-    // _buildFormContent() — formulaire partagé Add / Edit
+    // _buildFormContent()
     // =========================================================================
     _buildFormContent(coiffeuse = null) {
-        const isEdit        = coiffeuse !== null;
-        const typeContrat   = coiffeuse?.type_contrat   || 'Commission';
+        const isEdit         = coiffeuse !== null;
+        const typeContrat    = coiffeuse?.type_contrat    || 'Commission';
         const tauxCommission = coiffeuse?.taux_commission ?? 25;
-        const salaireBase   = coiffeuse?.salaire_base   || '';
-        const dateEmbauche  = isEdit
+        const salaireBase    = coiffeuse?.salaire_base    || '';
+        const dateEmbauche   = isEdit
             ? new Date(coiffeuse.date_embauche).toISOString().split('T')[0]
             : new Date().toISOString().split('T')[0];
 
@@ -189,41 +248,54 @@ const Coiffeuses = {
                 <!-- Nom / Téléphone -->
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Nom complet *</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Nom complet *
+                        </label>
                         <input type="text" name="nom" required
                                value="${coiffeuse?.nom || ''}"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg
+                                      focus:ring-2 focus:ring-purple-500">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Téléphone *</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Téléphone *
+                        </label>
                         <input type="tel" name="telephone" required
                                value="${coiffeuse?.telephone || ''}"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg
+                                      focus:ring-2 focus:ring-purple-500">
                     </div>
                 </div>
 
                 <!-- Email -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Email
+                    </label>
                     <input type="email" name="email"
                            value="${coiffeuse?.email || ''}"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg
+                                  focus:ring-2 focus:ring-purple-500">
                 </div>
 
                 <!-- Spécialités -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Spécialités <span class="text-gray-400 text-xs">(séparer par virgule)</span>
+                        Spécialités
+                        <span class="text-gray-400 text-xs">(séparer par virgule)</span>
                     </label>
                     <input type="text" name="specialites"
                            placeholder="Coupe, Coloration, Coiffage..."
                            value="${(coiffeuse?.specialites || []).join(', ')}"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg
+                                  focus:ring-2 focus:ring-purple-500">
                 </div>
 
-                <!-- ✅ Type de contrat -->
+                <!-- Type de contrat -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Type de contrat *</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Type de contrat *
+                    </label>
                     <div class="flex gap-4 mt-1">
                         <label class="flex items-center cursor-pointer">
                             <input type="radio" name="type_contrat" value="Commission"
@@ -248,7 +320,7 @@ const Coiffeuses = {
                     </div>
                 </div>
 
-                <!-- ✅ Section Commission -->
+                <!-- ✅ Section Commission — avec min/max corrigés -->
                 <div id="section-commission"
                      class="${typeContrat === 'Salariée' ? 'hidden' : ''}">
                     <div class="bg-purple-50 border border-purple-200 rounded-lg p-3">
@@ -262,7 +334,7 @@ const Coiffeuses = {
                                       focus:ring-2 focus:ring-purple-500 bg-white">
                         <p class="text-xs text-purple-600 mt-1">
                             <i class="fas fa-info-circle mr-1"></i>
-                            Recommandé : 15–40% selon ancienneté et performance
+                            Valeur entre 0 et 100 — Ex : 25 pour 25%
                         </p>
                     </div>
                 </div>
@@ -272,11 +344,12 @@ const Coiffeuses = {
                      class="${typeContrat !== 'Salariée' ? 'hidden' : ''}">
                     <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
                         <label class="block text-sm font-medium text-blue-700 mb-1">
-                            Salaire de base mensuel (FC) *
+                            Salaire de base mensuel *
                         </label>
                         <input type="number" name="salaire_base"
                                value="${salaireBase}"
-                               min="0" step="1000" placeholder="Ex: 150000"
+                               min="0" step="1000"
+                               placeholder="Ex: 150000"
                                class="w-full px-3 py-2 border border-blue-300 rounded-lg
                                       focus:ring-2 focus:ring-blue-500 bg-white">
                         <p class="text-xs text-blue-600 mt-1">
@@ -289,42 +362,60 @@ const Coiffeuses = {
                 <!-- Statut / Date -->
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Statut</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Statut
+                        </label>
                         <select name="statut"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
-                            <option value="Actif"   ${coiffeuse?.statut === 'Actif'   ? 'selected' : ''}>Actif</option>
-                            <option value="Congé"   ${coiffeuse?.statut === 'Congé'   ? 'selected' : ''}>Congé</option>
-                            <option value="Inactif" ${coiffeuse?.statut === 'Inactif' ? 'selected' : ''}>Inactif</option>
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg
+                                       focus:ring-2 focus:ring-purple-500">
+                            <option value="Actif"
+                                ${coiffeuse?.statut === 'Actif'   ? 'selected' : ''}>
+                                Actif
+                            </option>
+                            <option value="Congé"
+                                ${coiffeuse?.statut === 'Congé'   ? 'selected' : ''}>
+                                Congé
+                            </option>
+                            <option value="Inactif"
+                                ${coiffeuse?.statut === 'Inactif' ? 'selected' : ''}>
+                                Inactif
+                            </option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Date d'embauche</label>
-                        <input type="date" name="date_embauche" value="${dateEmbauche}"
-                               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Date d'embauche
+                        </label>
+                        <input type="date" name="date_embauche"
+                               value="${dateEmbauche}"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg
+                                      focus:ring-2 focus:ring-purple-500">
                     </div>
                 </div>
 
                 <!-- Photo URL -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">URL Photo</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        URL Photo
+                    </label>
                     <input type="url" name="photo_url"
                            placeholder="https://..."
                            value="${coiffeuse?.photo_url || ''}"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg
+                                  focus:ring-2 focus:ring-purple-500">
                 </div>
-            </form>
-        `;
+            </form>`;
     },
 
     // =========================================================================
-    // _setupContratToggle() — active/masque Commission ↔ Salaire
+    // _setupContratToggle()
     // =========================================================================
     _setupContratToggle(modal) {
-        const radios           = modal.querySelectorAll('input[name="type_contrat"]');
+        const radios            = modal.querySelectorAll('input[name="type_contrat"]');
         const sectionCommission = modal.querySelector('#section-commission');
-        const sectionSalaire   = modal.querySelector('#section-salaire');
-        const inputCommission  = modal.querySelector('[name="taux_commission"]');
-        const inputSalaire     = modal.querySelector('[name="salaire_base"]');
+        const sectionSalaire    = modal.querySelector('#section-salaire');
+        const inputCommission   = modal.querySelector('[name="taux_commission"]');
+        const inputSalaire      = modal.querySelector('[name="salaire_base"]');
 
         const toggle = (value) => {
             if (value === 'Salariée') {
@@ -344,42 +435,101 @@ const Coiffeuses = {
             radio.addEventListener('change', () => toggle(radio.value));
         });
 
-        // Init selon valeur actuelle
         const checked = modal.querySelector('input[name="type_contrat"]:checked');
         toggle(checked?.value || 'Commission');
     },
 
     // =========================================================================
-    // _collectFormData() — lecture du formulaire → objet
+    // ✅ FIX — _collectFormData()
+    // Normalisation du taux + timestamp ISO correct
     // =========================================================================
     _collectFormData(form, base = {}) {
         const formData    = new FormData(form);
         const typeContrat = formData.get('type_contrat');
 
-        return {
+        // ✅ FIX : normaliser le taux (évite la violation de contrainte)
+        const tauxBrut        = formData.get('taux_commission');
+        const taux_commission = typeContrat === 'Commission'
+            ? this._normalizeTaux(tauxBrut)
+            : 0;
+
+        // ✅ FIX : date correcte en ISO string (pas getTime() qui donne un entier)
+        const dateRaw     = formData.get('date_embauche');
+        const date_embauche = dateRaw
+            ? new Date(dateRaw + 'T12:00:00').toISOString()
+            : new Date().toISOString();
+
+        // ✅ FIX : salaire_base null si pas Salariée
+        const salaire_base = typeContrat === 'Salariée'
+            ? parseFloat(formData.get('salaire_base')) || 0
+            : null;
+
+        // ✅ FIX : email vide → null (évite les contraintes unique sur '')
+        const email = formData.get('email')?.trim() || null;
+
+        // ✅ FIX : photo_url vide → null
+        const photo_url = formData.get('photo_url')?.trim() || null;
+
+        const payload = {
             ...base,
-            nom:              formData.get('nom'),
-            telephone:        formData.get('telephone'),
-            email:            formData.get('email') || '',
-            specialites:      formData.get('specialites')
-                                  .split(',').map(s => s.trim()).filter(s => s),
-            type_contrat:     typeContrat,
-            // Commission : valeur réelle si Commission, 0 sinon
-            taux_commission:  typeContrat === 'Commission'
-                                  ? parseFloat(formData.get('taux_commission')) || 0
-                                  : 0,
-            // Salaire : valeur réelle si Salariée, null sinon
-            salaire_base:     typeContrat === 'Salariée'
-                                  ? parseFloat(formData.get('salaire_base')) || 0
-                                  : null,
-            statut:           formData.get('statut'),
-            date_embauche:    new Date(formData.get('date_embauche')).getTime(),
-            photo_url:        formData.get('photo_url') || ''
+            nom:            formData.get('nom')?.trim(),
+            telephone:      formData.get('telephone')?.trim(),
+            email,
+            specialites:    formData.get('specialites')
+                                .split(',')
+                                .map(s => s.trim())
+                                .filter(s => s),
+            type_contrat,
+            taux_commission,
+            salaire_base,
+            statut:         formData.get('statut'),
+            date_embauche,
+            photo_url,
         };
+
+        console.log('[Coiffeuses] Payload collecté :', payload);
+        return payload;
     },
 
     // =========================================================================
-    // showAddModal()
+    // ✅ FIX — _validateFormData()
+    // Validation JS avant envoi Supabase
+    // =========================================================================
+    _validateFormData(payload) {
+        if (!payload.nom) {
+            App.showNotification('Le nom est obligatoire', 'error');
+            return false;
+        }
+        if (!payload.telephone) {
+            App.showNotification('Le téléphone est obligatoire', 'error');
+            return false;
+        }
+        if (payload.type_contrat === 'Commission') {
+            if (isNaN(payload.taux_commission) ||
+                payload.taux_commission < 0    ||
+                payload.taux_commission > 100) {
+                App.showNotification(
+                    'Le taux de commission doit être entre 0 et 100',
+                    'error'
+                );
+                return false;
+            }
+        }
+        if (payload.type_contrat === 'Salariée') {
+            if (!payload.salaire_base || payload.salaire_base < 0) {
+                App.showNotification(
+                    'Le salaire de base est obligatoire pour une salariée',
+                    'error'
+                );
+                return false;
+            }
+        }
+        return true;
+    },
+
+    // =========================================================================
+    // ✅ FIX — showAddModal()
+    // Gestion explicite de result.error (Supabase retourne sans throw)
     // =========================================================================
     showAddModal() {
         const modal = Utils.createModal(
@@ -389,17 +539,28 @@ const Coiffeuses = {
                 const form = modal.querySelector('#coiffeuse-form');
                 if (!form.checkValidity()) { form.reportValidity(); return; }
 
+                const payload = this._collectFormData(form);
+                if (!this._validateFormData(payload)) return;
+
                 try {
                     App.showLoading();
-                    await Utils.create('coiffeuses', this._collectFormData(form));
+                    const result = await Utils.create('coiffeuses', payload);
                     App.hideLoading();
-                    App.showNotification('Coiffeuse ajoutée avec succès');
+
+                    // ✅ FIX : vérifier result.error (pas seulement le catch)
+                    if (result?.error) {
+                        this._handleSaveError(result);
+                        return;
+                    }
+
+                    App.showNotification('Coiffeuse ajoutée avec succès', 'success');
                     modal.remove();
-                    this.render(document.getElementById('content-area'));
+                    await this.render(document.getElementById('content-area'));
+
                 } catch (error) {
                     App.hideLoading();
-                    App.showNotification("Erreur lors de l'ajout", 'error');
-                    console.error(error);
+                    console.error('[Coiffeuses] showAddModal error:', error);
+                    this._handleSaveError(error);
                 }
             }
         );
@@ -408,7 +569,7 @@ const Coiffeuses = {
     },
 
     // =========================================================================
-    // showEditModal()
+    // ✅ FIX — showEditModal()
     // =========================================================================
     async showEditModal(id) {
         const coiffeuse = this.data.find(c => c.id === id);
@@ -421,17 +582,28 @@ const Coiffeuses = {
                 const form = modal.querySelector('#coiffeuse-form');
                 if (!form.checkValidity()) { form.reportValidity(); return; }
 
+                const payload = this._collectFormData(form, coiffeuse);
+                if (!this._validateFormData(payload)) return;
+
                 try {
                     App.showLoading();
-                    await Utils.update('coiffeuses', id, this._collectFormData(form, coiffeuse));
+                    const result = await Utils.update('coiffeuses', id, payload);
                     App.hideLoading();
-                    App.showNotification('Coiffeuse modifiée avec succès');
+
+                    // ✅ FIX : vérifier result.error
+                    if (result?.error) {
+                        this._handleSaveError(result);
+                        return;
+                    }
+
+                    App.showNotification('Coiffeuse modifiée avec succès', 'success');
                     modal.remove();
-                    this.render(document.getElementById('content-area'));
+                    await this.render(document.getElementById('content-area'));
+
                 } catch (error) {
                     App.hideLoading();
-                    App.showNotification('Erreur lors de la modification', 'error');
-                    console.error(error);
+                    console.error('[Coiffeuses] showEditModal error:', error);
+                    this._handleSaveError(error);
                 }
             }
         );
@@ -443,18 +615,27 @@ const Coiffeuses = {
     // deleteCoiffeuse()
     // =========================================================================
     async deleteCoiffeuse(id) {
-        if (!window.confirm('Êtes-vous sûr de vouloir supprimer cette coiffeuse ?')) return;
+        if (!window.confirm(
+            'Êtes-vous sûr de vouloir supprimer cette coiffeuse ?'
+        )) return;
 
         try {
             App.showLoading();
-            await Utils.delete('coiffeuses', id);
+            const result = await Utils.delete('coiffeuses', id);
             App.hideLoading();
-            App.showNotification('Coiffeuse supprimée avec succès');
-            this.render(document.getElementById('content-area'));
+
+            if (result?.error) {
+                this._handleSaveError(result);
+                return;
+            }
+
+            App.showNotification('Coiffeuse supprimée avec succès', 'success');
+            await this.render(document.getElementById('content-area'));
+
         } catch (error) {
             App.hideLoading();
+            console.error('[Coiffeuses] deleteCoiffeuse error:', error);
             App.showNotification('Erreur lors de la suppression', 'error');
-            console.error(error);
         }
     }
 };
