@@ -325,40 +325,49 @@ const Coiffeuses = {
     // 6. _collectFormData()  ← FIX PRINCIPAL
     // =========================================================================
     _collectFormData() {
-        const nom            = document.getElementById('c-nom')?.value?.trim();
-        const telephone      = document.getElementById('c-telephone')?.value?.trim();
-        const specialite     = document.getElementById('c-specialite')?.value?.trim();
-        const typeRemun      = document.getElementById('c-type-remuneration')?.value
-                                    || 'pourcentage';
-        const statut         = document.getElementById('c-statut')?.value || 'active';
-
-        // ✅ Logique null selon le type de rémunération
+        const nom        = document.getElementById('c-nom')?.value?.trim();
+        const telephone  = document.getElementById('c-telephone')?.value?.trim();
+        const typeRemun  = document.getElementById('c-type-remuneration')?.value
+                                || 'pourcentage';
+        const statut     = document.getElementById('c-statut')?.value || 'active';
+    
+        // ✅ Spécialités en tableau
+        const specialitesRaw = document.getElementById('c-specialites')?.value || '';
+        const specialites    = specialitesRaw
+            .split(',')
+            .map(s => s.trim())
+            .filter(s => s.length > 0);
+    
+        // ✅ Rémunération : null selon le type
         let pourcentage_commission = null;
         let salaire_fixe           = null;
-
+    
         if (typeRemun === 'pourcentage') {
             const val = parseFloat(
                 document.getElementById('c-pourcentage')?.value
             );
             pourcentage_commission = isNaN(val) ? null : val;
-            salaire_fixe           = null;       // ✅ toujours null
+            salaire_fixe           = null;
         } else {
             const val = parseFloat(
                 document.getElementById('c-salaire-fixe')?.value
             );
             salaire_fixe           = isNaN(val) ? null : val;
-            pourcentage_commission = null;       // ✅ toujours null
+            pourcentage_commission = null;
         }
-
-        return {
+    
+        const payload = {
             nom,
-            telephone:              telephone  || null,
-            specialite:             specialite || null,
+            telephone:              telephone || null,
+            specialites,
             type_remuneration:      typeRemun,
-            pourcentage_commission,   // null ou nombre
-            salaire_fixe,             // null ou nombre
+            pourcentage_commission,
+            salaire_fixe,
             statut,
         };
+    
+        console.log('[Coiffeuses] Payload envoyé :', payload);
+        return payload;
     },
 
     // =========================================================================
