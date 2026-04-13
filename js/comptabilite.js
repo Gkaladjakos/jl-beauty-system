@@ -287,118 +287,119 @@ const Comptabilite = {
         if (tab === 'compte-resultat') this.renderCompteResultat();
     },
 
-    // =========================================================================
-    // 5. renderMouvements()
-    // =========================================================================
-    renderMouvements() {
-        const tbody = document.getElementById('mouvements-table');
-        if (!tbody) return;
+// =========================================================================
+// 5. renderMouvements()  ✅ CORRIGÉ
+// =========================================================================
+renderMouvements() {
+    const tbody = document.getElementById('mouvements-table');
+    if (!tbody) return;
 
-        const filtered = PeriodFilter.filterData(
-            this.mouvements, 'date_mouvement'
-        ).sort((a, b) =>
-            new Date(b.date_mouvement) - new Date(a.date_mouvement)
-        );
+    const filtered = PeriodFilter.filterData(
+        this.mouvements, 'date_mouvement'
+    ).sort((a, b) =>
+        new Date(b.date_mouvement) - new Date(a.date_mouvement)
+    );
 
-        if (filtered.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="8" class="px-6 py-8 text-center text-gray-500">
-                        <i class="fas fa-inbox text-4xl mb-2 block"></i>
-                        <p>Aucun mouvement pour cette période</p>
-                    </td>
-                </tr>`;
-            return;
+    if (filtered.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" class="px-6 py-8 text-center text-gray-500">
+                    <i class="fas fa-inbox text-4xl mb-2 block"></i>
+                    <p>Aucun mouvement pour cette période</p>
+                </td>
+            </tr>`;
+        return;
+    }
+
+    // Calculer le solde cumulatif
+    let soldeCumul = 0;
+    const lignes = [...filtered].reverse().map(mvt => {
+        if (mvt.type_mouvement === 'Entree') {
+            soldeCumul += mvt.montant || 0;
+        } else {
+            soldeCumul -= mvt.montant || 0;
         }
+        return { ...mvt, soldeCumul };
+    }).reverse();
 
-        // Calculer le solde cumulatif
-        let soldeCumul = 0;
-        const lignes = [...filtered].reverse().map(mvt => {
-            if (mvt.type_mouvement === 'Entree') {
-                soldeCumul += mvt.montant || 0;
-            } else {
-                soldeCumul -= mvt.montant || 0;
-            }
-            return { ...mvt, soldeCumul };
-        }).reverse();
+    // ✅ CORRECTION 1 — Ligne supprimée (mvt hors scope + jamais utilisée)
+    // ❌ const compte = this.COMPTES_OHADA[mvt?.compte_ohada] || null;
 
-        const compte = this.COMPTES_OHADA[mvt?.compte_ohada] || null;
+    tbody.innerHTML = lignes.map(mvt => {
+        const compteInfo  = this.COMPTES_OHADA[mvt.compte_ohada];
+        const compteLabel = compteInfo
+            ? `<span class="font-mono text-xs bg-gray-100 px-1 rounded">
+                   ${mvt.compte_ohada}
+               </span>
+               <span class="text-xs text-gray-500 ml-1">
+                   ${compteInfo.libelle}
+               </span>`
+            : `<span class="text-xs text-gray-400">—</span>`;
 
-        tbody.innerHTML = lignes.map(mvt => {
-            const compteInfo  = this.COMPTES_OHADA[mvt.compte_ohada];
-            const compteLabel = compteInfo
-                ? `<span class="font-mono text-xs bg-gray-100 px-1 rounded">
-                       ${mvt.compte_ohada}
-                   </span>
-                   <span class="text-xs text-gray-500 ml-1">
-                       ${compteInfo.libelle}
-                   </span>`
-                : `<span class="text-xs text-gray-400">—</span>`;
+        const typeBadge = mvt.type_mouvement === 'Entree'
+            ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs
+                           font-medium bg-green-100 text-green-800">
+                   <i class="fas fa-arrow-down mr-1"></i>Entrée
+               </span>`
+            // ✅ CORRECTION 2 — "bg-red-100 -800" → "bg-red-100 text-red-800"
+            : `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs
+                           font-medium bg-red-100 text-red-800">
+                   <i class="fas fa-arrow-up mr-1"></i>Sortie
+               </span>`;
 
-            const typeBadge = mvt.type_mouvement === 'Entree'
-                ? `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs
-                               font-medium bg-green-100 text-green-800">
-                       <i class="fas fa-arrow-down mr-1"></i>Entrée
-                   </span>`
-                : `<span class="inline-flex items-center px-2 py-0.5 rounded text-xs
-                               font-medium bg-red-100 -800">
-                       <i class="fas fa-arrow-up mr-1"></i>Sortie
-                   </span>`;
+        const debit  = mvt.type_mouvement === 'Sortie'
+            ? `<span class="text-red-600 font-medium">
+                   ${Utils.formatCurrency(mvt.montant)}
+               </span>`
+            : '<span class="text-gray-300">—</span>';
 
-            const debit  = mvt.type_mouvement === 'Sortie'
-                ? `<span class="text-red-600 font-medium">
-                       ${Utils.formatCurrency(mvt.montant)}
-                   </span>`
-                : '<span class="text-gray-300">—</span>';
+        const credit = mvt.type_mouvement === 'Entree'
+            ? `<span class="text-green-600 font-medium">
+                   ${Utils.formatCurrency(mvt.montant)}
+               </span>`
+            : '<span class="text-gray-300">—</span>';
 
-            const credit = mvt.type_mouvement === 'Entree'
-                ? `<span class="text-green-600 font-medium">
-                       ${Utils.formatCurrency(mvt.montant)}
-                   </span>`
-                : '<span class="text-gray-300">—</span>';
+        const soldeClass = mvt.soldeCumul >= 0
+            ? 'text-blue-700 font-semibold'
+            : 'text-red-700 font-semibold';
 
-            const soldeClass = mvt.soldeCumul >= 0
-                ? 'text-blue-700 font-semibold'
-                : 'text-red-700 font-semibold';
+        const sourceIcon = mvt.source === 'vente'
+            ? '<i class="fas fa-shopping-cart text-purple-400 mr-1"'
+              + ' title="Importé depuis les ventes"></i>'
+            : '';
 
-            const sourceIcon = mvt.source === 'vente'
-                ? '<i class="fas fa-shopping-cart text-purple-400 mr-1"'
-                  + ' title="Importé depuis les ventes"></i>'
-                : '';
-
-            return `
-                <tr class="hover:bg-gray-50">
-                    <td class="px-4 py-3 text-xs text-gray-600">
-                        ${Utils.formatDateTime(mvt.date_mouvement)}
-                    </td>
-                    <td class="px-4 py-3 text-sm">
-                        ${sourceIcon}
-                        <span class="font-medium">${mvt.libelle || '—'}</span>
-                        ${mvt.reference
-                            ? `<div class="text-xs text-gray-400">
-                                   Réf: ${mvt.reference}
-                               </div>`
-                            : ''}
-                    </td>
-                    <td class="px-4 py-3">${compteLabel}</td>
-                    <td class="px-4 py-3">${typeBadge}</td>
-                    <td class="px-4 py-3 text-right text-sm">${debit}</td>
-                    <td class="px-4 py-3 text-right text-sm">${credit}</td>
-                    <td class="px-4 py-3 text-right text-sm ${soldeClass}">
-                        ${Utils.formatCurrency(mvt.soldeCumul)}
-                    </td>
-                    <td class="px-4 py-3 text-center">
-                        ${mvt.source !== 'vente' ? `
-                        <button onclick="Comptabilite.deleteMouvement('${mvt.id}')"
-                                class="text-red-400 hover:text-red-600 text-xs"
-                                title="Supprimer">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>` : ''}
-                    </td>
-                </tr>`;
-        }).join('');
-    },
-
+        return `
+            <tr class="hover:bg-gray-50">
+                <td class="px-4 py-3 text-xs text-gray-600">
+                    ${Utils.formatDateTime(mvt.date_mouvement)}
+                </td>
+                <td class="px-4 py-3 text-sm">
+                    ${sourceIcon}
+                    <span class="font-medium">${mvt.libelle || '—'}</span>
+                    ${mvt.reference
+                        ? `<div class="text-xs text-gray-400">
+                               Réf: ${mvt.reference}
+                           </div>`
+                        : ''}
+                </td>
+                <td class="px-4 py-3">${compteLabel}</td>
+                <td class="px-4 py-3">${typeBadge}</td>
+                <td class="px-4 py-3 text-right text-sm">${debit}</td>
+                <td class="px-4 py-3 text-right text-sm">${credit}</td>
+                <td class="px-4 py-3 text-right text-sm ${soldeClass}">
+                    ${Utils.formatCurrency(mvt.soldeCumul)}
+                </td>
+                <td class="px-4 py-3 text-center">
+                    ${mvt.source !== 'vente' ? `
+                    <button onclick="Comptabilite.deleteMouvement('${mvt.id}')"
+                            class="text-red-400 hover:text-red-600 text-xs"
+                            title="Supprimer">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>` : ''}
+                </td>
+            </tr>`;
+    }).join('');
+},
     // =========================================================================
     // 6. showAddModal()
     // =========================================================================
