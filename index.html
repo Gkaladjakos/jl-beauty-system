@@ -17,13 +17,24 @@
 
     <style>
         body { font-family: 'Inter', sans-serif; }
+
+        /* ── Sidebar ── */
         .sidebar-item:hover { background-color: rgba(255,255,255,0.1); }
         .sidebar-item.active {
             background-color: rgba(255,255,255,0.2);
             border-left: 4px solid white;
         }
+
+        /* ── Sidebar drawer mobile ── */
+        #sidebar {
+            transition: transform 0.25s ease-in-out;
+        }
+
+        /* ── Cards ── */
         .card { transition: transform 0.2s; }
         .card:hover { transform: translateY(-2px); }
+
+        /* ── Modals ── */
         .modal { display: none; }
         .modal.active { display: flex; }
         .badge {
@@ -69,14 +80,52 @@
             padding: 1.5rem;
             border-top: 1px solid #e5e7eb;
         }
+
+        /* ── Dropdown menu utilisateur ── */
+        #user-menu {
+            transition: opacity 0.15s, transform 0.15s;
+            transform-origin: top right;
+        }
+        #user-menu.hidden {
+            opacity: 0;
+            transform: scale(0.95);
+            pointer-events: none;
+        }
+        #user-menu:not(.hidden) {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* ── Badge rôle ── */
+        .role-badge-gerant   { background: #f3e8ff; color: #7e22ce; }
+        .role-badge-caissiere { background: #dbeafe; color: #1d4ed8; }
     </style>
 </head>
 <body class="bg-gray-100">
 
+    <!-- ══ Overlay mobile pour fermer la sidebar ══ -->
+    <div id="sidebar-overlay"
+         class="hidden fixed inset-0 bg-black/50 z-30 md:hidden"
+         onclick="toggleSidebar(false)"></div>
+
     <div class="flex h-screen overflow-hidden">
 
-        <!-- ── Sidebar ────────────────────────────────────────────────────── -->
-        <aside class="sidebar w-64 text-white flex-shrink-0">
+        <!-- ════════════════════════════════════════════════════════════════
+             SIDEBAR
+             • Mobile  : drawer (fixe, caché par défaut, glisse depuis gauche)
+             • Desktop : statique, toujours visible
+        ════════════════════════════════════════════════════════════════ -->
+        <aside id="sidebar"
+               class="sidebar
+                      fixed md:static
+                      inset-y-0 left-0
+                      z-40
+                      w-64
+                      text-white
+                      flex-shrink-0
+                      -translate-x-full md:translate-x-0">
+
+            <!-- Logo -->
             <div class="p-6 text-center border-b border-gray-700">
                 <img src="images/jl-beauty-logo.png"
                      alt="JL Beauty"
@@ -85,135 +134,228 @@
                 <p class="text-sm text-gray-400 mt-1">Version Production</p>
             </div>
 
-            <nav class="mt-6">
+            <!-- Navigation -->
+            <nav class="mt-6 pb-6 overflow-y-auto">
                 <a href="#" class="sidebar-item active flex items-center px-6 py-3 text-white"
                    data-page="dashboard">
-                    <i class="fas fa-home w-6"></i>
+                    <i class="fas fa-home w-6 mr-3"></i>
                     <span>Tableau de bord</span>
                 </a>
                 <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
                    data-page="rendez-vous">
-                    <i class="fas fa-calendar-alt w-6"></i>
+                    <i class="fas fa-calendar-alt w-6 mr-3"></i>
                     <span>Rendez-vous</span>
                 </a>
                 <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
                    data-page="clients">
-                    <i class="fas fa-users w-6"></i>
+                    <i class="fas fa-users w-6 mr-3"></i>
                     <span>Clients</span>
                 </a>
                 <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
                    data-page="coiffeuses">
-                    <i class="fas fa-user-tie w-6"></i>
+                    <i class="fas fa-user-tie w-6 mr-3"></i>
                     <span>Coiffeuses</span>
                 </a>
                 <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
                    data-page="services">
-                    <i class="fas fa-briefcase w-6"></i>
+                    <i class="fas fa-briefcase w-6 mr-3"></i>
                     <span>Services</span>
                 </a>
                 <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
                    data-page="produits">
-                    <i class="fas fa-box w-6"></i>
+                    <i class="fas fa-box w-6 mr-3"></i>
                     <span>Produits</span>
                 </a>
                 <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
                    data-page="materiels">
-                    <i class="fas fa-tools w-6"></i>
+                    <i class="fas fa-tools w-6 mr-3"></i>
                     <span>Matériels</span>
                 </a>
                 <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
                    data-page="consommables">
-                    <i class="fas fa-flask w-6"></i>
+                    <i class="fas fa-flask w-6 mr-3"></i>
                     <span>Consommables</span>
                 </a>
                 <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
                    data-page="ventes">
-                    <i class="fas fa-cash-register w-6"></i>
+                    <i class="fas fa-cash-register w-6 mr-3"></i>
                     <span>Ventes</span>
                 </a>
                 <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
                    data-page="commissions">
-                    <i class="fas fa-money-bill-wave w-6"></i>
+                    <i class="fas fa-money-bill-wave w-6 mr-3"></i>
                     <span>Commissions</span>
                 </a>
                 <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
                    data-page="rapports">
-                    <i class="fas fa-chart-bar w-6"></i>
+                    <i class="fas fa-chart-bar w-6 mr-3"></i>
                     <span>Rapports</span>
                 </a>
                 <!-- ✅ Comptabilité OHADA -->
                 <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
                    data-page="comptabilite">
-                    <i class="fas fa-book w-6"></i>
+                    <i class="fas fa-book w-6 mr-3"></i>
                     <span>Comptabilité</span>
                 </a>
             </nav>
         </aside>
 
-        <!-- ── Main Content ───────────────────────────────────────────────── -->
-        <main class="flex-1 overflow-y-auto">
+        <!-- ════════════════════════════════════════════════════════════════
+             MAIN CONTENT
+        ════════════════════════════════════════════════════════════════ -->
+        <main class="flex-1 overflow-y-auto min-w-0">
 
-            <!-- Header -->
-            <header class="bg-white shadow-sm">
-                <div class="flex items-center justify-between px-8 py-4">
-                    <div>
-                        <h2 id="page-title"
-                            class="text-2xl font-semibold text-gray-800">
-                            Tableau de bord
-                        </h2>
-                        <p id="page-subtitle" class="text-sm text-gray-600">
-                            Vue d'ensemble de votre salon
-                        </p>
-                    </div>
-                    <div class="flex items-center space-x-4">
-                        <div class="flex items-center space-x-3
-                                    border-l border-gray-300 pl-4">
-                            <img id="user-avatar"
-                                 src="https://ui-avatars.com/api/?name=Admin&background=9333ea&color=fff"
-                                 class="w-10 h-10 rounded-full" alt="User">
-                            <div id="user-info">
-                                <p class="text-sm font-medium text-gray-800">
-                                    Administrateur
-                                </p>
-                                <p class="text-xs text-gray-600">Mode Production</p>
-                            </div>
-                            <!-- Badge rôle injecté par App._renderRoleBadge -->
-                            <div id="user-role-badge"></div>
-                            <button onclick="AuthSupabase.logout()"
-                                    class="ml-3 px-3 py-1 bg-red-500 text-white
-                                           text-xs rounded hover:bg-red-600"
-                                    title="Se déconnecter">
-                                <i class="fas fa-sign-out-alt"></i>
-                            </button>
+            <!-- ── HEADER ─────────────────────────────────────────────── -->
+            <header class="bg-white shadow-sm sticky top-0 z-20">
+                <div class="flex items-center justify-between px-4 md:px-8 py-4 gap-3">
+
+                    <!-- Gauche : hamburger (mobile) + titre page -->
+                    <div class="flex items-center gap-3 min-w-0">
+
+                        <!-- Bouton hamburger — mobile uniquement -->
+                        <button class="md:hidden flex-shrink-0 p-2 rounded-lg
+                                       border border-gray-200 text-gray-600
+                                       hover:bg-gray-50 active:bg-gray-100"
+                                onclick="toggleSidebar(true)"
+                                aria-label="Ouvrir le menu">
+                            <i class="fas fa-bars text-lg"></i>
+                        </button>
+
+                        <!-- Titre + sous-titre -->
+                        <div class="min-w-0">
+                            <h2 id="page-title"
+                                class="text-lg md:text-2xl font-semibold
+                                       text-gray-800 truncate">
+                                Tableau de bord
+                            </h2>
+                            <p id="page-subtitle"
+                               class="text-xs md:text-sm text-gray-600 truncate
+                                      hidden sm:block">
+                                Vue d'ensemble de votre salon
+                            </p>
                         </div>
                     </div>
+
+                    <!-- Droite : avatar + infos + menu ── -->
+                    <div class="flex items-center gap-2 md:gap-4 flex-shrink-0
+                                border-l border-gray-200 pl-3 md:pl-6">
+
+                        <!-- Avatar -->
+                        <img id="user-avatar"
+                             src="https://ui-avatars.com/api/?name=Admin&background=9333ea&color=fff"
+                             class="w-9 h-9 md:w-10 md:h-10 rounded-full flex-shrink-0"
+                             alt="User">
+
+                        <!-- Nom + rôle — masqué sur très petits écrans -->
+                        <div id="user-info" class="hidden sm:block leading-tight">
+                            <p class="text-sm font-medium text-gray-800">
+                                Administrateur
+                            </p>
+                            <p class="text-xs text-gray-500">Mode Production</p>
+                        </div>
+
+                        <!-- Badge rôle -->
+                        <div id="user-role-badge" class="hidden md:block"></div>
+
+                        <!-- ══ Bouton menu utilisateur (3 points) ══ -->
+                        <div class="relative">
+                            <button id="user-menu-btn"
+                                    onclick="toggleUserMenu()"
+                                    class="p-2 rounded-lg border border-gray-200
+                                           text-gray-600 hover:bg-gray-50
+                                           active:bg-gray-100"
+                                    aria-label="Menu utilisateur">
+                                <i class="fas fa-ellipsis-v"></i>
+                            </button>
+
+                            <!-- ── Dropdown ── -->
+                            <div id="user-menu"
+                                 class="hidden absolute right-0 mt-2 w-64
+                                        bg-white rounded-xl shadow-xl
+                                        border border-gray-100 overflow-hidden
+                                        z-50">
+
+                                <!-- Infos utilisateur -->
+                                <div class="px-4 py-3 bg-gray-50
+                                            border-b border-gray-100">
+                                    <p id="menu-user-name"
+                                       class="text-sm font-semibold text-gray-800
+                                              truncate">—</p>
+                                    <p id="menu-user-email"
+                                       class="text-xs text-gray-500 truncate mt-0.5">—</p>
+                                    <div id="menu-user-role" class="mt-2"></div>
+                                </div>
+
+                                <!-- Changer mot de passe (tous les rôles) -->
+                                <button onclick="AuthManager.showChangePasswordModal();
+                                                 toggleUserMenu(false)"
+                                        class="w-full text-left flex items-center
+                                               gap-3 px-4 py-2.5 text-sm
+                                               text-gray-700 hover:bg-gray-50
+                                               transition-colors">
+                                    <i class="fas fa-key w-4 text-gray-400"></i>
+                                    Changer le mot de passe
+                                </button>
+
+                                <!-- Journal de connexion (gérant/admin uniquement) -->
+                                <button id="btn-logs"
+                                        onclick="AuthManager.showLogsModal();
+                                                 toggleUserMenu(false)"
+                                        class="hidden w-full text-left flex items-center
+                                               gap-3 px-4 py-2.5 text-sm
+                                               text-gray-700 hover:bg-gray-50
+                                               transition-colors">
+                                    <i class="fas fa-history w-4 text-gray-400"></i>
+                                    Journal de connexion
+                                </button>
+
+                                <div class="border-t border-gray-100"></div>
+
+                                <!-- Déconnexion (tous les rôles) -->
+                                <button onclick="AuthSupabase.logout()"
+                                        class="w-full text-left flex items-center
+                                               gap-3 px-4 py-2.5 text-sm
+                                               text-red-600 hover:bg-red-50
+                                               transition-colors">
+                                    <i class="fas fa-sign-out-alt w-4"></i>
+                                    Déconnexion
+                                </button>
+                            </div>
+                            <!-- fin dropdown -->
+                        </div>
+                        <!-- fin relative -->
+
+                    </div>
+                    <!-- fin droite -->
                 </div>
             </header>
 
-            <!-- Content Area -->
-            <div id="content-area" class="p-8">
+            <!-- ── CONTENT AREA ───────────────────────────────────────── -->
+            <div id="content-area" class="p-4 md:p-8">
                 <!-- Chargé dynamiquement par App.loadPage() -->
             </div>
+
         </main>
     </div>
 
-    <!-- Loading Spinner -->
+    <!-- ── Loading Spinner ── -->
     <div id="loading"
          class="hidden fixed inset-0 bg-black bg-opacity-50
                 flex items-center justify-center z-50">
-        <div class="bg-white rounded-lg p-8 text-center">
+        <div class="bg-white rounded-lg p-8 text-center shadow-xl">
             <i class="fas fa-spinner fa-spin text-4xl text-purple-600"></i>
-            <p class="mt-4 text-gray-700">Chargement...</p>
+            <p class="mt-4 text-gray-700 font-medium">Chargement…</p>
         </div>
     </div>
 
-    <!-- ================================================================== -->
-    <!-- SCRIPTS — ordre strict                                             -->
-    <!-- ================================================================== -->
+    <!-- ================================================================
+         SCRIPTS — ordre strict
+    ================================================================ -->
 
     <!-- Étape 1 : Config & Auth -->
     <script src="js/supabase-config.js"></script>
     <script src="js/auth-supabase.js"></script>
+    <script src="js/auth-manager.js"></script>     <!-- ✅ NOUVEAU -->
     <script src="js/permissions.js"></script>
     <script src="js/currency-config.js"></script>
 
@@ -226,19 +368,8 @@
     <script src="js/clients.js"></script>
     <script src="js/coiffeuses.js"></script>
     <script src="js/services.js"></script>
-
-    <!--
-        ✅ FIX rendez-vous — DateValidator already declared
-        rendez-vous-date-validator.js déclare DateValidator
-        rendez-vous.js le redéclare → conflit
-        SOLUTION : charger SEULEMENT rendez-vous.js
-        (il embarque déjà DateValidator en interne)
-        Si votre rendez-vous.js a besoin du validator externe,
-        retirez la déclaration dans rendez-vous.js à la place
-    -->
     <script src="js/rendez-vous-calendar.js"></script>
     <script src="js/rendez-vous.js"></script>
-
     <script src="js/categories-manager.js"></script>
     <script src="js/produits-v3.js"></script>
     <script src="js/materiels.js"></script>
@@ -248,15 +379,70 @@
     <script src="js/ventes-v4.js"></script>
     <script src="js/commissions-v3.js"></script>
     <script src="js/rapports.js"></script>
-
-    <!-- ✅ Comptabilité OHADA -->
     <script src="js/comptabilite.js"></script>
 
     <!-- Étape 4 : app.js — UNE SEULE FOIS, APRÈS tous les modules -->
     <script src="js/app.js"></script>
 
-    <!-- Étape 5 : Init — EN DERNIER -->
+    <!-- ================================================================
+         Étape 5 : Helpers UI + Init — EN DERNIER
+    ================================================================ -->
     <script>
+
+        // ════════════════════════════════════════════════════════════════
+        // HELPERS UI — Sidebar & Menu utilisateur
+        // ════════════════════════════════════════════════════════════════
+
+        // ── Sidebar drawer (mobile) ──────────────────────────────────────
+        function toggleSidebar(forceOpen) {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            if (!sidebar || !overlay) return;
+
+            const isOpen = !sidebar.classList.contains('-translate-x-full');
+            const open   = (typeof forceOpen === 'boolean') ? forceOpen : !isOpen;
+
+            if (open) {
+                sidebar.classList.remove('-translate-x-full');
+                overlay.classList.remove('hidden');
+            } else {
+                sidebar.classList.add('-translate-x-full');
+                overlay.classList.add('hidden');
+            }
+        }
+
+        // Fermer la sidebar en naviguant (mobile)
+        document.querySelectorAll('.sidebar-item').forEach(item => {
+            item.addEventListener('click', () => {
+                if (window.innerWidth < 768) toggleSidebar(false);
+            });
+        });
+
+        // ── Menu utilisateur (dropdown) ──────────────────────────────────
+        function toggleUserMenu(force) {
+            const menu = document.getElementById('user-menu');
+            if (!menu) return;
+            const show = (typeof force === 'boolean')
+                ? force
+                : menu.classList.contains('hidden');
+
+            if (show) menu.classList.remove('hidden');
+            else      menu.classList.add('hidden');
+        }
+
+        // Fermer le dropdown au clic extérieur
+        document.addEventListener('click', (e) => {
+            const btn  = document.getElementById('user-menu-btn');
+            const menu = document.getElementById('user-menu');
+            if (!menu || menu.classList.contains('hidden')) return;
+            if (!menu.contains(e.target) && !btn?.contains(e.target)) {
+                toggleUserMenu(false);
+            }
+        });
+
+        // ════════════════════════════════════════════════════════════════
+        // INIT DASHBOARD
+        // ════════════════════════════════════════════════════════════════
         console.log('='.repeat(60));
         console.log('🚀 JL BEAUTY SYSTEM - DASHBOARD LOADING');
         console.log('='.repeat(60));
@@ -271,13 +457,13 @@
                 }
 
                 // ── 2 — Authentification ──────────────────────────────────
-                console.log('🔐 Checking authentication...');
+                console.log('🔐 Checking authentication…');
                 const user = await AuthSupabase.checkAuth();
                 console.log('📊 Auth result:',
                     user ? '✅ USER FOUND' : '❌ NO USER');
 
                 if (!user) {
-                    console.log('🚪 Redirecting to login...');
+                    console.log('🚪 Redirecting to login…');
                     window.location.href = 'login.html';
                     return;
                 }
@@ -285,31 +471,74 @@
                 console.log('✅ User authenticated:', user.email);
                 console.log('📋 User role:', user.role);
 
-                // ── 3 — Interface utilisateur ─────────────────────────────
-                const userInfo   = document.getElementById('user-info');
-                const userAvatar = document.getElementById('user-avatar');
+                // ── 3 — Mettre à jour l'UI header ────────────────────────
+                const nom     = user.nom || user.email.split('@')[0];
+                const isAdmin = ['gerant', 'admin'].includes(user.role);
 
-                if (userInfo) {
-                    const nom  = user.nom || user.email.split('@')[0];
-                    const role = user.role || 'Utilisateur';
-
-                    userInfo.innerHTML = `
-                        <p class="text-sm font-medium text-gray-800">${nom}</p>
-                        <p class="text-xs text-gray-600">${role}</p>`;
-
-                    if (userAvatar) {
-                        userAvatar.src =
-                            `https://ui-avatars.com/api/?name=${encodeURIComponent(nom)}&background=9333ea&color=fff`;
-                    }
+                // Avatar (initiales)
+                const avatarEl = document.getElementById('user-avatar');
+                if (avatarEl) {
+                    avatarEl.src =
+                        `https://ui-avatars.com/api/?name=${encodeURIComponent(nom)}`
+                        + `&background=9333ea&color=fff`;
                 }
 
-                // ── 4 — Restrictions selon le rôle ───────────────────────
-                if (typeof Permissions !== 'undefined' &&
-                    user.role !== 'gerant') {
+                // Nom + rôle dans le header
+                const userInfoEl = document.getElementById('user-info');
+                if (userInfoEl) {
+                    userInfoEl.innerHTML = `
+                        <p class="text-sm font-medium text-gray-800 truncate
+                                  max-w-[120px] md:max-w-none">${nom}</p>
+                        <p class="text-xs text-gray-500">${user.role}</p>`;
+                }
 
-                    console.log('🔒 Hiding restricted modules for role:',
-                        user.role);
+                // Badge rôle (desktop)
+                const badgeEl = document.getElementById('user-role-badge');
+                if (badgeEl) {
+                    badgeEl.innerHTML = isAdmin
+                        ? `<span class="inline-flex items-center px-2.5 py-1
+                                        rounded-full text-xs font-medium
+                                        role-badge-gerant">
+                               👑 Gérant
+                           </span>`
+                        : `<span class="inline-flex items-center px-2.5 py-1
+                                        rounded-full text-xs font-medium
+                                        role-badge-caissiere">
+                               💼 Caissière
+                           </span>`;
+                }
 
+                // ── 4 — Remplir le menu dropdown ─────────────────────────
+                const menuNameEl  = document.getElementById('menu-user-name');
+                const menuEmailEl = document.getElementById('menu-user-email');
+                const menuRoleEl  = document.getElementById('menu-user-role');
+                const btnLogs     = document.getElementById('btn-logs');
+
+                if (menuNameEl)  menuNameEl.textContent  = nom;
+                if (menuEmailEl) menuEmailEl.textContent = user.email;
+
+                if (menuRoleEl) {
+                    menuRoleEl.innerHTML = isAdmin
+                        ? `<span class="inline-flex items-center px-2 py-0.5
+                                        rounded-full text-xs font-medium
+                                        role-badge-gerant">
+                               👑 Gérant
+                           </span>`
+                        : `<span class="inline-flex items-center px-2 py-0.5
+                                        rounded-full text-xs font-medium
+                                        role-badge-caissiere">
+                               💼 Caissière
+                           </span>`;
+                }
+
+                // ✅ Afficher "Journal de connexion" uniquement au gérant
+                if (btnLogs) {
+                    btnLogs.classList.toggle('hidden', !isAdmin);
+                }
+
+                // ── 5 — Restrictions selon le rôle (sidebar) ─────────────
+                if (typeof Permissions !== 'undefined' && !isAdmin) {
+                    console.log('🔒 Hiding restricted modules for role:', user.role);
                     const gerantOnlyModules = [
                         'coiffeuses',
                         'services',
@@ -317,9 +546,8 @@
                         'materiels',
                         'commissions',
                         'rapports',
-                        'comptabilite'   // ✅ AJOUTÉ
+                        'comptabilite'
                     ];
-
                     document.querySelectorAll('.sidebar-item').forEach(item => {
                         const page = item.getAttribute('data-page');
                         if (gerantOnlyModules.includes(page)) {
@@ -328,40 +556,42 @@
                     });
                 }
 
-                // ── 5 — Init App (anti double-appel) ─────────────────────
+                // ── 6 — Init App (anti double-appel) ─────────────────────
                 if (typeof App !== 'undefined' && !App._initialized) {
                     App._initialized = true;
                     App.init();
                 }
 
-                // ── 6 — Ops en attente ────────────────────────────────────
+                // ── 7 — Opérations en attente ─────────────────────────────
                 if (window.OfflineManager && typeof App !== 'undefined') {
                     const pending = await OfflineManager.getPendingCount();
                     if (pending > 0) {
                         App.showNotification(
-                            `📴 ${pending} opération(s) en attente`,
+                            `📴 ${pending} opération(s) en attente de synchronisation`,
                             'warning'
                         );
                     }
                 }
 
                 console.log('='.repeat(60));
-                console.log('✅ DASHBOARD READY - Welcome', user.email);
+                console.log('✅ DASHBOARD READY — Welcome', user.email);
                 console.log('='.repeat(60));
 
             } catch (error) {
                 console.error('💥 Dashboard initialization error:', error);
                 console.error('Stack:', error.stack);
-                alert('Erreur lors du chargement. Redirection...');
+                alert('Erreur lors du chargement. Redirection…');
                 window.location.href = 'login.html';
             }
         }
 
+        // Lancer après chargement du DOM
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', initDashboard);
         } else {
             initDashboard();
         }
+
     </script>
 
 </body>

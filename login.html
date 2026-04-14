@@ -3,233 +3,202 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Connexion - JL Beauty System</title>
+    <title>JL Beauty — Connexion</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #1a1a1a 0%, #000000 100%);
+        /* Animation fade-in de la carte */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to   { opacity: 1; transform: translateY(0);    }
         }
-        .login-card {
-            backdrop-filter: blur(10px);
-            background: rgba(255, 255, 255, 0.98);
-            border: 2px solid #E8B44C;
-        }
-        .input-focus:focus {
-            border-color: #E8B44C;
-            box-shadow: 0 0 0 3px rgba(232, 180, 76, 0.2);
-        }
-        .btn-primary {
-            background: linear-gradient(135deg, #E8B44C 0%, #D4A043 100%);
-            color: #000;
-            font-weight: 600;
-        }
-        .btn-primary:hover {
-            background: linear-gradient(135deg, #D4A043 0%, #C09039 100%);
-        }
+        .fade-in-up { animation: fadeInUp .4s ease both; }
     </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4">
-    <div class="login-card w-full max-w-md rounded-2xl shadow-2xl p-8">
-        <!-- Logo -->
+<body class="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-white
+             flex items-center justify-center p-4">
+
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 fade-in-up">
+
+        <!-- ── Logo / Titre ── -->
         <div class="text-center mb-8">
-            <img src="images/jl-beauty-logo.png" alt="JL Beauty" class="w-32 h-32 mx-auto mb-4">
-            <h1 class="text-3xl font-bold" style="color: #E8B44C;">JL Beauty System</h1>
-            <p class="text-gray-600 mt-2">Un univers à vivre</p>
-        </div>
-
-        <!-- Info Production -->
-        <div class="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
-            <p class="text-sm text-green-800">
-                <i class="fas fa-shield-alt mr-2"></i>
-                <strong>Mode Production</strong> - Connectez-vous avec vos identifiants Supabase
-            </p>
-        </div>
-
-        <!-- Formulaire de Connexion -->
-        <form id="login-form" class="space-y-4">
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                    <i class="fas fa-envelope mr-2"></i>Email
-                </label>
-                <input type="email" id="email" required
-                       class="input-focus w-full px-4 py-3 border border-gray-300 rounded-lg transition-all"
-                       placeholder="admin@jlbeauty.com">
+            <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center
+                        justify-center mx-auto mb-4">
+                <i class="fas fa-spa text-2xl text-purple-600"></i>
             </div>
+            <h1 class="text-2xl font-bold text-gray-800">JL Beauty</h1>
+            <p class="text-gray-500 text-sm mt-1">Connectez-vous à votre espace</p>
+        </div>
 
+        <!-- ── Message d'erreur ── -->
+        <div id="login-error"
+             class="hidden mb-4 bg-red-50 border border-red-200 rounded-lg
+                    p-3 text-sm text-red-700 flex items-start gap-2">
+            <i class="fas fa-exclamation-circle mt-0.5 flex-shrink-0"></i>
+            <span id="login-error-msg"></span>
+        </div>
+
+        <!-- ── Formulaire ── -->
+        <form id="login-form" onsubmit="handleLogin(event)" class="space-y-5">
+
+            <!-- Email -->
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                    <i class="fas fa-lock mr-2"></i>Mot de passe
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                    Email
                 </label>
                 <div class="relative">
-                    <input type="password" id="password" required
-                           class="input-focus w-full px-4 py-3 border border-gray-300 rounded-lg transition-all pr-12"
-                           placeholder="••••••••">
-                    <button type="button" onclick="togglePassword()" 
-                            class="absolute right-3 top-3 text-gray-500 hover:text-gray-700">
-                        <i id="password-icon" class="fas fa-eye"></i>
+                    <i class="fas fa-envelope absolute left-3 top-3
+                               text-gray-400 text-sm"></i>
+                    <input type="email" id="login-email" required
+                           class="w-full pl-10 pr-4 py-2.5 border border-gray-300
+                                  rounded-lg text-sm focus:ring-2
+                                  focus:ring-purple-500 focus:border-transparent
+                                  transition-shadow"
+                           placeholder="votre@email.com"
+                           autocomplete="email">
+                </div>
+            </div>
+
+            <!-- Mot de passe -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                    Mot de passe
+                </label>
+                <div class="relative">
+                    <i class="fas fa-lock absolute left-3 top-3
+                               text-gray-400 text-sm"></i>
+                    <input type="password" id="login-password" required
+                           class="w-full pl-10 pr-10 py-2.5 border border-gray-300
+                                  rounded-lg text-sm focus:ring-2
+                                  focus:ring-purple-500 focus:border-transparent
+                                  transition-shadow"
+                           placeholder="••••••••"
+                           autocomplete="current-password">
+                    <button type="button"
+                            onclick="togglePasswordVisibility()"
+                            class="absolute right-3 top-2.5 text-gray-400
+                                   hover:text-gray-600 transition-colors">
+                        <i id="pwd-eye-icon" class="fas fa-eye text-sm"></i>
                     </button>
                 </div>
             </div>
 
-            <!-- Message d'erreur -->
-            <div id="error-message" class="hidden bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                <i class="fas fa-exclamation-circle mr-2"></i>
-                <span id="error-text"></span>
-            </div>
-
-            <!-- Bouton de connexion -->
-            <button type="submit" id="submit-btn"
-                    class="btn-primary w-full py-3 rounded-lg font-semibold transition-all transform hover:scale-105 shadow-lg">
-                <i class="fas fa-sign-in-alt mr-2"></i>Se connecter
+            <!-- Bouton connexion -->
+            <button type="submit" id="login-btn"
+                    class="w-full py-3 bg-purple-600 text-white rounded-lg
+                           font-medium hover:bg-purple-700 active:bg-purple-800
+                           transition-colors focus:ring-2 focus:ring-purple-500
+                           focus:ring-offset-2 disabled:opacity-50
+                           disabled:cursor-not-allowed">
+                <span id="login-btn-text">
+                    <i class="fas fa-sign-in-alt mr-2"></i>Se connecter
+                </span>
+                <span id="login-btn-loading" class="hidden">
+                    <i class="fas fa-spinner fa-spin mr-2"></i>Connexion en cours…
+                </span>
             </button>
+
         </form>
 
-        <!-- Loading Spinner -->
-        <div id="loading" class="hidden text-center mt-4">
-            <i class="fas fa-spinner fa-spin text-3xl" style="color: #E8B44C;"></i>
-            <p class="text-gray-600 mt-2">Connexion en cours...</p>
-        </div>
-
-        <!-- Footer -->
-        <div class="mt-8 text-center text-sm text-gray-600">
-            <p>
-                <i class="fas fa-info-circle mr-1"></i>
-                Besoin d'aide ? Contactez votre administrateur
-            </p>
-            <p class="mt-2 text-xs text-gray-500">
-                JL Beauty System v2.2 © 2026
-            </p>
-        </div>
+        <!-- ── Footer ── -->
+        <p class="text-center text-xs text-gray-400 mt-8">
+            JL Beauty Management System © 2025
+        </p>
     </div>
 
-    <!-- Scripts -->
+    <!-- ══ Scripts ══ -->
+    <!-- 1. Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/supabase-config.js"></script>
-    <script src="js/auth-supabase.js"></script>
-    
+    <!-- 2. Config (SUPABASE_URL + SUPABASE_ANON_KEY) -->
+    <script src="config.js"></script>
+    <!-- 3. Module auth -->
+    <script src="auth-supabase.js"></script>
+
     <script>
-        console.log('='.repeat(60));
-        console.log('🚀 JL BEAUTY LOGIN - PRODUCTION FINAL');
-        console.log('='.repeat(60));
+        // ── Redirection automatique si déjà connecté ──────────────────────
+        (async () => {
+            try {
+                const user = await AuthSupabase.checkAuth();
+                if (user) {
+                    console.log('✅ Session active → redirection index.html');
+                    window.location.href = 'index.html';
+                }
+            } catch (e) {
+                console.warn('checkAuth at startup failed:', e.message);
+            }
+        })();
 
-        // Toggle password visibility
-        function togglePassword() {
-            const passwordInput = document.getElementById('password');
-            const passwordIcon = document.getElementById('password-icon');
-            
-            if (passwordInput.type === 'password') {
-                passwordInput.type = 'text';
-                passwordIcon.classList.remove('fa-eye');
-                passwordIcon.classList.add('fa-eye-slash');
+        // ── Helpers UI ────────────────────────────────────────────────────
+        function showError(msg) {
+            document.getElementById('login-error-msg').textContent = msg;
+            document.getElementById('login-error').classList.remove('hidden');
+        }
+
+        function hideError() {
+            document.getElementById('login-error').classList.add('hidden');
+        }
+
+        function setLoading(on) {
+            const btn    = document.getElementById('login-btn');
+            const txtEl  = document.getElementById('login-btn-text');
+            const loadEl = document.getElementById('login-btn-loading');
+            btn.disabled = on;
+            txtEl .classList.toggle('hidden',  on);
+            loadEl.classList.toggle('hidden', !on);
+        }
+
+        function togglePasswordVisibility() {
+            const input = document.getElementById('login-password');
+            const icon  = document.getElementById('pwd-eye-icon');
+            if (input.type === 'password') {
+                input.type    = 'text';
+                icon.className = 'fas fa-eye-slash text-sm';
             } else {
-                passwordInput.type = 'password';
-                passwordIcon.classList.remove('fa-eye-slash');
-                passwordIcon.classList.add('fa-eye');
+                input.type    = 'password';
+                icon.className = 'fas fa-eye text-sm';
             }
         }
 
-        // Show error message
-        function showError(message) {
-            const errorDiv = document.getElementById('error-message');
-            const errorText = document.getElementById('error-text');
-            errorText.textContent = message;
-            errorDiv.classList.remove('hidden');
-            
-            setTimeout(() => {
-                errorDiv.classList.add('hidden');
-            }, 5000);
-        }
+        // ── handleLogin() ─────────────────────────────────────────────────
+        async function handleLogin(e) {
+            e.preventDefault();
+            hideError();
 
-        // Show loading
-        function showLoading(show) {
-            const loading = document.getElementById('loading');
-            const form = document.getElementById('login-form');
-            const submitBtn = document.getElementById('submit-btn');
-            
-            if (show) {
-                loading.classList.remove('hidden');
-                form.classList.add('hidden');
-                submitBtn.disabled = true;
-            } else {
-                loading.classList.add('hidden');
-                form.classList.remove('hidden');
-                submitBtn.disabled = false;
+            const email    = document.getElementById('login-email').value.trim();
+            const password = document.getElementById('login-password').value;
+
+            if (!email || !password) {
+                showError('Veuillez remplir tous les champs.');
+                return;
             }
-        }
 
-        // Handle form submission
-        const loginForm = document.getElementById('login-form');
-        
-        if (!loginForm) {
-            console.error('❌ LOGIN FORM NOT FOUND!');
-        } else {
-            console.log('✅ Login form found, attaching handler...');
-            
-            loginForm.addEventListener('submit', async function(e) {
-                e.preventDefault();
-                
-                console.log('🚀 FORM SUBMITTED!');
-                
-                const email = document.getElementById('email').value;
-                const password = document.getElementById('password').value;
-                
-                console.log('📧 Email:', email);
-                console.log('🔑 Password length:', password.length);
-                
-                // Validation
-                if (!email || !password) {
-                    showError('Veuillez remplir tous les champs');
+            setLoading(true);
+
+            try {
+                // ✅ AuthSupabase.login() gère le log automatiquement
+                const result = await AuthSupabase.login(email, password);
+
+                if (!result.success) {
+                    showError(result.error || 'Erreur de connexion.');
+                    setLoading(false);
                     return;
                 }
-                
-                showLoading(true);
-                
-                try {
-                    // Vérifier que AuthSupabase est chargé
-                    if (typeof AuthSupabase === 'undefined') {
-                        console.error('❌ AuthSupabase not loaded!');
-                        showError('Erreur de configuration. Veuillez rafraîchir la page.');
-                        showLoading(false);
-                        return;
-                    }
-                    
-                    console.log('🔐 Calling AuthSupabase.login()...');
-                    
-                    // Tenter la connexion
-                    const result = await AuthSupabase.login(email, password);
-                    
-                    console.log('📊 Login result:', result);
-                    
-                    if (result.success) {
-                        console.log('✅ LOGIN SUCCESS! Redirecting...');
-                        console.log('👤 User:', result.user);
-                        
-                        // Petit délai pour s'assurer que tout est sauvegardé
-                        setTimeout(() => {
-                            window.location.href = 'index.html';
-                        }, 500);
-                    } else {
-                        console.error('❌ LOGIN FAILED:', result.error);
-                        showError(result.error || 'Erreur de connexion');
-                        showLoading(false);
-                    }
-                } catch (error) {
-                    console.error('💥 Login exception:', error);
-                    console.error('Stack:', error.stack);
-                    showError('Erreur technique. Vérifiez votre connexion.');
-                    showLoading(false);
-                }
-            });
-            
-            console.log('✅ Event listener attached');
+
+                // ✅ Succès → redirection
+                window.location.href = 'index.html';
+
+            } catch (err) {
+                showError(err.message || 'Erreur inattendue.');
+                setLoading(false);
+            }
         }
-        
-        console.log('='.repeat(60));
-        console.log('✅ LOGIN PAGE READY');
-        console.log('='.repeat(60));
+
+        // ── Effacer l'erreur dès que l'user retape ─────────────────────────
+        ['login-email', 'login-password'].forEach(id => {
+            document.getElementById(id)?.addEventListener('input', hideError);
+        });
     </script>
+
 </body>
 </html>
