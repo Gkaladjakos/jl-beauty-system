@@ -1,5 +1,6 @@
 // =========================================================================
 // app.js — COMPLET avec intégration des modules Rapports + Comptabilité
+//          + Clôture de Caisse
 // =========================================================================
 const App = {
     currentPage: null,
@@ -30,13 +31,14 @@ const App = {
     // applyRoleRestrictions()
     // =========================================================================
     applyRoleRestrictions() {
-        // Pages interdites pour la caissière
+        // ⚠️  'cloture-caisse' est VOLONTAIREMENT absent :
+        //     la caissière doit pouvoir ouvrir/clôturer la caisse
         const PAGES_INTERDITES_CAISSE = [
             'coiffeuses',
             'services',
             'commissions',
             'rapports',
-            'comptabilite'   // ✅ AJOUTÉ — données financières sensibles
+            'comptabilite'
         ];
 
         const user = typeof AuthSupabase !== 'undefined'
@@ -96,7 +98,6 @@ const App = {
                 e.preventDefault();
                 const page = item.getAttribute('data-page');
 
-                // Ne pas recharger si déjà sur la page
                 if (page === this.currentPage) return;
 
                 this.loadPage(page);
@@ -109,9 +110,9 @@ const App = {
     },
 
     // =========================================================================
-    // loadPage()
+    // ✅ loadPage() — async obligatoire (await ClotureCaisse.init())
     // =========================================================================
-    loadPage(page) {
+    async loadPage(page) {
         const contentArea = document.getElementById('content-area');
         if (!contentArea) {
             console.error('[App] #content-area introuvable');
@@ -146,6 +147,23 @@ const App = {
 
         try {
             switch (page) {
+
+                // ── Clôture de caisse ──────────────────────────────────────
+                case 'cloture-caisse':
+                    this.updateHeader(                      // ✅ corrigé
+                        'Journal de Caisse',
+                        'Ouverture · Clôture · Billetage'
+                    );
+                    if (typeof ClotureCaisse !== 'undefined') {
+                        await ClotureCaisse.init(contentArea); // ✅ async
+                    } else {
+                        this._moduleNotFound(contentArea, 'ClotureCaisse');
+                    }
+                    break;
+                case 'historique-clotures':
+                    App.setPageTitle('Historique', 'Clôtures passées');
+                    await HistoriqueClotures.init();
+                    break;
 
                 // ── Dashboard ──────────────────────────────────────────────
                 case 'dashboard':
@@ -296,7 +314,7 @@ const App = {
                     }
                     break;
 
-                // ── Comptabilité ← NOUVEAU ─────────────────────────────────
+                // ── Comptabilité ───────────────────────────────────────────
                 case 'comptabilite':
                     this.updateHeader(
                         'Comptabilité OHADA',
