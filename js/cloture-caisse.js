@@ -5,9 +5,11 @@
 
 const ClotureCaisse = {
 
-    _currentDate: null,
-    _cloture:     null,   // clôture du jour en cours
-    _ventes:      [],     // ventes récupérées automatiquement
+    _currentDate:     null,
+    _cloture:         null,
+    _ventes:          [],
+    _mouvements:      [],
+    _totalTheorique:  0,
 
     // =========================================================================
     // BILLETAGE — coupures disponibles (USD)
@@ -24,7 +26,7 @@ const ClotureCaisse = {
     },
 
     // =========================================================================
-    // render() — point d'entrée principal
+    // render()
     // =========================================================================
     async render() {
         const container = document.getElementById('content-area');
@@ -47,7 +49,6 @@ const ClotureCaisse = {
                         </p>
                     </div>
                     <div class="flex items-center gap-3">
-                        <!-- Sélecteur de date -->
                         <input type="date"
                                id="cc-date-picker"
                                value="${this._currentDate}"
@@ -76,7 +77,6 @@ const ClotureCaisse = {
 
             </div>`;
 
-        // Charger automatiquement la journée en cours
         await this.chargerJournee();
     },
 
@@ -96,33 +96,61 @@ const ClotureCaisse = {
             </div>`;
 
         try {
-            // ── 1. Récupérer la clôture existante pour cette date ────────────
-            const { data: clotureData } = await window.supabase
-                .from('clotures_caisse')
-                .select('*')
-                .eq('date_journee', this._currentDate)
-                .maybeSingle();
+            // ── 1. Clôture existante ─────────────────────────────────────────
+            // ✅ clotures_caisse utilise bien DATE → filtre direct
+            const { data: clotureData, error: clotureError } =
+                await window.supabase
+                    .from('clotures_caisse')
+                    .select('*')
+                    .eq('date_journee', this._currentDate)
+                    .maybeSingle();
 
+            if (clotureError) {
+                console.warn('⚠️ clotures_caisse:', clotureError.message);
+            }
             this._cloture = clotureData || null;
 
-            // ── 2. Récupérer les ventes du jour ──────────────────────────────
-            const { data: ventesData } = await window.supabase
-                .from('ventes')
-                .select('id, montant_total, type_paiement, created_at')
-                .gte('created_at', this._currentDate + 'T00:00:00')
-                .lte('created_at', this._currentDate + 'T23:59:59')
-                .order('created_at', { ascending: true });
+            // ── 2. Ventes du jour ────────────────────────────────────────────
+            // ✅ Filtre plage horaire sur created_at (TIMESTAMPTZ)
+            const debutVentes = this._currentDate + 'T00:00:00.000Z';
+            const finVentes   = this._currentDate + 'T23:59:59.999Z';
 
+            const { data: ventesData, error: ventesError } =
+                await window.supabase
+                    .from('ventes')
+                    .select('id, montant_total, type_paiement, created_at')
+                    .gte('created_at', debutVentes)
+                    .lte('created_at', finVentes)
+                    .order('created_at', { ascending: true });
+
+            if (ventesError) {
+                console.warn('⚠️ ventes:', ventesError.message);
+            }
             this._ventes = ventesData || [];
 
-            // ── 3. Récupérer les mouvements (entrées/sorties manuels) ─────────
-            const { data: mouvements } = await window.supabase
-                .from('mouvements_caisse')
-                .select('*')
-                .eq('date_journee', this._currentDate)
-                .order('created_at', { ascending: true });
+            // ── 3. Mouvements manuels ────────────────────────────────────────
+            // ✅ Adapté : date_mouvement (TIMESTAMPTZ) → filtre plage horaire
+            //            type_mouvement (au lieu de type)
+            const debutMvt = this._currentDate + 'T00:00:00.000Z';
+            const finMvt   = this._currentDate + 'T23:59:59.999Z';
 
-            this._mouvements = mouvements || [];
+            const { data: mouvementsData, error: mvtError } =
+                await window.supabase
+                    .from('mouvements_caisse')
+                    .select('*')
+                    .gte('date_mouvement', debutMvt)
+                    .lte('date_mouvement', finMvt)
+                    .order('created_at', { ascending: true });
+
+            if (mvtError) {
+                console.warn('⚠️ mouvements_caisse:', mvtError.message);
+            }
+
+            // ✅ Normaliser : mapper type_mouvement → type pour l'affichage
+            this._mouvements = (mouvementsData || []).map(m => ({
+                ...m,
+                type: m.type_mouvement   // alias interne
+            }));
 
             // ── 4. Afficher ──────────────────────────────────────────────────
             this._renderJournee(zone);
@@ -143,9 +171,9 @@ const ClotureCaisse = {
     // _renderJournee()
     // =========================================================================
     _renderJournee(zone) {
-        const cloture   = this._cloture;
+        const cloture    = this._cloture;
         const verrouille = cloture?.statut === 'cloture';
-        const isGerant  = AuthSupabase.isGerant();
+        const isGerant   = AuthSupabase.isGerant();
 
         // ── Calculs ──────────────────────────────────────────────────────────
         const totalVentes = this._ventes.reduce(
@@ -160,7 +188,6 @@ const ClotureCaisse = {
 
         const totalTheorique = totalVentes + totalEntrees - totalSorties;
 
-        // Billetage enregistré
         const billetage = cloture?.billetage
             ? (typeof cloture.billetage === 'string'
                 ? JSON.parse(cloture.billetage)
@@ -223,7 +250,7 @@ const ClotureCaisse = {
             <!-- ══ Grille principale ══ -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-                <!-- ── Colonne gauche : Mouvements + Ventes ── -->
+                <!-- ── Colonne gauche ── -->
                 <div class="space-y-6">
 
                     <!-- Mouvements manuels -->
@@ -271,8 +298,7 @@ const ClotureCaisse = {
                                                 ? 'arrow-down' : 'arrow-up'}"></i>
                                         </span>
                                         <div>
-                                            <p class="text-sm font-medium
-                                                       text-gray-800">
+                                            <p class="text-sm font-medium text-gray-800">
                                                 ${m.libelle || '—'}
                                             </p>
                                             <p class="text-xs text-gray-400">
@@ -299,7 +325,6 @@ const ClotureCaisse = {
                                     </div>
                                 </div>`).join('')}
                         </div>
-                        <!-- Sous-total -->
                         <div class="px-5 py-3 bg-gray-50 border-t border-gray-100
                                     flex justify-between text-sm font-medium">
                             <span class="text-green-700">
@@ -311,7 +336,7 @@ const ClotureCaisse = {
                         </div>
                     </div>
 
-                    <!-- Liste des ventes -->
+                    <!-- Ventes du jour -->
                     <div class="bg-white rounded-xl shadow-sm
                                 border border-gray-100 overflow-hidden">
                         <div class="px-5 py-4 border-b border-gray-100">
@@ -326,11 +351,9 @@ const ClotureCaisse = {
                                 </span>
                             </h3>
                         </div>
-                        <div class="divide-y divide-gray-50
-                                    max-h-64 overflow-y-auto">
+                        <div class="divide-y divide-gray-50 max-h-64 overflow-y-auto">
                             ${this._ventes.length === 0
-                                ? `<p class="text-center text-gray-400
-                                            text-sm py-8">
+                                ? `<p class="text-center text-gray-400 text-sm py-8">
                                        Aucune vente enregistrée
                                    </p>`
                                 : this._ventes.map(v => `
@@ -344,15 +367,14 @@ const ClotureCaisse = {
                                             ${v.type_paiement || 'Cash'}
                                         </p>
                                     </div>
-                                    <span class="font-semibold text-sm
-                                                 text-blue-600">
+                                    <span class="font-semibold text-sm text-blue-600">
                                         ${Utils.formatUSD(v.montant_total)}
                                     </span>
                                 </div>`).join('')}
                         </div>
-                        <div class="px-5 py-3 bg-blue-50 border-t
-                                    border-blue-100 flex justify-between
-                                    text-sm font-semibold text-blue-800">
+                        <div class="px-5 py-3 bg-blue-50 border-t border-blue-100
+                                    flex justify-between text-sm font-semibold
+                                    text-blue-800">
                             <span>Total ventes</span>
                             <span>${Utils.formatUSD(totalVentes)}</span>
                         </div>
@@ -361,7 +383,7 @@ const ClotureCaisse = {
                 </div>
                 <!-- fin colonne gauche -->
 
-                <!-- ── Colonne droite : Billetage + Récap ── -->
+                <!-- ── Colonne droite ── -->
                 <div class="space-y-6">
 
                     <!-- Billetage -->
@@ -370,8 +392,7 @@ const ClotureCaisse = {
                         <div class="px-5 py-4 border-b border-gray-100">
                             <h3 class="font-semibold text-gray-800
                                        flex items-center gap-2">
-                                <i class="fas fa-money-bill-wave
-                                          text-green-500"></i>
+                                <i class="fas fa-money-bill-wave text-green-500"></i>
                                 Billetage physique
                             </h3>
                             <p class="text-xs text-gray-400 mt-0.5">
@@ -407,9 +428,7 @@ const ClotureCaisse = {
                                 <span id="sous-total-${c}"
                                       class="font-semibold text-gray-700
                                              text-sm w-20 text-right">
-                                    ${Utils.formatUSD(
-                                        (billetage[c] || 0) * c
-                                    )}
+                                    ${Utils.formatUSD((billetage[c] || 0) * c)}
                                 </span>
                             </div>`).join('')}
                         </div>
@@ -420,8 +439,7 @@ const ClotureCaisse = {
                             <div class="flex justify-between text-sm
                                         font-semibold text-gray-700">
                                 <span>
-                                    <i class="fas fa-coins mr-1 text-yellow-500">
-                                    </i>
+                                    <i class="fas fa-coins mr-1 text-yellow-500"></i>
                                     Total en caisse
                                 </span>
                                 <span id="cc-total-billetage"
@@ -429,17 +447,14 @@ const ClotureCaisse = {
                                     ${Utils.formatUSD(totalBilletage)}
                                 </span>
                             </div>
-                            <div class="flex justify-between text-sm
-                                        text-gray-500">
+                            <div class="flex justify-between text-sm text-gray-500">
                                 <span>Attendu (théorique)</span>
                                 <span id="cc-total-theorique">
                                     ${Utils.formatUSD(totalTheorique)}
                                 </span>
                             </div>
-                            <!-- Écart -->
-                            <div class="flex justify-between text-sm
-                                        font-bold pt-1 border-t
-                                        border-gray-200">
+                            <div class="flex justify-between text-sm font-bold
+                                        pt-1 border-t border-gray-200">
                                 <span>Écart</span>
                                 <span id="cc-ecart"
                                       class="${ecart === 0
@@ -449,16 +464,11 @@ const ClotureCaisse = {
                                             : 'text-red-600'}">
                                     ${ecart >= 0 ? '+' : ''}
                                     ${Utils.formatUSD(ecart)}
-                                    ${ecart === 0
-                                        ? ' ✅'
-                                        : ecart > 0
-                                            ? ' ⬆️'
-                                            : ' ⬇️'}
+                                    ${ecart === 0 ? ' ✅' : ecart > 0 ? ' ⬆️' : ' ⬇️'}
                                 </span>
                             </div>
                         </div>
                     </div>
-                    <!-- fin billetage -->
 
                     <!-- Notes -->
                     <div class="bg-white rounded-xl shadow-sm
@@ -466,8 +476,7 @@ const ClotureCaisse = {
                         <div class="px-5 py-4 border-b border-gray-100">
                             <h3 class="font-semibold text-gray-800
                                        flex items-center gap-2">
-                                <i class="fas fa-sticky-note
-                                          text-yellow-400"></i>
+                                <i class="fas fa-sticky-note text-yellow-400"></i>
                                 Notes / Observations
                             </h3>
                         </div>
@@ -487,7 +496,7 @@ const ClotureCaisse = {
                         </div>
                     </div>
 
-                    <!-- Bouton clôture -->
+                    <!-- Bouton clôture / impression -->
                     ${!verrouille ? `
                     <button onclick="ClotureCaisse.cloturer()"
                             class="w-full py-4 rounded-xl text-white font-bold
@@ -512,12 +521,11 @@ const ClotureCaisse = {
 
             </div>`;
 
-        // ── Stocker les totaux dans le DOM pour recalc dynamique ─────────────
         this._totalTheorique = totalTheorique;
     },
 
     // =========================================================================
-    // _kpi() — carte KPI
+    // _kpi()
     // =========================================================================
     _kpi(label, value, icon, color) {
         const colors = {
@@ -527,8 +535,7 @@ const ClotureCaisse = {
             purple: 'bg-purple-50 text-purple-600 border-purple-100',
         };
         return `
-            <div class="bg-white rounded-xl p-4 border ${colors[color]}
-                        shadow-sm">
+            <div class="bg-white rounded-xl p-4 border ${colors[color]} shadow-sm">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-lg flex items-center
                                 justify-center ${colors[color]}">
@@ -543,7 +550,7 @@ const ClotureCaisse = {
     },
 
     // =========================================================================
-    // recalcBilletage() — mise à jour live des sous-totaux
+    // recalcBilletage()
     // =========================================================================
     recalcBilletage() {
         let total = 0;
@@ -556,7 +563,6 @@ const ClotureCaisse = {
             if (stEl) stEl.textContent = Utils.formatUSD(sous);
         });
 
-        // Mettre à jour total + écart
         const totalEl = document.getElementById('cc-total-billetage');
         const ecartEl = document.getElementById('cc-ecart');
         if (totalEl) totalEl.textContent = Utils.formatUSD(total);
@@ -576,7 +582,7 @@ const ClotureCaisse = {
     },
 
     // =========================================================================
-    // _getBilletage() — lire les valeurs saisies
+    // _getBilletage()
     // =========================================================================
     _getBilletage() {
         const result = {};
@@ -588,12 +594,12 @@ const ClotureCaisse = {
     },
 
     // =========================================================================
-    // ajouterMouvement() — modale entrée/sortie
+    // ajouterMouvement()
     // =========================================================================
     ajouterMouvement(type) {
-        const label  = type === 'entree' ? 'Entrée' : 'Sortie';
-        const color  = type === 'entree' ? 'green'  : 'red';
-        const icon   = type === 'entree' ? 'arrow-circle-down' : 'arrow-circle-up';
+        const label = type === 'entree' ? 'Entrée' : 'Sortie';
+        const color = type === 'entree' ? 'green'  : 'red';
+        const icon  = type === 'entree' ? 'arrow-circle-down' : 'arrow-circle-up';
 
         const content = `
             <div class="space-y-4">
@@ -608,8 +614,7 @@ const ClotureCaisse = {
                                : 'Achat fournitures'}"
                            class="w-full border border-gray-300 rounded-lg
                                   px-3 py-2 text-sm focus:ring-2
-                                  focus:ring-yellow-400
-                                  focus:border-transparent">
+                                  focus:ring-yellow-400 focus:border-transparent">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -622,8 +627,7 @@ const ClotureCaisse = {
                            placeholder="0.00"
                            class="w-full border border-gray-300 rounded-lg
                                   px-3 py-2 text-sm focus:ring-2
-                                  focus:ring-yellow-400
-                                  focus:border-transparent">
+                                  focus:ring-yellow-400 focus:border-transparent">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -634,8 +638,7 @@ const ClotureCaisse = {
                            placeholder="Détail supplémentaire…"
                            class="w-full border border-gray-300 rounded-lg
                                   px-3 py-2 text-sm focus:ring-2
-                                  focus:ring-yellow-400
-                                  focus:border-transparent">
+                                  focus:ring-yellow-400 focus:border-transparent">
                 </div>
             </div>`;
 
@@ -648,7 +651,7 @@ const ClotureCaisse = {
                 const montant = parseFloat(
                     document.getElementById('mv-montant')?.value || 0
                 );
-                const note    = document.getElementById('mv-note')?.value?.trim();
+                const note = document.getElementById('mv-note')?.value?.trim();
 
                 if (!libelle) {
                     Utils.showToast('Veuillez saisir un libellé', 'warning');
@@ -665,28 +668,35 @@ const ClotureCaisse = {
             `Ajouter la ${label}`
         );
 
-        // Focus automatique
-        setTimeout(() => {
-            document.getElementById('mv-libelle')?.focus();
-        }, 100);
+        setTimeout(() => document.getElementById('mv-libelle')?.focus(), 100);
     },
 
     // =========================================================================
     // _saveMouvement()
+    // ✅ Adapté aux vraies colonnes : type_mouvement, date_mouvement
     // =========================================================================
     async _saveMouvement({ type, libelle, montant, note }) {
         try {
             const user = AuthSupabase.getCurrentUser();
+
+            // ✅ Construire un timestamp pour date_mouvement
+            const dateMouvement = new Date(
+                this._currentDate + 'T12:00:00'
+            ).toISOString();
+
+            const payload = {
+                type_mouvement: type,          // ✅ vrai nom de colonne
+                date_mouvement: dateMouvement, // ✅ vrai nom de colonne (TIMESTAMPTZ)
+                libelle:        libelle,
+                montant:        parseFloat(montant),
+                note:           note || null,
+                created_by:     user?.id || null,
+                source:         'caisse',      // ✅ colonne existante
+            };
+
             const { error } = await window.supabase
                 .from('mouvements_caisse')
-                .insert([{
-                    date_journee: this._currentDate,
-                    type,
-                    libelle,
-                    montant,
-                    note:         note || null,
-                    created_by:   user?.id || null,
-                }]);
+                .insert([payload]);
 
             if (error) throw error;
 
@@ -731,7 +741,6 @@ const ClotureCaisse = {
         const ecart = totalBilletage - (this._totalTheorique || 0);
         const notes = document.getElementById('cc-notes')?.value?.trim() || null;
 
-        // ── Confirmation avec récap ──────────────────────────────────────────
         const ok = confirm(
             `Clôturer la journée du ${this._currentDate} ?\n\n` +
             `Total théorique : ${Utils.formatUSD(this._totalTheorique)}\n` +
@@ -744,34 +753,32 @@ const ClotureCaisse = {
         try {
             const user = AuthSupabase.getCurrentUser();
             const payload = {
-                date_journee:     this._currentDate,
-                total_ventes:     this._ventes.reduce(
+                date_journee:    this._currentDate,
+                total_ventes:    this._ventes.reduce(
                                     (s, v) => s + parseFloat(v.montant_total || 0), 0),
-                total_entrees:    this._mouvements
+                total_entrees:   this._mouvements
                                     .filter(m => m.type === 'entree')
                                     .reduce((s, m) => s + parseFloat(m.montant || 0), 0),
-                total_sorties:    this._mouvements
+                total_sorties:   this._mouvements
                                     .filter(m => m.type === 'sortie')
                                     .reduce((s, m) => s + parseFloat(m.montant || 0), 0),
-                total_theorique:  this._totalTheorique,
-                total_billetage:  totalBilletage,
+                total_theorique: this._totalTheorique,
+                total_billetage: totalBilletage,
                 ecart,
-                billetage:        JSON.stringify(billetage),
+                billetage:       JSON.stringify(billetage),
                 notes,
-                statut:           'cloture',
-                cloture_par:      user?.nom || user?.email || 'inconnu',
-                user_id:          user?.id || null,
+                statut:          'cloture',
+                cloture_par:     user?.nom || user?.email || 'inconnu',
+                user_id:         user?.id || null,
             };
 
             if (this._cloture?.id) {
-                // Mise à jour
                 const { error } = await window.supabase
                     .from('clotures_caisse')
                     .update(payload)
                     .eq('id', this._cloture.id);
                 if (error) throw error;
             } else {
-                // Création
                 const { error } = await window.supabase
                     .from('clotures_caisse')
                     .insert([payload]);
@@ -788,7 +795,7 @@ const ClotureCaisse = {
     },
 
     // =========================================================================
-    // deverrouiller() — gérant uniquement
+    // deverrouiller()
     // =========================================================================
     async deverrouiller() {
         if (!AuthSupabase.isGerant()) {
@@ -814,8 +821,8 @@ const ClotureCaisse = {
     // imprimerRecap()
     // =========================================================================
     imprimerRecap() {
-        const c          = this._cloture;
-        const billetage  = c?.billetage
+        const c         = this._cloture;
+        const billetage = c?.billetage
             ? (typeof c.billetage === 'string'
                 ? JSON.parse(c.billetage)
                 : c.billetage)
