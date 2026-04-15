@@ -97,7 +97,6 @@ const ClotureCaisse = {
 
         try {
             // ── 1. Clôture existante ─────────────────────────────────────────
-            // ✅ clotures_caisse.date_journee est de type DATE → filtre direct
             const { data: clotureData, error: clotureError } =
                 await window.supabase
                     .from('clotures_caisse')
@@ -111,7 +110,6 @@ const ClotureCaisse = {
             this._cloture = clotureData || null;
 
             // ── 2. Ventes du jour ────────────────────────────────────────────
-            // ✅ Colonne réelle : date_vente (TIMESTAMPTZ) → filtre plage
             const debutV = this._currentDate + 'T00:00:00.000Z';
             const finV   = this._currentDate + 'T23:59:59.999Z';
 
@@ -119,8 +117,8 @@ const ClotureCaisse = {
                 await window.supabase
                     .from('ventes')
                     .select('id, montant_total, mode_paiement, date_vente')
-                    .gte('date_vente', debutV)   // ✅ vrai nom de colonne
-                    .lte('date_vente', finV)     // ✅ vrai nom de colonne
+                    .gte('date_vente', debutV)
+                    .lte('date_vente', finV)
                     .order('date_vente', { ascending: true });
 
             if (ventesError) {
@@ -129,7 +127,6 @@ const ClotureCaisse = {
             this._ventes = ventesData || [];
 
             // ── 3. Mouvements manuels ────────────────────────────────────────
-            // ✅ Colonnes réelles : date_journee (TIMESTAMPTZ), type (TEXT)
             const debutM = this._currentDate + 'T00:00:00.000Z';
             const finM   = this._currentDate + 'T23:59:59.999Z';
 
@@ -137,15 +134,13 @@ const ClotureCaisse = {
                 await window.supabase
                     .from('mouvements_caisse')
                     .select('*')
-                    .gte('date_journee', debutM)  // ✅ vrai nom de colonne
-                    .lte('date_journee', finM)    // ✅ vrai nom de colonne
+                    .gte('date_journee', debutM)
+                    .lte('date_journee', finM)
                     .order('created_at', { ascending: true });
 
             if (mvtError) {
                 console.warn('⚠️ mouvements_caisse:', mvtError.message);
             }
-
-            // ✅ "type" est déjà le vrai nom de colonne → pas d'alias nécessaire
             this._mouvements = mouvementsData || [];
 
             // ── 4. Afficher ──────────────────────────────────────────────────
@@ -182,12 +177,10 @@ const ClotureCaisse = {
             .filter(m => m.type === 'sortie')
             .reduce((s, m) => s + parseFloat(m.montant || 0), 0);
 
-        // ✅ Inclure montant_ouverture dans le théorique
         const montantOuverture = parseFloat(cloture?.montant_ouverture || 0);
         const totalTheorique   = montantOuverture + totalVentes
                                  + totalEntrees - totalSorties;
 
-        // ✅ billetage est un vrai champ JSONB dans clotures_caisse
         const billetage = cloture?.billetage
             ? (typeof cloture.billetage === 'string'
                 ? JSON.parse(cloture.billetage)
@@ -526,7 +519,6 @@ const ClotureCaisse = {
                             </h3>
                         </div>
                         <div class="p-5 space-y-3">
-                            <!-- ✅ notes = colonne réelle caissière -->
                             <textarea id="cc-notes"
                                       rows="2"
                                       ${verrouille ? 'disabled' : ''}
@@ -546,7 +538,6 @@ const ClotureCaisse = {
                                               text-gray-500 mb-1">
                                     Commentaire gérant
                                 </label>
-                                <!-- ✅ commentaire_gerant = colonne réelle gérant -->
                                 <textarea id="cc-commentaire-gerant"
                                           rows="2"
                                           placeholder="Observations du gérant…"
@@ -628,7 +619,6 @@ ${cloture?.commentaire_gerant || ''}</textarea>
             if (stEl) stEl.textContent = Utils.formatUSD(sous);
         });
 
-        // ✅ Recalc théorique en tenant compte du montant d'ouverture
         const ouvertureInput   = document.getElementById('cc-montant-ouverture');
         const montantOuverture = parseFloat(ouvertureInput?.value || 0);
 
@@ -765,29 +755,52 @@ ${cloture?.commentaire_gerant || ''}</textarea>
 
     // =========================================================================
     // _saveMouvement()
-    // ✅ Colonnes réelles : type (TEXT), date_journee (TIMESTAMPTZ)
+    // ✅ Payload défensif — colonnes optionnelles exclues si null
     // =========================================================================
     async _saveMouvement({ type, libelle, montant, note }) {
         try {
             const user = AuthSupabase.getCurrentUser();
 
+            // ✅ Log diagnostic
+            console.log('👤 User courant :', user);
+
+            // ✅ Payload de base — uniquement les colonnes obligatoires
             const payload = {
-                type:          type,             // ✅ vrai nom de colonne
-                date_journee:  new Date(
+                type:         type,
+                date_journee: new Date(
                     this._currentDate + 'T12:00:00'
-                ).toISOString(),                 // ✅ vrai nom de colonne
-                libelle:       libelle,
-                montant:       parseFloat(montant),
-                note:          note || null,
-                created_by:    user?.id || null,
-                source:        'caisse',
+                ).toISOString(),
+                libelle:      libelle,
+                montant:      parseFloat(montant),
+                source:       'caisse',
             };
 
-            const { error } = await window.supabase
-                .from('mouvements_caisse')
-                .insert([payload]);
+            // ✅ Colonnes optionnelles — ajoutées seulement si non vides
+            if (note && note.trim() !== '') {
+                payload.note = note.trim();
+            }
+            if (user?.id) {
+                payload.created_by = user.id;
+            }
 
-            if (error) throw error;
+            console.log('📦 Payload final :', JSON.stringify(payload, null, 2));
+
+            const { data, error } = await window.supabase
+                .from('mouvements_caisse')
+                .insert([payload])
+                .select();
+
+            if (error) {
+                console.error('❌ Erreur Supabase :', {
+                    message: error.message,
+                    details: error.details,
+                    hint:    error.hint,
+                    code:    error.code,
+                });
+                throw new Error(error.message);
+            }
+
+            console.log('✅ Mouvement inséré :', data);
 
             Utils.showToast(
                 `${type === 'entree' ? 'Entrée' : 'Sortie'} enregistrée`,
@@ -796,7 +809,7 @@ ${cloture?.commentaire_gerant || ''}</textarea>
             await this.chargerJournee();
 
         } catch (err) {
-            console.error('❌ _saveMouvement:', err);
+            console.error('❌ _saveMouvement catch:', err);
             Utils.showToast('Erreur : ' + err.message, 'error');
         }
     },
@@ -821,7 +834,7 @@ ${cloture?.commentaire_gerant || ''}</textarea>
 
     // =========================================================================
     // cloturer()
-    // ✅ Colonnes réelles clotures_caisse — toutes vérifiées
+    // ✅ Toutes les colonnes clotures_caisse vérifiées
     // =========================================================================
     async cloturer() {
         const billetage      = this._getBilletage();
@@ -835,7 +848,6 @@ ${cloture?.commentaire_gerant || ''}</textarea>
             'cc-commentaire-gerant'
         )?.value?.trim() || null;
 
-        // ✅ Lire le montant d'ouverture depuis l'input
         const montantOuverture = parseFloat(
             document.getElementById('cc-montant-ouverture')?.value || 0
         );
@@ -854,7 +866,6 @@ ${cloture?.commentaire_gerant || ''}</textarea>
             const user = AuthSupabase.getCurrentUser();
 
             const payload = {
-                // ✅ Colonnes réelles clotures_caisse
                 date_journee:       this._currentDate,
                 montant_ouverture:  montantOuverture,
                 total_ventes:       this._ventes.reduce(
@@ -871,14 +882,16 @@ ${cloture?.commentaire_gerant || ''}</textarea>
                 total_theorique:    this._totalTheorique,
                 total_billetage:    totalBilletage,
                 ecart:              ecart,
-                billetage:          billetage,       // ✅ JSONB natif
-                notes:              notes,           // ✅ colonne notes
+                billetage:          billetage,
+                notes:              notes,
                 commentaire_gerant: commentaireGerant,
                 statut:             'cloture',
                 cloture_par:        user?.nom || user?.email || 'inconnu',
                 user_id:            user?.id  || null,
                 heure_cloture:      new Date().toISOString(),
             };
+
+            console.log('📦 Payload clôture :', JSON.stringify(payload, null, 2));
 
             if (this._cloture?.id) {
                 const { error } = await window.supabase
@@ -913,14 +926,15 @@ ${cloture?.commentaire_gerant || ''}</textarea>
         if (!confirm('Déverrouiller cette journée pour la modifier ?')) return;
 
         try {
+            const user = AuthSupabase.getCurrentUser();
             const { error } = await window.supabase
                 .from('clotures_caisse')
                 .update({
-                    statut:       'ouvert',
+                    statut:        'ouvert',
                     heure_cloture: null,
-                    gerant_id:    AuthSupabase.getCurrentUser()?.id || null,
-                    gerant_nom:   AuthSupabase.getCurrentUser()?.nom || null,
-                    validated_at: new Date().toISOString(),
+                    gerant_id:     user?.id  || null,
+                    gerant_nom:    user?.nom  || null,
+                    validated_at:  new Date().toISOString(),
                 })
                 .eq('id', this._cloture.id);
             if (error) throw error;
@@ -933,7 +947,6 @@ ${cloture?.commentaire_gerant || ''}</textarea>
 
     // =========================================================================
     // imprimerRecap()
-    // ✅ Adapté aux colonnes réelles
     // =========================================================================
     imprimerRecap() {
         const c         = this._cloture;
@@ -963,28 +976,28 @@ ${cloture?.commentaire_gerant || ''}</textarea>
                 <meta charset="UTF-8">
                 <title>Récapitulatif Caisse — ${this._currentDate}</title>
                 <style>
-                    body { font-family: Arial, sans-serif; font-size: 13px;
-                           max-width: 480px; margin: 0 auto; padding: 20px; }
-                    h1   { font-size: 18px; text-align: center;
-                           margin-bottom: 4px; }
-                    h2   { font-size: 13px; text-align: center; color: #666;
-                           font-weight: normal; margin-bottom: 20px; }
+                    body  { font-family: Arial, sans-serif; font-size: 13px;
+                            max-width: 480px; margin: 0 auto; padding: 20px; }
+                    h1    { font-size: 18px; text-align: center;
+                            margin-bottom: 4px; }
+                    h2    { font-size: 13px; text-align: center; color: #666;
+                            font-weight: normal; margin-bottom: 20px; }
                     table { width: 100%; border-collapse: collapse;
                             margin-bottom: 16px; }
-                    th  { background: #f3f4f6; padding: 6px 8px;
-                          text-align: left; font-size: 11px;
-                          text-transform: uppercase; }
-                    td  { border-bottom: 1px solid #e5e7eb; }
+                    th    { background: #f3f4f6; padding: 6px 8px;
+                            text-align: left; font-size: 11px;
+                            text-transform: uppercase; }
+                    td    { border-bottom: 1px solid #e5e7eb; }
                     .total-row td { font-weight: bold; background: #f9fafb; }
-                    .ecart-pos { color: #2563eb; }
-                    .ecart-neg { color: #dc2626; }
-                    .ecart-ok  { color: #16a34a; }
-                    .section   { font-weight: bold; margin: 16px 0 6px;
-                                 font-size: 13px;
-                                 border-bottom: 2px solid #000;
-                                 padding-bottom: 3px; }
-                    .footer    { text-align: center; font-size: 11px;
-                                 color: #9ca3af; margin-top: 24px; }
+                    .ecart-pos    { color: #2563eb; }
+                    .ecart-neg    { color: #dc2626; }
+                    .ecart-ok     { color: #16a34a; }
+                    .section      { font-weight: bold; margin: 16px 0 6px;
+                                    font-size: 13px;
+                                    border-bottom: 2px solid #000;
+                                    padding-bottom: 3px; }
+                    .footer       { text-align: center; font-size: 11px;
+                                    color: #9ca3af; margin-top: 24px; }
                 </style>
             </head>
             <body>
