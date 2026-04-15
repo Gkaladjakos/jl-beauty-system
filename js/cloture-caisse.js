@@ -5,11 +5,11 @@
 
 const ClotureCaisse = {
 
-    _currentDate:     null,
-    _cloture:         null,
-    _ventes:          [],
-    _mouvements:      [],
-    _totalTheorique:  0,
+    _currentDate:    null,
+    _cloture:        null,
+    _ventes:         [],
+    _mouvements:     [],
+    _totalTheorique: 0,
 
     // =========================================================================
     // BILLETAGE — coupures disponibles (USD)
@@ -97,7 +97,7 @@ const ClotureCaisse = {
 
         try {
             // ── 1. Clôture existante ─────────────────────────────────────────
-            // ✅ clotures_caisse utilise bien DATE → filtre direct
+            // ✅ clotures_caisse.date_journee est de type DATE → filtre direct
             const { data: clotureData, error: clotureError } =
                 await window.supabase
                     .from('clotures_caisse')
@@ -111,17 +111,17 @@ const ClotureCaisse = {
             this._cloture = clotureData || null;
 
             // ── 2. Ventes du jour ────────────────────────────────────────────
-            // ✅ Filtre plage horaire sur created_at (TIMESTAMPTZ)
-            const debutVentes = this._currentDate + 'T00:00:00.000Z';
-            const finVentes   = this._currentDate + 'T23:59:59.999Z';
+            // ✅ Colonne réelle : date_vente (TIMESTAMPTZ) → filtre plage
+            const debutV = this._currentDate + 'T00:00:00.000Z';
+            const finV   = this._currentDate + 'T23:59:59.999Z';
 
             const { data: ventesData, error: ventesError } =
                 await window.supabase
                     .from('ventes')
-                    .select('id, montant_total, type_paiement, created_at')
-                    .gte('created_at', debutVentes)
-                    .lte('created_at', finVentes)
-                    .order('created_at', { ascending: true });
+                    .select('id, montant_total, mode_paiement, date_vente')
+                    .gte('date_vente', debutV)   // ✅ vrai nom de colonne
+                    .lte('date_vente', finV)     // ✅ vrai nom de colonne
+                    .order('date_vente', { ascending: true });
 
             if (ventesError) {
                 console.warn('⚠️ ventes:', ventesError.message);
@@ -129,28 +129,24 @@ const ClotureCaisse = {
             this._ventes = ventesData || [];
 
             // ── 3. Mouvements manuels ────────────────────────────────────────
-            // ✅ Adapté : date_mouvement (TIMESTAMPTZ) → filtre plage horaire
-            //            type_mouvement (au lieu de type)
-            const debutMvt = this._currentDate + 'T00:00:00.000Z';
-            const finMvt   = this._currentDate + 'T23:59:59.999Z';
+            // ✅ Colonnes réelles : date_journee (TIMESTAMPTZ), type (TEXT)
+            const debutM = this._currentDate + 'T00:00:00.000Z';
+            const finM   = this._currentDate + 'T23:59:59.999Z';
 
             const { data: mouvementsData, error: mvtError } =
                 await window.supabase
                     .from('mouvements_caisse')
                     .select('*')
-                    .gte('date_mouvement', debutMvt)
-                    .lte('date_mouvement', finMvt)
+                    .gte('date_journee', debutM)  // ✅ vrai nom de colonne
+                    .lte('date_journee', finM)    // ✅ vrai nom de colonne
                     .order('created_at', { ascending: true });
 
             if (mvtError) {
                 console.warn('⚠️ mouvements_caisse:', mvtError.message);
             }
 
-            // ✅ Normaliser : mapper type_mouvement → type pour l'affichage
-            this._mouvements = (mouvementsData || []).map(m => ({
-                ...m,
-                type: m.type_mouvement   // alias interne
-            }));
+            // ✅ "type" est déjà le vrai nom de colonne → pas d'alias nécessaire
+            this._mouvements = mouvementsData || [];
 
             // ── 4. Afficher ──────────────────────────────────────────────────
             this._renderJournee(zone);
@@ -186,13 +182,18 @@ const ClotureCaisse = {
             .filter(m => m.type === 'sortie')
             .reduce((s, m) => s + parseFloat(m.montant || 0), 0);
 
-        const totalTheorique = totalVentes + totalEntrees - totalSorties;
+        // ✅ Inclure montant_ouverture dans le théorique
+        const montantOuverture = parseFloat(cloture?.montant_ouverture || 0);
+        const totalTheorique   = montantOuverture + totalVentes
+                                 + totalEntrees - totalSorties;
 
+        // ✅ billetage est un vrai champ JSONB dans clotures_caisse
         const billetage = cloture?.billetage
             ? (typeof cloture.billetage === 'string'
                 ? JSON.parse(cloture.billetage)
                 : cloture.billetage)
             : {};
+
         const totalBilletage = this.COUPURES.reduce(
             (s, c) => s + (parseInt(billetage[c] || 0) * c), 0
         );
@@ -211,7 +212,7 @@ const ClotureCaisse = {
                         Journée clôturée
                     </p>
                     <p class="text-xs text-green-600">
-                        Le ${Utils.formatDateTime(cloture.updated_at)}
+                        Le ${Utils.formatDateTime(cloture.heure_cloture)}
                         par ${cloture.cloture_par || '—'}
                     </p>
                 </div>
@@ -253,13 +254,46 @@ const ClotureCaisse = {
                 <!-- ── Colonne gauche ── -->
                 <div class="space-y-6">
 
+                    <!-- Fonds d'ouverture -->
+                    <div class="bg-white rounded-xl shadow-sm
+                                border border-gray-100 overflow-hidden">
+                        <div class="px-5 py-4 border-b border-gray-100">
+                            <h3 class="font-semibold text-gray-800
+                                       flex items-center gap-2">
+                                <i class="fas fa-door-open text-indigo-500"></i>
+                                Fonds d'ouverture
+                            </h3>
+                        </div>
+                        <div class="p-5">
+                            <div class="flex items-center justify-between gap-3">
+                                <span class="text-sm text-gray-600">
+                                    Montant en caisse à l'ouverture
+                                </span>
+                                <input type="number"
+                                       id="cc-montant-ouverture"
+                                       min="0"
+                                       step="0.01"
+                                       value="${montantOuverture}"
+                                       ${verrouille ? 'disabled' : ''}
+                                       oninput="ClotureCaisse.recalcBilletage()"
+                                       class="w-32 border border-gray-300
+                                              rounded-lg px-3 py-2 text-sm
+                                              text-right font-semibold
+                                              focus:ring-2 focus:ring-yellow-400
+                                              focus:border-transparent
+                                              disabled:bg-gray-50
+                                              disabled:text-gray-500">
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Mouvements manuels -->
                     <div class="bg-white rounded-xl shadow-sm
                                 border border-gray-100 overflow-hidden">
                         <div class="flex items-center justify-between
                                     px-5 py-4 border-b border-gray-100">
-                            <h3 class="font-semibold text-gray-800 flex
-                                       items-center gap-2">
+                            <h3 class="font-semibold text-gray-800
+                                       flex items-center gap-2">
                                 <i class="fas fa-exchange-alt text-yellow-500"></i>
                                 Entrées &amp; Sorties manuelles
                             </h3>
@@ -279,9 +313,11 @@ const ClotureCaisse = {
                                 </button>
                             </div>` : ''}
                         </div>
-                        <div class="divide-y divide-gray-50 max-h-64 overflow-y-auto">
+                        <div class="divide-y divide-gray-50
+                                    max-h-64 overflow-y-auto">
                             ${this._mouvements.length === 0
-                                ? `<p class="text-center text-gray-400 text-sm py-8">
+                                ? `<p class="text-center text-gray-400
+                                            text-sm py-8">
                                        Aucun mouvement manuel
                                    </p>`
                                 : this._mouvements.map(m => `
@@ -298,7 +334,8 @@ const ClotureCaisse = {
                                                 ? 'arrow-down' : 'arrow-up'}"></i>
                                         </span>
                                         <div>
-                                            <p class="text-sm font-medium text-gray-800">
+                                            <p class="text-sm font-medium
+                                                       text-gray-800">
                                                 ${m.libelle || '—'}
                                             </p>
                                             <p class="text-xs text-gray-400">
@@ -340,20 +377,22 @@ const ClotureCaisse = {
                     <div class="bg-white rounded-xl shadow-sm
                                 border border-gray-100 overflow-hidden">
                         <div class="px-5 py-4 border-b border-gray-100">
-                            <h3 class="font-semibold text-gray-800 flex
-                                       items-center gap-2">
+                            <h3 class="font-semibold text-gray-800
+                                       flex items-center gap-2">
                                 <i class="fas fa-receipt text-blue-500"></i>
                                 Ventes du jour
                                 <span class="ml-auto text-xs font-normal
-                                             bg-blue-100 text-blue-700 px-2
-                                             py-0.5 rounded-full">
+                                             bg-blue-100 text-blue-700
+                                             px-2 py-0.5 rounded-full">
                                     ${this._ventes.length} vente(s)
                                 </span>
                             </h3>
                         </div>
-                        <div class="divide-y divide-gray-50 max-h-64 overflow-y-auto">
+                        <div class="divide-y divide-gray-50
+                                    max-h-64 overflow-y-auto">
                             ${this._ventes.length === 0
-                                ? `<p class="text-center text-gray-400 text-sm py-8">
+                                ? `<p class="text-center text-gray-400
+                                            text-sm py-8">
                                        Aucune vente enregistrée
                                    </p>`
                                 : this._ventes.map(v => `
@@ -361,13 +400,14 @@ const ClotureCaisse = {
                                             px-5 py-2.5 hover:bg-gray-50">
                                     <div>
                                         <p class="text-xs text-gray-500">
-                                            ${Utils.formatTime(v.created_at)}
+                                            ${Utils.formatTime(v.date_vente)}
                                         </p>
                                         <p class="text-xs text-gray-400">
-                                            ${v.type_paiement || 'Cash'}
+                                            ${v.mode_paiement || 'Cash'}
                                         </p>
                                     </div>
-                                    <span class="font-semibold text-sm text-blue-600">
+                                    <span class="font-semibold text-sm
+                                                 text-blue-600">
                                         ${Utils.formatUSD(v.montant_total)}
                                     </span>
                                 </div>`).join('')}
@@ -392,14 +432,15 @@ const ClotureCaisse = {
                         <div class="px-5 py-4 border-b border-gray-100">
                             <h3 class="font-semibold text-gray-800
                                        flex items-center gap-2">
-                                <i class="fas fa-money-bill-wave text-green-500"></i>
+                                <i class="fas fa-money-bill-wave
+                                          text-green-500"></i>
                                 Billetage physique
                             </h3>
                             <p class="text-xs text-gray-400 mt-0.5">
                                 Comptez les billets dans la caisse
                             </p>
                         </div>
-                        <div class="p-5 space-y-3" id="cc-billetage-zone">
+                        <div class="p-5 space-y-3">
                             ${this.COUPURES.map(c => `
                             <div class="flex items-center gap-3">
                                 <div class="flex-shrink-0 w-20 text-center">
@@ -433,13 +474,14 @@ const ClotureCaisse = {
                             </div>`).join('')}
                         </div>
 
-                        <!-- Total billetage -->
+                        <!-- Totaux billetage -->
                         <div class="px-5 py-4 bg-gray-50 border-t
                                     border-gray-200 space-y-2">
                             <div class="flex justify-between text-sm
                                         font-semibold text-gray-700">
                                 <span>
-                                    <i class="fas fa-coins mr-1 text-yellow-500"></i>
+                                    <i class="fas fa-coins mr-1
+                                              text-yellow-500"></i>
                                     Total en caisse
                                 </span>
                                 <span id="cc-total-billetage"
@@ -447,7 +489,8 @@ const ClotureCaisse = {
                                     ${Utils.formatUSD(totalBilletage)}
                                 </span>
                             </div>
-                            <div class="flex justify-between text-sm text-gray-500">
+                            <div class="flex justify-between text-sm
+                                        text-gray-500">
                                 <span>Attendu (théorique)</span>
                                 <span id="cc-total-theorique">
                                     ${Utils.formatUSD(totalTheorique)}
@@ -464,7 +507,9 @@ const ClotureCaisse = {
                                             : 'text-red-600'}">
                                     ${ecart >= 0 ? '+' : ''}
                                     ${Utils.formatUSD(ecart)}
-                                    ${ecart === 0 ? ' ✅' : ecart > 0 ? ' ⬆️' : ' ⬇️'}
+                                    ${ecart === 0
+                                        ? ' ✅'
+                                        : ecart > 0 ? ' ⬆️' : ' ⬇️'}
                                 </span>
                             </div>
                         </div>
@@ -480,11 +525,12 @@ const ClotureCaisse = {
                                 Notes / Observations
                             </h3>
                         </div>
-                        <div class="p-5">
+                        <div class="p-5 space-y-3">
+                            <!-- ✅ notes = colonne réelle caissière -->
                             <textarea id="cc-notes"
-                                      rows="3"
+                                      rows="2"
                                       ${verrouille ? 'disabled' : ''}
-                                      placeholder="Observations sur la journée…"
+                                      placeholder="Observations de la caissière…"
                                       class="w-full border border-gray-300
                                              rounded-lg px-3 py-2 text-sm
                                              resize-none
@@ -493,6 +539,24 @@ const ClotureCaisse = {
                                              disabled:bg-gray-50
                                              disabled:text-gray-500"
                                       >${cloture?.notes || ''}</textarea>
+
+                            ${isGerant ? `
+                            <div>
+                                <label class="block text-xs font-medium
+                                              text-gray-500 mb-1">
+                                    Commentaire gérant
+                                </label>
+                                <!-- ✅ commentaire_gerant = colonne réelle gérant -->
+                                <textarea id="cc-commentaire-gerant"
+                                          rows="2"
+                                          placeholder="Observations du gérant…"
+                                          class="w-full border border-gray-300
+                                                 rounded-lg px-3 py-2 text-sm
+                                                 resize-none
+                                                 focus:ring-2 focus:ring-yellow-400
+                                                 focus:border-transparent">
+${cloture?.commentaire_gerant || ''}</textarea>
+                            </div>` : ''}
                         </div>
                     </div>
 
@@ -535,7 +599,8 @@ const ClotureCaisse = {
             purple: 'bg-purple-50 text-purple-600 border-purple-100',
         };
         return `
-            <div class="bg-white rounded-xl p-4 border ${colors[color]} shadow-sm">
+            <div class="bg-white rounded-xl p-4 border ${colors[color]}
+                        shadow-sm">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-lg flex items-center
                                 justify-center ${colors[color]}">
@@ -563,12 +628,32 @@ const ClotureCaisse = {
             if (stEl) stEl.textContent = Utils.formatUSD(sous);
         });
 
-        const totalEl = document.getElementById('cc-total-billetage');
-        const ecartEl = document.getElementById('cc-ecart');
-        if (totalEl) totalEl.textContent = Utils.formatUSD(total);
+        // ✅ Recalc théorique en tenant compte du montant d'ouverture
+        const ouvertureInput   = document.getElementById('cc-montant-ouverture');
+        const montantOuverture = parseFloat(ouvertureInput?.value || 0);
+
+        const totalVentes  = this._ventes.reduce(
+            (s, v) => s + parseFloat(v.montant_total || 0), 0
+        );
+        const totalEntrees = this._mouvements
+            .filter(m => m.type === 'entree')
+            .reduce((s, m) => s + parseFloat(m.montant || 0), 0);
+        const totalSorties = this._mouvements
+            .filter(m => m.type === 'sortie')
+            .reduce((s, m) => s + parseFloat(m.montant || 0), 0);
+
+        this._totalTheorique = montantOuverture + totalVentes
+                               + totalEntrees - totalSorties;
+
+        const totalEl  = document.getElementById('cc-total-billetage');
+        const theoriEl = document.getElementById('cc-total-theorique');
+        const ecartEl  = document.getElementById('cc-ecart');
+
+        if (totalEl)  totalEl.textContent  = Utils.formatUSD(total);
+        if (theoriEl) theoriEl.textContent = Utils.formatUSD(this._totalTheorique);
 
         if (ecartEl) {
-            const ecart = total - (this._totalTheorique || 0);
+            const ecart = total - this._totalTheorique;
             ecartEl.textContent =
                 (ecart >= 0 ? '+' : '') +
                 Utils.formatUSD(ecart) +
@@ -599,12 +684,15 @@ const ClotureCaisse = {
     ajouterMouvement(type) {
         const label = type === 'entree' ? 'Entrée' : 'Sortie';
         const color = type === 'entree' ? 'green'  : 'red';
-        const icon  = type === 'entree' ? 'arrow-circle-down' : 'arrow-circle-up';
+        const icon  = type === 'entree'
+            ? 'arrow-circle-down'
+            : 'arrow-circle-up';
 
         const content = `
             <div class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                    <label class="block text-sm font-medium
+                                  text-gray-700 mb-1">
                         Libellé <span class="text-red-500">*</span>
                     </label>
                     <input type="text"
@@ -617,7 +705,8 @@ const ClotureCaisse = {
                                   focus:ring-yellow-400 focus:border-transparent">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                    <label class="block text-sm font-medium
+                                  text-gray-700 mb-1">
                         Montant ($) <span class="text-red-500">*</span>
                     </label>
                     <input type="number"
@@ -630,7 +719,8 @@ const ClotureCaisse = {
                                   focus:ring-yellow-400 focus:border-transparent">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                    <label class="block text-sm font-medium
+                                  text-gray-700 mb-1">
                         Note (optionnel)
                     </label>
                     <input type="text"
@@ -642,16 +732,18 @@ const ClotureCaisse = {
                 </div>
             </div>`;
 
-        const modal = Utils.createModal(
+        Utils.createModal(
             `<i class="fas fa-${icon} text-${color}-500 mr-2"></i>
              Ajouter une ${label}`,
             content,
             async (m) => {
-                const libelle = document.getElementById('mv-libelle')?.value?.trim();
+                const libelle = document.getElementById('mv-libelle')
+                                    ?.value?.trim();
                 const montant = parseFloat(
                     document.getElementById('mv-montant')?.value || 0
                 );
-                const note = document.getElementById('mv-note')?.value?.trim();
+                const note = document.getElementById('mv-note')
+                                 ?.value?.trim();
 
                 if (!libelle) {
                     Utils.showToast('Veuillez saisir un libellé', 'warning');
@@ -673,25 +765,22 @@ const ClotureCaisse = {
 
     // =========================================================================
     // _saveMouvement()
-    // ✅ Adapté aux vraies colonnes : type_mouvement, date_mouvement
+    // ✅ Colonnes réelles : type (TEXT), date_journee (TIMESTAMPTZ)
     // =========================================================================
     async _saveMouvement({ type, libelle, montant, note }) {
         try {
             const user = AuthSupabase.getCurrentUser();
 
-            // ✅ Construire un timestamp pour date_mouvement
-            const dateMouvement = new Date(
-                this._currentDate + 'T12:00:00'
-            ).toISOString();
-
             const payload = {
-                type_mouvement: type,          // ✅ vrai nom de colonne
-                date_mouvement: dateMouvement, // ✅ vrai nom de colonne (TIMESTAMPTZ)
-                libelle:        libelle,
-                montant:        parseFloat(montant),
-                note:           note || null,
-                created_by:     user?.id || null,
-                source:         'caisse',      // ✅ colonne existante
+                type:          type,             // ✅ vrai nom de colonne
+                date_journee:  new Date(
+                    this._currentDate + 'T12:00:00'
+                ).toISOString(),                 // ✅ vrai nom de colonne
+                libelle:       libelle,
+                montant:       parseFloat(montant),
+                note:          note || null,
+                created_by:    user?.id || null,
+                source:        'caisse',
             };
 
             const { error } = await window.supabase
@@ -732,6 +821,7 @@ const ClotureCaisse = {
 
     // =========================================================================
     // cloturer()
+    // ✅ Colonnes réelles clotures_caisse — toutes vérifiées
     // =========================================================================
     async cloturer() {
         const billetage      = this._getBilletage();
@@ -739,37 +829,55 @@ const ClotureCaisse = {
             (s, c) => s + (billetage[c] * c), 0
         );
         const ecart = totalBilletage - (this._totalTheorique || 0);
-        const notes = document.getElementById('cc-notes')?.value?.trim() || null;
+        const notes = document.getElementById('cc-notes')
+                          ?.value?.trim() || null;
+        const commentaireGerant = document.getElementById(
+            'cc-commentaire-gerant'
+        )?.value?.trim() || null;
+
+        // ✅ Lire le montant d'ouverture depuis l'input
+        const montantOuverture = parseFloat(
+            document.getElementById('cc-montant-ouverture')?.value || 0
+        );
 
         const ok = confirm(
             `Clôturer la journée du ${this._currentDate} ?\n\n` +
             `Total théorique : ${Utils.formatUSD(this._totalTheorique)}\n` +
             `Total en caisse : ${Utils.formatUSD(totalBilletage)}\n` +
-            `Écart            : ${ecart >= 0 ? '+' : ''}${Utils.formatUSD(ecart)}\n\n` +
+            `Écart           : ${ecart >= 0 ? '+' : ''}` +
+                              `${Utils.formatUSD(ecart)}\n\n` +
             `Cette action verrouillera la journée.`
         );
         if (!ok) return;
 
         try {
             const user = AuthSupabase.getCurrentUser();
+
             const payload = {
-                date_journee:    this._currentDate,
-                total_ventes:    this._ventes.reduce(
-                                    (s, v) => s + parseFloat(v.montant_total || 0), 0),
-                total_entrees:   this._mouvements
-                                    .filter(m => m.type === 'entree')
-                                    .reduce((s, m) => s + parseFloat(m.montant || 0), 0),
-                total_sorties:   this._mouvements
-                                    .filter(m => m.type === 'sortie')
-                                    .reduce((s, m) => s + parseFloat(m.montant || 0), 0),
-                total_theorique: this._totalTheorique,
-                total_billetage: totalBilletage,
-                ecart,
-                billetage:       JSON.stringify(billetage),
-                notes,
-                statut:          'cloture',
-                cloture_par:     user?.nom || user?.email || 'inconnu',
-                user_id:         user?.id || null,
+                // ✅ Colonnes réelles clotures_caisse
+                date_journee:       this._currentDate,
+                montant_ouverture:  montantOuverture,
+                total_ventes:       this._ventes.reduce(
+                                        (s, v) => s + parseFloat(
+                                            v.montant_total || 0), 0),
+                total_entrees:      this._mouvements
+                                        .filter(m => m.type === 'entree')
+                                        .reduce((s, m) => s + parseFloat(
+                                            m.montant || 0), 0),
+                total_sorties:      this._mouvements
+                                        .filter(m => m.type === 'sortie')
+                                        .reduce((s, m) => s + parseFloat(
+                                            m.montant || 0), 0),
+                total_theorique:    this._totalTheorique,
+                total_billetage:    totalBilletage,
+                ecart:              ecart,
+                billetage:          billetage,       // ✅ JSONB natif
+                notes:              notes,           // ✅ colonne notes
+                commentaire_gerant: commentaireGerant,
+                statut:             'cloture',
+                cloture_par:        user?.nom || user?.email || 'inconnu',
+                user_id:            user?.id  || null,
+                heure_cloture:      new Date().toISOString(),
             };
 
             if (this._cloture?.id) {
@@ -807,7 +915,13 @@ const ClotureCaisse = {
         try {
             const { error } = await window.supabase
                 .from('clotures_caisse')
-                .update({ statut: 'ouvert' })
+                .update({
+                    statut:       'ouvert',
+                    heure_cloture: null,
+                    gerant_id:    AuthSupabase.getCurrentUser()?.id || null,
+                    gerant_nom:   AuthSupabase.getCurrentUser()?.nom || null,
+                    validated_at: new Date().toISOString(),
+                })
                 .eq('id', this._cloture.id);
             if (error) throw error;
             Utils.showToast('Journée déverrouillée', 'warning');
@@ -819,6 +933,7 @@ const ClotureCaisse = {
 
     // =========================================================================
     // imprimerRecap()
+    // ✅ Adapté aux colonnes réelles
     // =========================================================================
     imprimerRecap() {
         const c         = this._cloture;
@@ -850,21 +965,23 @@ const ClotureCaisse = {
                 <style>
                     body { font-family: Arial, sans-serif; font-size: 13px;
                            max-width: 480px; margin: 0 auto; padding: 20px; }
-                    h1   { font-size: 18px; text-align: center; margin-bottom: 4px; }
+                    h1   { font-size: 18px; text-align: center;
+                           margin-bottom: 4px; }
                     h2   { font-size: 13px; text-align: center; color: #666;
                            font-weight: normal; margin-bottom: 20px; }
                     table { width: 100%; border-collapse: collapse;
                             margin-bottom: 16px; }
-                    th    { background: #f3f4f6; padding: 6px 8px;
-                            text-align: left; font-size: 11px;
-                            text-transform: uppercase; }
-                    td    { border-bottom: 1px solid #e5e7eb; }
+                    th  { background: #f3f4f6; padding: 6px 8px;
+                          text-align: left; font-size: 11px;
+                          text-transform: uppercase; }
+                    td  { border-bottom: 1px solid #e5e7eb; }
                     .total-row td { font-weight: bold; background: #f9fafb; }
                     .ecart-pos { color: #2563eb; }
                     .ecart-neg { color: #dc2626; }
                     .ecart-ok  { color: #16a34a; }
                     .section   { font-weight: bold; margin: 16px 0 6px;
-                                 font-size: 13px; border-bottom: 2px solid #000;
+                                 font-size: 13px;
+                                 border-bottom: 2px solid #000;
                                  padding-bottom: 3px; }
                     .footer    { text-align: center; font-size: 11px;
                                  color: #9ca3af; margin-top: 24px; }
@@ -876,19 +993,31 @@ const ClotureCaisse = {
 
                 <div class="section">Résumé financier</div>
                 <table>
-                    <tr><td style="padding:4px 8px;">Ventes du jour</td>
+                    <tr>
+                        <td style="padding:4px 8px;">Fonds d'ouverture</td>
                         <td style="padding:4px 8px;text-align:right;">
-                            $${(c?.total_ventes || 0).toFixed(2)}</td></tr>
-                    <tr><td style="padding:4px 8px;">Entrées manuelles</td>
+                            $${(c?.montant_ouverture || 0).toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:4px 8px;">Ventes du jour</td>
                         <td style="padding:4px 8px;text-align:right;">
-                            +$${(c?.total_entrees || 0).toFixed(2)}</td></tr>
-                    <tr><td style="padding:4px 8px;">Sorties manuelles</td>
+                            $${(c?.total_ventes || 0).toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:4px 8px;">Entrées manuelles</td>
                         <td style="padding:4px 8px;text-align:right;">
-                            -$${(c?.total_sorties || 0).toFixed(2)}</td></tr>
+                            +$${(c?.total_entrees || 0).toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:4px 8px;">Sorties manuelles</td>
+                        <td style="padding:4px 8px;text-align:right;">
+                            -$${(c?.total_sorties || 0).toFixed(2)}</td>
+                    </tr>
                     <tr class="total-row">
                         <td style="padding:6px 8px;">Total théorique</td>
                         <td style="padding:6px 8px;text-align:right;">
-                            $${(c?.total_theorique || 0).toFixed(2)}</td></tr>
+                            $${(c?.total_theorique || 0).toFixed(2)}</td>
+                    </tr>
                 </table>
 
                 <div class="section">Billetage physique</div>
@@ -924,13 +1053,20 @@ const ClotureCaisse = {
                 </table>
 
                 ${c?.notes ? `
-                <div class="section">Notes</div>
-                <p style="padding:4px 8px;color:#374151;">${c.notes}</p>` : ''}
+                <div class="section">Notes caissière</div>
+                <p style="padding:4px 8px;color:#374151;">${c.notes}</p>`
+                : ''}
+
+                ${c?.commentaire_gerant ? `
+                <div class="section">Commentaire gérant</div>
+                <p style="padding:4px 8px;color:#374151;">
+                    ${c.commentaire_gerant}
+                </p>` : ''}
 
                 <div class="footer">
                     Clôturé par ${c?.cloture_par || '—'}<br>
-                    ${c?.updated_at
-                        ? new Date(c.updated_at).toLocaleString('fr-FR')
+                    ${c?.heure_cloture
+                        ? new Date(c.heure_cloture).toLocaleString('fr-FR')
                         : ''}<br><br>
                     JL Beauty System — Édité le
                     ${new Date().toLocaleString('fr-FR')}
