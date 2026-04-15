@@ -1,19 +1,21 @@
-// ============================================
-// CLÔTURE DE CAISSE
+// =============================================================================
+// cloture-caisse.js
 // JL BEAUTY SYSTEM
-// ============================================
+// Clôture journalière — Entrées / Sorties / Billetage
+// =============================================================================
+
+'use strict';
 
 const ClotureCaisse = {
 
+    // ── État interne ──────────────────────────────────────────────────────────
     _currentDate:    null,
     _cloture:        null,
-    _ventes:         [],
     _mouvements:     [],
+    _ventes:         [],
     _totalTheorique: 0,
 
-    // =========================================================================
-    // BILLETAGE — coupures disponibles (USD)
-    // =========================================================================
+    // ── Coupures USD ─────────────────────────────────────────────────────────
     COUPURES: [100, 50, 20, 10, 5],
 
     // =========================================================================
@@ -754,17 +756,44 @@ ${cloture?.commentaire_gerant || ''}</textarea>
     },
 
     // =========================================================================
+    // _getCompteOhada()
+    // =========================================================================
+    _getCompteOhada(type, libelle = '') {
+        const l = libelle.toLowerCase();
+
+        if (type === 'entree') {
+            if (l.includes('vente'))           return '701000';
+            if (l.includes('apport'))          return '101000';
+            if (l.includes('client'))          return '411000';
+            if (l.includes('remboursement'))   return '409000';
+            return '571100';
+        }
+
+        if (type === 'sortie') {
+            if (l.includes('fourniss'))        return '401000';
+            if (l.includes('salaire')
+             || l.includes('paie'))            return '641000';
+            if (l.includes('achat'))           return '601000';
+            if (l.includes('loyer'))           return '613000';
+            if (l.includes('électric')
+             || l.includes('eau'))             return '614000';
+            if (l.includes('transport'))       return '624000';
+            if (l.includes('commission'))      return '651000';
+            return '572100';
+        }
+
+        return '571100';
+    },
+
+    // =========================================================================
     // _saveMouvement()
-    // ✅ Payload défensif — colonnes optionnelles exclues si null
     // =========================================================================
     async _saveMouvement({ type, libelle, montant, note }) {
         try {
             const user = AuthSupabase.getCurrentUser();
 
-            // ✅ Log diagnostic
             console.log('👤 User courant :', user);
 
-            // ✅ Payload de base — uniquement les colonnes obligatoires
             const payload = {
                 type:         type,
                 date_journee: new Date(
@@ -773,15 +802,11 @@ ${cloture?.commentaire_gerant || ''}</textarea>
                 libelle:      libelle,
                 montant:      parseFloat(montant),
                 source:       'caisse',
+                compte_ohada: this._getCompteOhada(type, libelle),
             };
 
-            // ✅ Colonnes optionnelles — ajoutées seulement si non vides
-            if (note && note.trim() !== '') {
-                payload.note = note.trim();
-            }
-            if (user?.id) {
-                payload.created_by = user.id;
-            }
+            if (note && note.trim() !== '') payload.note       = note.trim();
+            if (user?.id)                   payload.created_by = user.id;
 
             console.log('📦 Payload final :', JSON.stringify(payload, null, 2));
 
@@ -834,7 +859,6 @@ ${cloture?.commentaire_gerant || ''}</textarea>
 
     // =========================================================================
     // cloturer()
-    // ✅ Toutes les colonnes clotures_caisse vérifiées
     // =========================================================================
     async cloturer() {
         const billetage      = this._getBilletage();
@@ -1092,6 +1116,7 @@ ${cloture?.commentaire_gerant || ''}</textarea>
         win.document.close();
         win.print();
     },
+
 };
 
 // ── Export global ─────────────────────────────────────────────────────────────
