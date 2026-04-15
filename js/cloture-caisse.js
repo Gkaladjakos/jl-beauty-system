@@ -791,11 +791,20 @@ ${cloture?.commentaire_gerant || ''}</textarea>
     async _saveMouvement({ type, libelle, montant, note }) {
         try {
             const user = AuthSupabase.getCurrentUser();
-
+    
             console.log('👤 User courant :', user);
-
+    
+            // ✅ Normaliser la casse pour correspondre à la contrainte DB
+            const TYPE_MAP = {
+                'entree': 'Entree',
+                'sortie': 'Sortie',
+                'Entree': 'Entree',   // idempotent si déjà correct
+                'Sortie': 'Sortie',
+            };
+            const typeNormalise = TYPE_MAP[type] ?? type;
+    
             const payload = {
-                type:         type,
+                type:         typeNormalise,   // ✅ 'Entree' ou 'Sortie'
                 date_journee: new Date(
                     this._currentDate + 'T12:00:00'
                 ).toISOString(),
@@ -804,17 +813,17 @@ ${cloture?.commentaire_gerant || ''}</textarea>
                 source:       'caisse',
                 compte_ohada: this._getCompteOhada(type, libelle),
             };
-
+    
             if (note && note.trim() !== '') payload.note       = note.trim();
             if (user?.id)                   payload.created_by = user.id;
-
+    
             console.log('📦 Payload final :', JSON.stringify(payload, null, 2));
-
+    
             const { data, error } = await window.supabase
                 .from('mouvements_caisse')
                 .insert([payload])
                 .select();
-
+    
             if (error) {
                 console.error('❌ Erreur Supabase :', {
                     message: error.message,
@@ -824,15 +833,15 @@ ${cloture?.commentaire_gerant || ''}</textarea>
                 });
                 throw new Error(error.message);
             }
-
+    
             console.log('✅ Mouvement inséré :', data);
-
+    
             Utils.showToast(
                 `${type === 'entree' ? 'Entrée' : 'Sortie'} enregistrée`,
                 'success'
             );
             await this.chargerJournee();
-
+    
         } catch (err) {
             console.error('❌ _saveMouvement catch:', err);
             Utils.showToast('Erreur : ' + err.message, 'error');
