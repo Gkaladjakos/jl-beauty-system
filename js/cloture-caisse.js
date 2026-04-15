@@ -173,10 +173,10 @@ const ClotureCaisse = {
             (s, v) => s + parseFloat(v.montant_total || 0), 0
         );
         const totalEntrees = this._mouvements
-            .filter(m => m.type === 'entree')
+            .filter(m => m.type === 'Entree')
             .reduce((s, m) => s + parseFloat(m.montant || 0), 0);
         const totalSorties = this._mouvements
-            .filter(m => m.type === 'sortie')
+            .filter(m => m.type === 'Sortie')
             .reduce((s, m) => s + parseFloat(m.montant || 0), 0);
 
         const montantOuverture = parseFloat(cloture?.montant_ouverture || 0);
@@ -628,10 +628,10 @@ ${cloture?.commentaire_gerant || ''}</textarea>
             (s, v) => s + parseFloat(v.montant_total || 0), 0
         );
         const totalEntrees = this._mouvements
-            .filter(m => m.type === 'entree')
+            .filter(m => m.type === 'Entree')
             .reduce((s, m) => s + parseFloat(m.montant || 0), 0);
         const totalSorties = this._mouvements
-            .filter(m => m.type === 'sortie')
+            .filter(m => m.type === 'Sortie')
             .reduce((s, m) => s + parseFloat(m.montant || 0), 0);
 
         this._totalTheorique = montantOuverture + totalVentes
@@ -905,11 +905,11 @@ ${cloture?.commentaire_gerant || ''}</textarea>
                                         (s, v) => s + parseFloat(
                                             v.montant_total || 0), 0),
                 total_entrees:      this._mouvements
-                                        .filter(m => m.type === 'entree')
+                                        .filter(m => m.type === 'Entree')
                                         .reduce((s, m) => s + parseFloat(
                                             m.montant || 0), 0),
                 total_sorties:      this._mouvements
-                                        .filter(m => m.type === 'sortie')
+                                        .filter(m => m.type === 'Sortie')
                                         .reduce((s, m) => s + parseFloat(
                                             m.montant || 0), 0),
                 total_theorique:    this._totalTheorique,
