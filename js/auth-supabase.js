@@ -9,7 +9,7 @@
 const ROLE_PERMISSIONS = {
     gerant: {
         label: 'Gérant',
-        pages: ['all']
+        pages: ['all']   // accès total
     },
     caissiere: {
         label: 'Caissière',
@@ -20,7 +20,9 @@ const ROLE_PERMISSIONS = {
             'produits',
             'materiels',
             'consommables',
-            'ventes'
+            'ventes',
+            'cloture-caisse'        // ✅ AJOUTÉ — ouvrir/clôturer la caisse
+            // 'historique-clotures' intentionnellement absent → gérant only
         ]
     }
 };
@@ -343,7 +345,7 @@ const AuthSupabase = {
     },
 
     // =========================================================================
-    // hasPermission()
+    // hasPermission()  ✅ supporte les sous-pages (ex: 'cloture-caisse')
     // =========================================================================
     hasPermission(page) {
         const user = this.getCurrentUser();
