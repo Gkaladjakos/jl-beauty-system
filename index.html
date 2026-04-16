@@ -116,100 +116,109 @@
              • Desktop : statique, toujours visible
         ════════════════════════════════════════════════════════════════ -->
         <aside id="sidebar"
-               class="sidebar
-                      fixed md:static
-                      inset-y-0 left-0
-                      z-40
-                      w-64
-                      text-white
-                      flex-shrink-0
-                      -translate-x-full md:translate-x-0">
-
-            <!-- Logo -->
-            <div class="p-6 text-center border-b border-gray-700">
-                <img src="images/jl-beauty-logo.png"
-                     alt="JL Beauty"
-                     class="w-24 h-24 mx-auto mb-2">
-                <h1 class="text-xl font-bold" style="color: #E8B44C;">JL Beauty</h1>
-                <p class="text-sm text-gray-400 mt-1">Version Production</p>
-            </div>
-
-            <!-- Navigation -->
-            <nav class="mt-6 pb-6 overflow-y-auto">
-                <a href="#" class="sidebar-item active flex items-center px-6 py-3 text-white"
-                   data-page="dashboard">
-                    <i class="fas fa-home w-6 mr-3"></i>
-                    <span>Tableau de bord</span>
-                </a>
-                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
-                   data-page="rendez-vous">
-                    <i class="fas fa-calendar-alt w-6 mr-3"></i>
-                    <span>Rendez-vous</span>
-                </a>
-                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
-                   data-page="clients">
-                    <i class="fas fa-users w-6 mr-3"></i>
-                    <span>Clients</span>
-                </a>
-                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
-                   data-page="coiffeuses">
-                    <i class="fas fa-user-tie w-6 mr-3"></i>
-                    <span>Coiffeuses</span>
-                </a>
-                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
-                   data-page="services">
-                    <i class="fas fa-briefcase w-6 mr-3"></i>
-                    <span>Services</span>
-                </a>
-                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
-                   data-page="produits">
-                    <i class="fas fa-box w-6 mr-3"></i>
-                    <span>Produits</span>
-                </a>
-                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
-                   data-page="materiels">
-                    <i class="fas fa-tools w-6 mr-3"></i>
-                    <span>Matériels</span>
-                </a>
-                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
-                   data-page="consommables">
-                    <i class="fas fa-flask w-6 mr-3"></i>
-                    <span>Consommables</span>
-                </a>
-                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
-                    data-page="cloture-caisse">
-                     <i class="fas fa-cash-register w-6 mr-3"></i>
-                     <span>Journal de Caisse</span>
-                </a>
-                <!-- Historique -->
-                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
-                    data-page="historique-clotures">
-                     <i class="fas fa-history w-6 mr-3"></i>
-                     <span>Historique Clôtures</span>
-                </a>
-                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
-                   data-page="ventes">
-                    <i class="fas fa-cash-register w-6 mr-3"></i>
-                    <span>Ventes</span>
-                </a>
-                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
-                   data-page="commissions">
-                    <i class="fas fa-money-bill-wave w-6 mr-3"></i>
-                    <span>Commissions</span>
-                </a>
-                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
-                   data-page="rapports">
-                    <i class="fas fa-chart-bar w-6 mr-3"></i>
-                    <span>Rapports</span>
-                </a>
-                <!-- ✅ Comptabilité OHADA -->
-                <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
-                   data-page="comptabilite">
-                    <i class="fas fa-book w-6 mr-3"></i>
-                    <span>Comptabilité</span>
-                </a>
-            </nav>
-        </aside>
+        class="sidebar
+               fixed md:static
+               inset-y-0 left-0
+               z-40
+               w-64
+               flex-shrink-0
+               text-white
+               flex flex-col
+               h-screen
+               -translate-x-full md:translate-x-0">
+ 
+     <!-- ── Logo (hauteur fixe) ── -->
+     <div class="flex-shrink-0 p-6 text-center border-b border-gray-700">
+         <img src="images/jl-beauty-logo.png"
+              alt="JL Beauty"
+              class="w-24 h-24 mx-auto mb-2">
+         <h1 class="text-xl font-bold" style="color: #E8B44C;">JL Beauty</h1>
+         <p class="text-sm text-gray-400 mt-1">Version Production</p>
+     </div>
+ 
+     <!-- ── Navigation (prend l'espace restant + scroll) ── -->
+     <nav class="flex-1 overflow-y-auto py-4
+                 scrollbar-thin scrollbar-thumb-gray-600
+                 scrollbar-track-transparent">
+ 
+         <a href="#" class="sidebar-item active flex items-center px-6 py-3 text-white"
+            data-page="dashboard">
+             <i class="fas fa-home w-6 mr-3"></i>
+             <span>Tableau de bord</span>
+         </a>
+         <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
+            data-page="rendez-vous">
+             <i class="fas fa-calendar-alt w-6 mr-3"></i>
+             <span>Rendez-vous</span>
+         </a>
+         <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
+            data-page="clients">
+             <i class="fas fa-users w-6 mr-3"></i>
+             <span>Clients</span>
+         </a>
+         <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
+            data-page="coiffeuses">
+             <i class="fas fa-user-tie w-6 mr-3"></i>
+             <span>Coiffeuses</span>
+         </a>
+         <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
+            data-page="services">
+             <i class="fas fa-briefcase w-6 mr-3"></i>
+             <span>Services</span>
+         </a>
+         <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
+            data-page="produits">
+             <i class="fas fa-box w-6 mr-3"></i>
+             <span>Produits</span>
+         </a>
+         <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
+            data-page="materiels">
+             <i class="fas fa-tools w-6 mr-3"></i>
+             <span>Matériels</span>
+         </a>
+         <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
+            data-page="consommables">
+             <i class="fas fa-flask w-6 mr-3"></i>
+             <span>Consommables</span>
+         </a>
+         <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
+            data-page="cloture-caisse">
+             <i class="fas fa-cash-register w-6 mr-3"></i>
+             <span>Journal de Caisse</span>
+         </a>
+         <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
+            data-page="historique-clotures">
+             <i class="fas fa-history w-6 mr-3"></i>
+             <span>Historique Clôtures</span>
+         </a>
+         <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
+            data-page="ventes">
+             <i class="fas fa-cash-register w-6 mr-3"></i>
+             <span>Ventes</span>
+         </a>
+         <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
+            data-page="commissions">
+             <i class="fas fa-money-bill-wave w-6 mr-3"></i>
+             <span>Commissions</span>
+         </a>
+         <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
+            data-page="rapports">
+             <i class="fas fa-chart-bar w-6 mr-3"></i>
+             <span>Rapports</span>
+         </a>
+         <a href="#" class="sidebar-item flex items-center px-6 py-3 text-white"
+            data-page="comptabilite">
+             <i class="fas fa-book w-6 mr-3"></i>
+             <span>Comptabilité</span>
+         </a>
+     </nav>
+ 
+     <!-- ── Pied sidebar (optionnel, hauteur fixe) ── -->
+     <div class="flex-shrink-0 px-6 py-3 border-t border-gray-700 text-xs text-gray-500 text-center">
+         JL Beauty © 2025
+     </div>
+ 
+ </aside>
 
         <!-- ════════════════════════════════════════════════════════════════
              MAIN CONTENT
@@ -405,16 +414,15 @@
         // ════════════════════════════════════════════════════════════════
         // HELPERS UI — Sidebar & Menu utilisateur
         // ════════════════════════════════════════════════════════════════
-
-        // ── Sidebar drawer (mobile) ──────────────────────────────────────
+    
         function toggleSidebar(forceOpen) {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('sidebar-overlay');
             if (!sidebar || !overlay) return;
-
+    
             const isOpen = !sidebar.classList.contains('-translate-x-full');
             const open   = (typeof forceOpen === 'boolean') ? forceOpen : !isOpen;
-
+    
             if (open) {
                 sidebar.classList.remove('-translate-x-full');
                 overlay.classList.remove('hidden');
@@ -423,188 +431,265 @@
                 overlay.classList.add('hidden');
             }
         }
-
-        // Fermer la sidebar en naviguant (mobile)
+    
         document.querySelectorAll('.sidebar-item').forEach(item => {
             item.addEventListener('click', () => {
                 if (window.innerWidth < 768) toggleSidebar(false);
             });
         });
-
-        // ── Menu utilisateur (dropdown) ──────────────────────────────────
+    
         function toggleUserMenu(force) {
             const menu = document.getElementById('user-menu');
             if (!menu) return;
             const show = (typeof force === 'boolean')
                 ? force
                 : menu.classList.contains('hidden');
-
             if (show) menu.classList.remove('hidden');
             else      menu.classList.add('hidden');
         }
-
-        // Fermer le dropdown au clic extérieur
+    
         document.addEventListener('click', (e) => {
             const btn  = document.getElementById('user-menu-btn');
             const menu = document.getElementById('user-menu');
             if (!menu || menu.classList.contains('hidden')) return;
-            if (!menu.contains(e.target) && !btn?.contains(e.target)) {
+            if (!menu.contains(e.target) && !btn?.contains(e.target))
                 toggleUserMenu(false);
-            }
         });
-
+    
         // ════════════════════════════════════════════════════════════════
         // INIT DASHBOARD
         // ════════════════════════════════════════════════════════════════
         console.log('='.repeat(60));
         console.log('🚀 JL BEAUTY SYSTEM - DASHBOARD LOADING');
         console.log('='.repeat(60));
-
+    
         async function initDashboard() {
             try {
-                // ── 1 — OfflineManager ────────────────────────────────────
+    
+                // ── 1 — OfflineManager ────────────────────────────────────────
                 if (window.OfflineManager) {
                     await OfflineManager.init();
-                    OfflineManager.startListening();
+                    // ✅ startListening() déjà appelé dans init() — pas de doublon
                     console.log('✅ OfflineManager initialisé');
                 }
-
-                // ── 2 — Authentification ──────────────────────────────────
+    
+                // ── 2 — Afficher bannière offline immédiatement si pas de réseau ─
+                if (window.OfflineManager && !OfflineManager.isOnline) {
+                    OfflineManager.showBanner('offline');
+                    console.warn('📴 Démarrage en mode offline');
+                }
+    
+                // ── 3 — Authentification ──────────────────────────────────────
                 console.log('🔐 Checking authentication…');
-                const user = await AuthSupabase.checkAuth();
-                console.log('📊 Auth result:',
-                    user ? '✅ USER FOUND' : '❌ NO USER');
-
+                let user = null;
+    
+                try {
+                    user = await AuthSupabase.checkAuth();
+                } catch (authErr) {
+                    console.error('💥 checkAuth exception:', authErr);
+    
+                    // ✅ Dernier recours : lire directement le localStorage
+                    const raw = localStorage.getItem('jlbeauty_user');
+                    if (raw) {
+                        try { user = JSON.parse(raw); } catch {}
+                        if (user) {
+                            console.warn('⚠️ checkAuth échoué → fallback localStorage');
+                            AuthSupabase.currentUser = user;
+                        }
+                    }
+                }
+    
+                console.log('📊 Auth result:', user ? '✅ USER FOUND' : '❌ NO USER');
+    
                 if (!user) {
-                    console.log('🚪 Redirecting to login…');
+                    // ✅ Vérifier une dernière fois le localStorage avant de rediriger
+                    const raw = localStorage.getItem('jlbeauty_user');
+                    if (raw) {
+                        try {
+                            user = JSON.parse(raw);
+                            AuthSupabase.currentUser = user;
+                            console.warn('⚠️ Fallback final localStorage OK');
+                        } catch {
+                            user = null;
+                        }
+                    }
+                }
+    
+                if (!user) {
+                    console.log('🚪 Aucun utilisateur → login.html');
                     window.location.href = 'login.html';
                     return;
                 }
-
-                console.log('✅ User authenticated:', user.email);
-                console.log('📋 User role:', user.role);
-
-                // ── 3 — Mettre à jour l'UI header ────────────────────────
-                const nom     = user.nom || user.email.split('@')[0];
-                const isAdmin = ['gerant', 'admin'].includes(user.role);
-
-                // Avatar (initiales)
-                const avatarEl = document.getElementById('user-avatar');
-                if (avatarEl) {
-                    avatarEl.src =
-                        `https://ui-avatars.com/api/?name=${encodeURIComponent(nom)}`
-                        + `&background=9333ea&color=fff`;
+    
+                console.log('✅ User authenticated:', user.email, '| Rôle:', user.role);
+    
+                // ✅ Avertissement visuel si session depuis cache offline
+                const authType = localStorage.getItem('jlbeauty_auth_type');
+                if (authType === 'offline' || (window.OfflineManager && !OfflineManager.isOnline)) {
+                    _showOfflineSessionWarning();
                 }
-
-                // Nom + rôle dans le header
-                const userInfoEl = document.getElementById('user-info');
-                if (userInfoEl) {
-                    userInfoEl.innerHTML = `
-                        <p class="text-sm font-medium text-gray-800 truncate
-                                  max-w-[120px] md:max-w-none">${nom}</p>
-                        <p class="text-xs text-gray-500">${user.role}</p>`;
-                }
-
-                // Badge rôle (desktop)
-                const badgeEl = document.getElementById('user-role-badge');
-                if (badgeEl) {
-                    badgeEl.innerHTML = isAdmin
-                        ? `<span class="inline-flex items-center px-2.5 py-1
-                                        rounded-full text-xs font-medium
-                                        role-badge-gerant">
-                               👑 Gérant
-                           </span>`
-                        : `<span class="inline-flex items-center px-2.5 py-1
-                                        rounded-full text-xs font-medium
-                                        role-badge-caissiere">
-                               💼 Caissière
-                           </span>`;
-                }
-
-                // ── 4 — Remplir le menu dropdown ─────────────────────────
-                const menuNameEl  = document.getElementById('menu-user-name');
-                const menuEmailEl = document.getElementById('menu-user-email');
-                const menuRoleEl  = document.getElementById('menu-user-role');
-                const btnLogs     = document.getElementById('btn-logs');
-
-                if (menuNameEl)  menuNameEl.textContent  = nom;
-                if (menuEmailEl) menuEmailEl.textContent = user.email;
-
-                if (menuRoleEl) {
-                    menuRoleEl.innerHTML = isAdmin
-                        ? `<span class="inline-flex items-center px-2 py-0.5
-                                        rounded-full text-xs font-medium
-                                        role-badge-gerant">
-                               👑 Gérant
-                           </span>`
-                        : `<span class="inline-flex items-center px-2 py-0.5
-                                        rounded-full text-xs font-medium
-                                        role-badge-caissiere">
-                               💼 Caissière
-                           </span>`;
-                }
-
-                // ✅ Afficher "Journal de connexion" uniquement au gérant
-                if (btnLogs) {
-                    btnLogs.classList.toggle('hidden', !isAdmin);
-                }
-
-                // ── 5 — Restrictions selon le rôle (sidebar) ─────────────
-                if (typeof Permissions !== 'undefined' && !isAdmin) {
-                    console.log('🔒 Hiding restricted modules for role:', user.role);
-                    const gerantOnlyModules = [
-                        'coiffeuses',
-                        'services',
-                        'produits',
-                        'materiels',
-                        'commissions',
-                        'rapports',
-                        'comptabilite'
-                    ];
-                    document.querySelectorAll('.sidebar-item').forEach(item => {
-                        const page = item.getAttribute('data-page');
-                        if (gerantOnlyModules.includes(page)) {
-                            item.style.display = 'none';
-                        }
-                    });
-                }
-
-                // ── 6 — Init App (anti double-appel) ─────────────────────
+    
+                // ── 4 — Mettre à jour l'UI header ────────────────────────────
+                _updateHeaderUI(user);
+    
+                // ── 5 — Restrictions sidebar selon le rôle ───────────────────
+                _applyRoleRestrictions(user);
+    
+                // ── 6 — Init App ──────────────────────────────────────────────
                 if (typeof App !== 'undefined' && !App._initialized) {
                     App._initialized = true;
                     App.init();
                 }
-
-                // ── 7 — Opérations en attente ─────────────────────────────
-                if (window.OfflineManager && typeof App !== 'undefined') {
+    
+                // ── 7 — Badge ops en attente ──────────────────────────────────
+                if (window.OfflineManager) {
                     const pending = await OfflineManager.getPendingCount();
-                    if (pending > 0) {
+                    if (pending > 0 && typeof App !== 'undefined') {
                         App.showNotification(
                             `📴 ${pending} opération(s) en attente de synchronisation`,
                             'warning'
                         );
                     }
                 }
-
+    
                 console.log('='.repeat(60));
                 console.log('✅ DASHBOARD READY — Welcome', user.email);
                 console.log('='.repeat(60));
-
+    
             } catch (error) {
                 console.error('💥 Dashboard initialization error:', error);
-                console.error('Stack:', error.stack);
-                alert('Erreur lors du chargement. Redirection…');
-                window.location.href = 'login.html';
+    
+                // ✅ Ne pas rediriger si on est offline — afficher une erreur douce
+                if (window.OfflineManager && !OfflineManager.isOnline) {
+                    _showFatalOfflineError();
+                } else {
+                    alert('Erreur lors du chargement. Redirection…');
+                    window.location.href = 'login.html';
+                }
             }
         }
-
-        // Lancer après chargement du DOM
+    
+        // ════════════════════════════════════════════════════════════════
+        // HELPERS UI internes
+        // ════════════════════════════════════════════════════════════════
+    
+        function _updateHeaderUI(user) {
+            const nom     = user.nom || user.email.split('@')[0];
+            const isAdmin = ['gerant', 'admin'].includes(user.role);
+    
+            // Avatar
+            const avatarEl = document.getElementById('user-avatar');
+            if (avatarEl) {
+                avatarEl.src =
+                    `https://ui-avatars.com/api/?name=${encodeURIComponent(nom)}`
+                    + `&background=9333ea&color=fff`;
+            }
+    
+            // Nom + rôle dans le header
+            const userInfoEl = document.getElementById('user-info');
+            if (userInfoEl) {
+                userInfoEl.innerHTML = `
+                    <p class="text-sm font-medium text-gray-800 truncate
+                              max-w-[120px] md:max-w-none">${nom}</p>
+                    <p class="text-xs text-gray-500">${user.role}</p>`;
+            }
+    
+            // Badge rôle desktop
+            const badgeEl = document.getElementById('user-role-badge');
+            if (badgeEl) {
+                badgeEl.innerHTML = isAdmin
+                    ? `<span class="inline-flex items-center px-2.5 py-1
+                                    rounded-full text-xs font-medium
+                                    role-badge-gerant">👑 Gérant</span>`
+                    : `<span class="inline-flex items-center px-2.5 py-1
+                                    rounded-full text-xs font-medium
+                                    role-badge-caissiere">💼 Caissière</span>`;
+            }
+    
+            // Dropdown menu
+            const menuNameEl  = document.getElementById('menu-user-name');
+            const menuEmailEl = document.getElementById('menu-user-email');
+            const menuRoleEl  = document.getElementById('menu-user-role');
+            const btnLogs     = document.getElementById('btn-logs');
+    
+            if (menuNameEl)  menuNameEl.textContent  = nom;
+            if (menuEmailEl) menuEmailEl.textContent = user.email;
+    
+            if (menuRoleEl) {
+                menuRoleEl.innerHTML = isAdmin
+                    ? `<span class="inline-flex items-center px-2 py-0.5
+                                    rounded-full text-xs font-medium
+                                    role-badge-gerant">👑 Gérant</span>`
+                    : `<span class="inline-flex items-center px-2 py-0.5
+                                    rounded-full text-xs font-medium
+                                    role-badge-caissiere">💼 Caissière</span>`;
+            }
+    
+            if (btnLogs) btnLogs.classList.toggle('hidden', !isAdmin);
+        }
+    
+        function _applyRoleRestrictions(user) {
+            const isAdmin = ['gerant', 'admin'].includes(user.role);
+            if (isAdmin) return;   // gérant voit tout
+    
+            const gerantOnly = [
+                'coiffeuses', 'services', 'produits',
+                'materiels',  'commissions', 'rapports', 'comptabilite'
+            ];
+            document.querySelectorAll('.sidebar-item').forEach(item => {
+                const page = item.getAttribute('data-page');
+                if (gerantOnly.includes(page))
+                    item.style.display = 'none';
+            });
+    
+            console.log('🔒 Sidebar restreinte pour rôle:', user.role);
+        }
+    
+        // ✅ Avertissement discret "session offline"
+        function _showOfflineSessionWarning() {
+            const el = document.createElement('div');
+            el.style.cssText = `
+                position: fixed; bottom: 60px; left: 50%; transform: translateX(-50%);
+                background: #f59e0b; color: #fff; padding: 8px 18px;
+                border-radius: 999px; font-size: 13px; font-weight: 600;
+                z-index: 99997; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            `;
+            el.innerHTML = '📴 Session offline — données depuis le cache';
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 5000);
+        }
+    
+        // ✅ Erreur fatale offline (pas de redirection)
+        function _showFatalOfflineError() {
+            const area = document.getElementById('content-area');
+            if (!area) return;
+            area.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-20 text-center">
+                    <i class="fas fa-wifi-slash text-6xl text-gray-300 mb-6"></i>
+                    <h2 class="text-xl font-semibold text-gray-600 mb-2">
+                        Mode hors connexion
+                    </h2>
+                    <p class="text-gray-500 mb-6 max-w-sm">
+                        Impossible de charger le tableau de bord sans connexion internet.
+                        Vos données locales sont préservées.
+                    </p>
+                    <button onclick="initDashboard()"
+                            class="px-6 py-2 bg-purple-600 text-white
+                                   rounded-lg hover:bg-purple-700 font-medium">
+                        <i class="fas fa-redo mr-2"></i>Réessayer
+                    </button>
+                </div>`;
+        }
+    
+        // ════════════════════════════════════════════════════════════════
+        // LANCEMENT
+        // ════════════════════════════════════════════════════════════════
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', initDashboard);
         } else {
             initDashboard();
         }
-
+    
     </script>
 
 </body>

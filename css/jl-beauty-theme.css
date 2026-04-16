@@ -81,6 +81,17 @@ textarea:focus {
     box-shadow: 0 0 0 3px rgba(232, 180, 76, 0.2) !important;
 }
 
+/* Scrollbar sidebar — WebKit (Chrome, Edge, Safari) */
+#sidebar nav::-webkit-scrollbar        { width: 4px; }
+#sidebar nav::-webkit-scrollbar-track  { background: transparent; }
+#sidebar nav::-webkit-scrollbar-thumb  {
+    background: rgba(255,255,255,0.2);
+    border-radius: 999px;
+}
+#sidebar nav::-webkit-scrollbar-thumb:hover {
+    background: rgba(255,255,255,0.4);
+}
+
 /* Cartes statistiques */
 .stat-card {
     border-left: 4px solid var(--jl-gold);
