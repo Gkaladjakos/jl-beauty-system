@@ -755,8 +755,17 @@ ${cloture?.commentaire_gerant || ''}</textarea>
         setTimeout(() => document.getElementById('mv-libelle')?.focus(), 100);
     },
 
+ // =========================================================================
+    // ✅ Client Supabase authentifié — évite le 401
     // =========================================================================
-    // _getCompteOhada()
+    _getClient() {
+        const client = AuthSupabase?.supabase || window.supabase;
+        if (!client) throw new Error('Client Supabase non initialisé');
+        return client;
+    },
+
+    // =========================================================================
+    // _getCompteOhada()  — inchangé
     // =========================================================================
     _getCompteOhada(type, libelle = '') {
         const l = libelle.toLowerCase();
@@ -786,62 +795,71 @@ ${cloture?.commentaire_gerant || ''}</textarea>
     },
 
     // =========================================================================
-    // _saveMouvement()
+    // _saveMouvement() ✅ CORRIGÉ
     // =========================================================================
     async _saveMouvement({ type, libelle, montant, note }) {
         try {
             const user = AuthSupabase.getCurrentUser();
-    
+
             console.log('👤 User courant :', user);
-    
-            // ✅ Normaliser la casse pour correspondre à la contrainte DB
+
+            // ✅ Vérifier session active
+            const supabase = this._getClient();
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                Utils.showToast('Session expirée — reconnectez-vous', 'error');
+                return;
+            }
+
+            // ✅ Normaliser le type
             const TYPE_MAP = {
                 'entree': 'Entree',
                 'sortie': 'Sortie',
-                'Entree': 'Entree',   // idempotent si déjà correct
+                'Entree': 'Entree',
                 'Sortie': 'Sortie',
             };
             const typeNormalise = TYPE_MAP[type] ?? type;
-    
+
+            // ✅ date_journee en format DATE pur (YYYY-MM-DD)
+            //    — plus d'ISO complet qui casse la colonne type "date"
             const payload = {
-                type:         typeNormalise,   // ✅ 'Entree' ou 'Sortie'
-                date_journee: new Date(
-                    this._currentDate + 'T12:00:00'
-                ).toISOString(),
+                type:         typeNormalise,
+                date_journee: this._currentDate,          // ✅ "2026-04-01"
                 libelle:      libelle,
                 montant:      parseFloat(montant),
                 source:       'caisse',
                 compte_ohada: this._getCompteOhada(type, libelle),
             };
-    
+
             if (note && note.trim() !== '') payload.note       = note.trim();
             if (user?.id)                   payload.created_by = user.id;
-    
+
             console.log('📦 Payload final :', JSON.stringify(payload, null, 2));
-    
-            const { data, error } = await window.supabase
+
+            const { data, error } = await supabase          // ✅ client auth
                 .from('mouvements_caisse')
                 .insert([payload])
                 .select();
-    
+
             if (error) {
                 console.error('❌ Erreur Supabase :', {
                     message: error.message,
                     details: error.details,
                     hint:    error.hint,
                     code:    error.code,
+                    status:  error.status,
                 });
                 throw new Error(error.message);
             }
-    
+
             console.log('✅ Mouvement inséré :', data);
-    
+
             Utils.showToast(
                 `${type === 'entree' ? 'Entrée' : 'Sortie'} enregistrée`,
                 'success'
             );
             await this.chargerJournee();
-    
+
         } catch (err) {
             console.error('❌ _saveMouvement catch:', err);
             Utils.showToast('Erreur : ' + err.message, 'error');
@@ -849,25 +867,31 @@ ${cloture?.commentaire_gerant || ''}</textarea>
     },
 
     // =========================================================================
-    // supprimerMouvement()
+    // supprimerMouvement() ✅ CORRIGÉ
     // =========================================================================
     async supprimerMouvement(id) {
         if (!confirm('Supprimer ce mouvement ?')) return;
         try {
-            const { error } = await window.supabase
+            const supabase = this._getClient();             // ✅
+
+            const { error } = await supabase
                 .from('mouvements_caisse')
                 .delete()
                 .eq('id', id);
+
             if (error) throw error;
+
             Utils.showToast('Mouvement supprimé', 'success');
             await this.chargerJournee();
+
         } catch (err) {
+            console.error('❌ supprimerMouvement:', err);
             Utils.showToast('Erreur : ' + err.message, 'error');
         }
     },
 
     // =========================================================================
-    // cloturer()
+    // cloturer() ✅ CORRIGÉ
     // =========================================================================
     async cloturer() {
         const billetage      = this._getBilletage();
@@ -896,10 +920,18 @@ ${cloture?.commentaire_gerant || ''}</textarea>
         if (!ok) return;
 
         try {
-            const user = AuthSupabase.getCurrentUser();
+            const supabase = this._getClient();             // ✅
+            const user     = AuthSupabase.getCurrentUser();
+
+            // ✅ Vérifier session
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                Utils.showToast('Session expirée — reconnectez-vous', 'error');
+                return;
+            }
 
             const payload = {
-                date_journee:       this._currentDate,
+                date_journee:       this._currentDate,     // ✅ format DATE pur
                 montant_ouverture:  montantOuverture,
                 total_ventes:       this._ventes.reduce(
                                         (s, v) => s + parseFloat(
@@ -927,13 +959,13 @@ ${cloture?.commentaire_gerant || ''}</textarea>
             console.log('📦 Payload clôture :', JSON.stringify(payload, null, 2));
 
             if (this._cloture?.id) {
-                const { error } = await window.supabase
+                const { error } = await supabase            // ✅
                     .from('clotures_caisse')
                     .update(payload)
                     .eq('id', this._cloture.id);
                 if (error) throw error;
             } else {
-                const { error } = await window.supabase
+                const { error } = await supabase            // ✅
                     .from('clotures_caisse')
                     .insert([payload]);
                 if (error) throw error;
@@ -949,7 +981,7 @@ ${cloture?.commentaire_gerant || ''}</textarea>
     },
 
     // =========================================================================
-    // deverrouiller()
+    // deverrouiller() ✅ CORRIGÉ
     // =========================================================================
     async deverrouiller() {
         if (!AuthSupabase.isGerant()) {
@@ -959,8 +991,10 @@ ${cloture?.commentaire_gerant || ''}</textarea>
         if (!confirm('Déverrouiller cette journée pour la modifier ?')) return;
 
         try {
-            const user = AuthSupabase.getCurrentUser();
-            const { error } = await window.supabase
+            const supabase = this._getClient();             // ✅
+            const user     = AuthSupabase.getCurrentUser();
+
+            const { error } = await supabase
                 .from('clotures_caisse')
                 .update({
                     statut:        'ouvert',
@@ -970,16 +1004,20 @@ ${cloture?.commentaire_gerant || ''}</textarea>
                     validated_at:  new Date().toISOString(),
                 })
                 .eq('id', this._cloture.id);
+
             if (error) throw error;
+
             Utils.showToast('Journée déverrouillée', 'warning');
             await this.chargerJournee();
+
         } catch (err) {
+            console.error('❌ deverrouiller:', err);
             Utils.showToast('Erreur : ' + err.message, 'error');
         }
     },
 
     // =========================================================================
-    // imprimerRecap()
+    // imprimerRecap() — inchangé
     // =========================================================================
     imprimerRecap() {
         const c         = this._cloture;
@@ -1090,8 +1128,8 @@ ${cloture?.commentaire_gerant || ''}</textarea>
                         <td style="padding:6px 8px;">Écart</td>
                         <td style="padding:6px 8px;text-align:right;"
                             class="${(c?.ecart || 0) === 0 ? 'ecart-ok'
-                                   : (c?.ecart || 0) > 0  ? 'ecart-pos'
-                                   :                        'ecart-neg'}">
+                                   : (c?.ecart || 0)  > 0  ? 'ecart-pos'
+                                   :                         'ecart-neg'}">
                             ${(c?.ecart || 0) >= 0 ? '+' : ''}
                             $${(c?.ecart || 0).toFixed(2)}
                         </td>
@@ -1128,6 +1166,6 @@ ${cloture?.commentaire_gerant || ''}</textarea>
 
 };
 
-// ── Export global ─────────────────────────────────────────────────────────────
+// ── Export global ──────────────────────────────────────────────────────────────
 window.ClotureCaisse = ClotureCaisse;
 console.log('✅ ClotureCaisse loaded');
