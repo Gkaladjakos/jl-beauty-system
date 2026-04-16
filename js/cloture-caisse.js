@@ -1,57 +1,36 @@
-// =============================================================================
-// cloture-caisse.js
-// JL BEAUTY SYSTEM
-// Clôture journalière — Entrées / Sorties / Billetage
-// =============================================================================
-
 'use strict';
 
 const ClotureCaisse = {
 
-    // ── État interne ──────────────────────────────────────────────────────────
     _currentDate:    null,
     _cloture:        null,
     _mouvements:     [],
     _ventes:         [],
     _totalTheorique: 0,
 
-    // ── Coupures USD ─────────────────────────────────────────────────────────
     COUPURES: [100, 50, 20, 10, 5],
 
-    // =========================================================================
-    // _getClient() ✅ Client Supabase authentifié
-    // =========================================================================
     _getClient() {
         const client = AuthSupabase?.supabase || window.supabase;
         if (!client) throw new Error('Client Supabase non initialisé');
         return client;
     },
 
-    // =========================================================================
-    // init()
-    // =========================================================================
     async init() {
         console.log('🔐 ClotureCaisse.init()');
         this._currentDate = new Date().toISOString().split('T')[0];
         await this.render();
     },
 
-    // =========================================================================
-    // render()
-    // =========================================================================
     async render() {
         const container = document.getElementById('content-area');
         if (!container) return;
 
         container.innerHTML = `
             <div class="space-y-6">
-
-                <!-- ── En-tête ── -->
-                <div class="flex flex-col sm:flex-row sm:items-center
-                            justify-between gap-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                        <h2 class="text-2xl font-bold text-gray-800
-                                   flex items-center gap-2">
+                        <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
                             <i class="fas fa-cash-register text-yellow-500"></i>
                             Journal de Caisse
                         </h2>
@@ -77,23 +56,16 @@ const ClotureCaisse = {
                         </button>
                     </div>
                 </div>
-
-                <!-- ── Zone principale ── -->
                 <div id="cc-main-zone">
                     <div class="flex items-center justify-center py-20">
-                        <i class="fas fa-spinner fa-spin text-3xl
-                                  text-yellow-500"></i>
+                        <i class="fas fa-spinner fa-spin text-3xl text-yellow-500"></i>
                     </div>
                 </div>
-
             </div>`;
 
         await this.chargerJournee();
     },
 
-    // =========================================================================
-    // chargerJournee() ✅ CORRIGÉ
-    // =========================================================================
     async chargerJournee() {
         const picker = document.getElementById('cc-date-picker');
         if (picker) this._currentDate = picker.value;
@@ -107,17 +79,14 @@ const ClotureCaisse = {
             </div>`;
 
         try {
-            const supabase = this._getClient();             // ✅
+            const supabase = this._getClient();
 
-            // ✅ Vérifier session
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) {
                 zone.innerHTML = `
                     <div class="text-center py-16">
                         <i class="fas fa-lock text-5xl text-orange-300 mb-4"></i>
-                        <p class="font-semibold text-orange-600 mb-4">
-                            Session expirée
-                        </p>
+                        <p class="font-semibold text-orange-600 mb-4">Session expirée</p>
                         <button onclick="AuthSupabase.logout()"
                                 class="px-5 py-2 bg-purple-600 text-white
                                        rounded-lg text-sm hover:bg-purple-700">
@@ -127,20 +96,16 @@ const ClotureCaisse = {
                 return;
             }
 
-            // ── 1. Clôture existante ─────────────────────────────────────────
             const { data: clotureData, error: clotureError } =
                 await supabase
                     .from('clotures_caisse')
                     .select('*')
-                    .eq('date_journee', this._currentDate)  // ✅ date pure
+                    .eq('date_journee', this._currentDate)
                     .maybeSingle();
 
-            if (clotureError) {
-                console.warn('⚠️ clotures_caisse:', clotureError.message);
-            }
+            if (clotureError) console.warn('⚠️ clotures_caisse:', clotureError.message);
             this._cloture = clotureData || null;
 
-            // ── 2. Ventes du jour ────────────────────────────────────────────
             const { data: ventesData, error: ventesError } =
                 await supabase
                     .from('ventes')
@@ -149,32 +114,25 @@ const ClotureCaisse = {
                     .lte('date_vente', this._currentDate + 'T23:59:59.999Z')
                     .order('date_vente', { ascending: true });
 
-            if (ventesError) {
-                console.warn('⚠️ ventes:', ventesError.message);
-            }
+            if (ventesError) console.warn('⚠️ ventes:', ventesError.message);
             this._ventes = ventesData || [];
 
-            // ── 3. Mouvements manuels ✅ CORRIGÉ — .eq sur date pure
             const { data: mouvementsData, error: mvtError } =
                 await supabase
                     .from('mouvements_caisse')
                     .select('*')
-                    .eq('date_journee', this._currentDate)  // ✅ plus d'ISO
+                    .eq('date_journee', this._currentDate)
                     .order('created_at', { ascending: true });
 
-            if (mvtError) {
-                console.warn('⚠️ mouvements_caisse:', mvtError.message);
-            }
+            if (mvtError) console.warn('⚠️ mouvements_caisse:', mvtError.message);
             this._mouvements = mouvementsData || [];
 
-            // ── 4. Afficher ──────────────────────────────────────────────────
             this._renderJournee(zone);
 
         } catch (err) {
             console.error('❌ chargerJournee error:', err);
             zone.innerHTML = `
-                <div class="bg-red-50 border border-red-200 rounded-xl p-6
-                            text-center text-red-700">
+                <div class="bg-red-50 border border-red-200 rounded-xl p-6 text-center text-red-700">
                     <i class="fas fa-exclamation-triangle text-2xl mb-2"></i>
                     <p class="font-medium">Erreur lors du chargement</p>
                     <p class="text-sm mt-1">${err.message}</p>
@@ -187,15 +145,11 @@ const ClotureCaisse = {
         }
     },
 
-    // =========================================================================
-    // _renderJournee() ✅ CORRIGÉ — bandeau avec bouton billetage
-    // =========================================================================
     _renderJournee(zone) {
         const cloture    = this._cloture;
         const verrouille = cloture?.statut === 'cloture';
         const isGerant   = AuthSupabase.isGerant();
 
-        // ── Calculs ──────────────────────────────────────────────────────────
         const totalVentes = this._ventes.reduce(
             (s, v) => s + parseFloat(v.montant_total || 0), 0
         );
@@ -207,8 +161,7 @@ const ClotureCaisse = {
             .reduce((s, m) => s + parseFloat(m.montant || 0), 0);
 
         const montantOuverture = parseFloat(cloture?.montant_ouverture || 0);
-        const totalTheorique   = montantOuverture + totalVentes
-                                 + totalEntrees - totalSorties;
+        const totalTheorique   = montantOuverture + totalVentes + totalEntrees - totalSorties;
 
         const billetage = cloture?.billetage
             ? (typeof cloture.billetage === 'string'
@@ -221,36 +174,29 @@ const ClotureCaisse = {
         );
         const ecart = totalBilletage - totalTheorique;
 
-        // ── HTML ─────────────────────────────────────────────────────────────
         zone.innerHTML = `
 
-            <!-- ══ Bandeau statut ✅ CORRIGÉ ══ -->
             ${verrouille ? `
             <div class="bg-green-50 border border-green-200 rounded-xl px-5 py-3
                         flex items-center gap-3 mb-6">
                 <i class="fas fa-lock text-green-600 text-lg"></i>
                 <div>
-                    <p class="font-semibold text-green-800 text-sm">
-                        Journée clôturée
-                    </p>
+                    <p class="font-semibold text-green-800 text-sm">Journée clôturée</p>
                     <p class="text-xs text-green-600">
                         Le ${Utils.formatDateTime(cloture.heure_cloture)}
                         par ${cloture.cloture_par || '—'}
                     </p>
                 </div>
                 <div class="ml-auto flex gap-2">
-                    <!-- ✅ Bouton billetage -->
                     <button onclick="ClotureCaisse.voirBilletage()"
-                            class="text-xs px-3 py-1.5 rounded-lg
-                                   border border-green-400 text-green-700
-                                   hover:bg-green-100 transition-colors">
+                            class="text-xs px-3 py-1.5 rounded-lg border border-green-400
+                                   text-green-700 hover:bg-green-100 transition-colors">
                         <i class="fas fa-money-bill-wave mr-1"></i>Billetage
                     </button>
                     ${isGerant ? `
                     <button onclick="ClotureCaisse.deverrouiller()"
-                            class="text-xs px-3 py-1.5 rounded-lg
-                                   border border-green-400 text-green-700
-                                   hover:bg-green-100 transition-colors">
+                            class="text-xs px-3 py-1.5 rounded-lg border border-green-400
+                                   text-green-700 hover:bg-green-100 transition-colors">
                         <i class="fas fa-unlock mr-1"></i>Déverrouiller
                     </button>` : ''}
                 </div>
@@ -263,34 +209,20 @@ const ClotureCaisse = {
                 </p>
             </div>`}
 
-            <!-- ══ KPI ══ -->
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                ${this._kpi('Ventes du jour',
-                    Utils.formatUSD(totalVentes),
-                    'fas fa-shopping-cart', 'blue')}
-                ${this._kpi('Entrées manuelles',
-                    Utils.formatUSD(totalEntrees),
-                    'fas fa-arrow-circle-down', 'green')}
-                ${this._kpi('Sorties manuelles',
-                    Utils.formatUSD(totalSorties),
-                    'fas fa-arrow-circle-up', 'red')}
-                ${this._kpi('Total théorique',
-                    Utils.formatUSD(totalTheorique),
-                    'fas fa-calculator', 'purple')}
+                ${this._kpi('Ventes du jour', Utils.formatUSD(totalVentes), 'fas fa-shopping-cart', 'blue')}
+                ${this._kpi('Entrées manuelles', Utils.formatUSD(totalEntrees), 'fas fa-arrow-circle-down', 'green')}
+                ${this._kpi('Sorties manuelles', Utils.formatUSD(totalSorties), 'fas fa-arrow-circle-up', 'red')}
+                ${this._kpi('Total théorique', Utils.formatUSD(totalTheorique), 'fas fa-calculator', 'purple')}
             </div>
 
-            <!-- ══ Grille principale ══ -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-                <!-- ── Colonne gauche ── -->
                 <div class="space-y-6">
 
-                    <!-- Fonds d'ouverture -->
-                    <div class="bg-white rounded-xl shadow-sm
-                                border border-gray-100 overflow-hidden">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                         <div class="px-5 py-4 border-b border-gray-100">
-                            <h3 class="font-semibold text-gray-800
-                                       flex items-center gap-2">
+                            <h3 class="font-semibold text-gray-800 flex items-center gap-2">
                                 <i class="fas fa-door-open text-indigo-500"></i>
                                 Fonds d'ouverture
                             </h3>
@@ -302,29 +234,22 @@ const ClotureCaisse = {
                                 </span>
                                 <input type="number"
                                        id="cc-montant-ouverture"
-                                       min="0"
-                                       step="0.01"
+                                       min="0" step="0.01"
                                        value="${montantOuverture}"
                                        ${verrouille ? 'disabled' : ''}
                                        oninput="ClotureCaisse.recalcBilletage()"
-                                       class="w-32 border border-gray-300
-                                              rounded-lg px-3 py-2 text-sm
-                                              text-right font-semibold
+                                       class="w-32 border border-gray-300 rounded-lg px-3 py-2
+                                              text-sm text-right font-semibold
                                               focus:ring-2 focus:ring-yellow-400
                                               focus:border-transparent
-                                              disabled:bg-gray-50
-                                              disabled:text-gray-500">
+                                              disabled:bg-gray-50 disabled:text-gray-500">
                             </div>
                         </div>
                     </div>
 
-                    <!-- Mouvements manuels -->
-                    <div class="bg-white rounded-xl shadow-sm
-                                border border-gray-100 overflow-hidden">
-                        <div class="flex items-center justify-between
-                                    px-5 py-4 border-b border-gray-100">
-                            <h3 class="font-semibold text-gray-800
-                                       flex items-center gap-2">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                            <h3 class="font-semibold text-gray-800 flex items-center gap-2">
                                 <i class="fas fa-exchange-alt text-yellow-500"></i>
                                 Entrées &amp; Sorties manuelles
                             </h3>
@@ -344,29 +269,23 @@ const ClotureCaisse = {
                                 </button>
                             </div>` : ''}
                         </div>
-                        <div class="divide-y divide-gray-50
-                                    max-h-64 overflow-y-auto">
+                        <div class="divide-y divide-gray-50 max-h-64 overflow-y-auto">
                             ${this._mouvements.length === 0
-                                ? `<p class="text-center text-gray-400
-                                            text-sm py-8">
+                                ? `<p class="text-center text-gray-400 text-sm py-8">
                                        Aucun mouvement manuel
                                    </p>`
                                 : this._mouvements.map(m => `
-                                <div class="flex items-center justify-between
-                                            px-5 py-3 hover:bg-gray-50">
+                                <div class="flex items-center justify-between px-5 py-3 hover:bg-gray-50">
                                     <div class="flex items-center gap-3">
-                                        <span class="w-7 h-7 rounded-full flex
-                                                     items-center justify-center
-                                                     text-xs
+                                        <span class="w-7 h-7 rounded-full flex items-center
+                                                     justify-center text-xs
                                                      ${m.type === 'Entree'
                                                         ? 'bg-green-100 text-green-700'
                                                         : 'bg-red-100 text-red-700'}">
-                                            <i class="fas fa-${m.type === 'Entree'
-                                                ? 'arrow-down' : 'arrow-up'}"></i>
+                                            <i class="fas fa-${m.type === 'Entree' ? 'arrow-down' : 'arrow-up'}"></i>
                                         </span>
                                         <div>
-                                            <p class="text-sm font-medium
-                                                       text-gray-800">
+                                            <p class="text-sm font-medium text-gray-800">
                                                 ${m.libelle || '—'}
                                             </p>
                                             <p class="text-xs text-gray-400">
@@ -376,17 +295,13 @@ const ClotureCaisse = {
                                     </div>
                                     <div class="flex items-center gap-3">
                                         <span class="font-semibold text-sm
-                                                     ${m.type === 'Entree'
-                                                        ? 'text-green-600'
-                                                        : 'text-red-600'}">
+                                                     ${m.type === 'Entree' ? 'text-green-600' : 'text-red-600'}">
                                             ${m.type === 'Entree' ? '+' : '-'}
                                             ${Utils.formatUSD(m.montant)}
                                         </span>
                                         ${!verrouille ? `
-                                        <button onclick="ClotureCaisse
-                                                    .supprimerMouvement('${m.id}')"
-                                                class="text-gray-300
-                                                       hover:text-red-500
+                                        <button onclick="ClotureCaisse.supprimerMouvement('${m.id}')"
+                                                class="text-gray-300 hover:text-red-500
                                                        transition-colors text-sm">
                                             <i class="fas fa-times"></i>
                                         </button>` : ''}
@@ -404,31 +319,24 @@ const ClotureCaisse = {
                         </div>
                     </div>
 
-                    <!-- Ventes du jour -->
-                    <div class="bg-white rounded-xl shadow-sm
-                                border border-gray-100 overflow-hidden">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                         <div class="px-5 py-4 border-b border-gray-100">
-                            <h3 class="font-semibold text-gray-800
-                                       flex items-center gap-2">
+                            <h3 class="font-semibold text-gray-800 flex items-center gap-2">
                                 <i class="fas fa-receipt text-blue-500"></i>
                                 Ventes du jour
-                                <span class="ml-auto text-xs font-normal
-                                             bg-blue-100 text-blue-700
-                                             px-2 py-0.5 rounded-full">
+                                <span class="ml-auto text-xs font-normal bg-blue-100
+                                             text-blue-700 px-2 py-0.5 rounded-full">
                                     ${this._ventes.length} vente(s)
                                 </span>
                             </h3>
                         </div>
-                        <div class="divide-y divide-gray-50
-                                    max-h-64 overflow-y-auto">
+                        <div class="divide-y divide-gray-50 max-h-64 overflow-y-auto">
                             ${this._ventes.length === 0
-                                ? `<p class="text-center text-gray-400
-                                            text-sm py-8">
+                                ? `<p class="text-center text-gray-400 text-sm py-8">
                                        Aucune vente enregistrée
                                    </p>`
                                 : this._ventes.map(v => `
-                                <div class="flex items-center justify-between
-                                            px-5 py-2.5 hover:bg-gray-50">
+                                <div class="flex items-center justify-between px-5 py-2.5 hover:bg-gray-50">
                                     <div>
                                         <p class="text-xs text-gray-500">
                                             ${Utils.formatTime(v.date_vente)}
@@ -437,34 +345,26 @@ const ClotureCaisse = {
                                             ${v.mode_paiement || 'Cash'}
                                         </p>
                                     </div>
-                                    <span class="font-semibold text-sm
-                                                 text-blue-600">
+                                    <span class="font-semibold text-sm text-blue-600">
                                         ${Utils.formatUSD(v.montant_total)}
                                     </span>
                                 </div>`).join('')}
                         </div>
                         <div class="px-5 py-3 bg-blue-50 border-t border-blue-100
-                                    flex justify-between text-sm font-semibold
-                                    text-blue-800">
+                                    flex justify-between text-sm font-semibold text-blue-800">
                             <span>Total ventes</span>
                             <span>${Utils.formatUSD(totalVentes)}</span>
                         </div>
                     </div>
 
                 </div>
-                <!-- fin colonne gauche -->
 
-                <!-- ── Colonne droite ── -->
                 <div class="space-y-6">
 
-                    <!-- Billetage -->
-                    <div class="bg-white rounded-xl shadow-sm
-                                border border-gray-100 overflow-hidden">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                         <div class="px-5 py-4 border-b border-gray-100">
-                            <h3 class="font-semibold text-gray-800
-                                       flex items-center gap-2">
-                                <i class="fas fa-money-bill-wave
-                                          text-green-500"></i>
+                            <h3 class="font-semibold text-gray-800 flex items-center gap-2">
+                                <i class="fas fa-money-bill-wave text-green-500"></i>
                                 Billetage physique
                             </h3>
                             <p class="text-xs text-gray-400 mt-0.5">
@@ -475,9 +375,8 @@ const ClotureCaisse = {
                             ${this.COUPURES.map(c => `
                             <div class="flex items-center gap-3">
                                 <div class="flex-shrink-0 w-20 text-center">
-                                    <span class="inline-block px-3 py-1.5
-                                                 bg-green-100 text-green-800
-                                                 rounded-lg text-sm font-bold
+                                    <span class="inline-block px-3 py-1.5 bg-green-100
+                                                 text-green-800 rounded-lg text-sm font-bold
                                                  border border-green-200">
                                         $${c}
                                     </span>
@@ -489,39 +388,29 @@ const ClotureCaisse = {
                                        value="${billetage[c] || 0}"
                                        ${verrouille ? 'disabled' : ''}
                                        oninput="ClotureCaisse.recalcBilletage()"
-                                       class="w-24 border border-gray-300
-                                              rounded-lg px-3 py-2 text-sm
-                                              text-center font-medium
+                                       class="w-24 border border-gray-300 rounded-lg
+                                              px-3 py-2 text-sm text-center font-medium
                                               focus:ring-2 focus:ring-yellow-400
                                               focus:border-transparent
-                                              disabled:bg-gray-50
-                                              disabled:text-gray-500">
+                                              disabled:bg-gray-50 disabled:text-gray-500">
                                 <span class="text-gray-400 text-sm">=</span>
                                 <span id="sous-total-${c}"
-                                      class="font-semibold text-gray-700
-                                             text-sm w-20 text-right">
+                                      class="font-semibold text-gray-700 text-sm w-20 text-right">
                                     ${Utils.formatUSD((billetage[c] || 0) * c)}
                                 </span>
                             </div>`).join('')}
                         </div>
-
-                        <!-- Totaux billetage -->
-                        <div class="px-5 py-4 bg-gray-50 border-t
-                                    border-gray-200 space-y-2">
-                            <div class="flex justify-between text-sm
-                                        font-semibold text-gray-700">
+                        <div class="px-5 py-4 bg-gray-50 border-t border-gray-200 space-y-2">
+                            <div class="flex justify-between text-sm font-semibold text-gray-700">
                                 <span>
-                                    <i class="fas fa-coins mr-1
-                                              text-yellow-500"></i>
+                                    <i class="fas fa-coins mr-1 text-yellow-500"></i>
                                     Total en caisse
                                 </span>
-                                <span id="cc-total-billetage"
-                                      class="text-lg text-gray-900">
+                                <span id="cc-total-billetage" class="text-lg text-gray-900">
                                     ${Utils.formatUSD(totalBilletage)}
                                 </span>
                             </div>
-                            <div class="flex justify-between text-sm
-                                        text-gray-500">
+                            <div class="flex justify-between text-sm text-gray-500">
                                 <span>Attendu (théorique)</span>
                                 <span id="cc-total-theorique">
                                     ${Utils.formatUSD(totalTheorique)}
@@ -533,25 +422,17 @@ const ClotureCaisse = {
                                 <span id="cc-ecart"
                                       class="${ecart === 0
                                         ? 'text-green-600'
-                                        : ecart > 0
-                                            ? 'text-blue-600'
-                                            : 'text-red-600'}">
-                                    ${ecart >= 0 ? '+' : ''}
-                                    ${Utils.formatUSD(ecart)}
-                                    ${ecart === 0
-                                        ? ' ✅'
-                                        : ecart > 0 ? ' ⬆️' : ' ⬇️'}
+                                        : ecart > 0 ? 'text-blue-600' : 'text-red-600'}">
+                                    ${ecart >= 0 ? '+' : ''}${Utils.formatUSD(ecart)}
+                                    ${ecart === 0 ? ' ✅' : ecart > 0 ? ' ⬆️' : ' ⬇️'}
                                 </span>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Notes -->
-                    <div class="bg-white rounded-xl shadow-sm
-                                border border-gray-100 overflow-hidden">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                         <div class="px-5 py-4 border-b border-gray-100">
-                            <h3 class="font-semibold text-gray-800
-                                       flex items-center gap-2">
+                            <h3 class="font-semibold text-gray-800 flex items-center gap-2">
                                 <i class="fas fa-sticky-note text-yellow-400"></i>
                                 Notes / Observations
                             </h3>
@@ -561,39 +442,33 @@ const ClotureCaisse = {
                                       rows="2"
                                       ${verrouille ? 'disabled' : ''}
                                       placeholder="Observations de la caissière…"
-                                      class="w-full border border-gray-300
-                                             rounded-lg px-3 py-2 text-sm
-                                             resize-none
+                                      class="w-full border border-gray-300 rounded-lg
+                                             px-3 py-2 text-sm resize-none
                                              focus:ring-2 focus:ring-yellow-400
                                              focus:border-transparent
-                                             disabled:bg-gray-50
-                                             disabled:text-gray-500"
+                                             disabled:bg-gray-50 disabled:text-gray-500"
                                       >${cloture?.notes || ''}</textarea>
-
                             ${isGerant ? `
                             <div>
-                                <label class="block text-xs font-medium
-                                              text-gray-500 mb-1">
+                                <label class="block text-xs font-medium text-gray-500 mb-1">
                                     Commentaire gérant
                                 </label>
                                 <textarea id="cc-commentaire-gerant"
                                           rows="2"
                                           placeholder="Observations du gérant…"
-                                          class="w-full border border-gray-300
-                                                 rounded-lg px-3 py-2 text-sm
-                                                 resize-none
+                                          class="w-full border border-gray-300 rounded-lg
+                                                 px-3 py-2 text-sm resize-none
                                                  focus:ring-2 focus:ring-yellow-400
-                                                 focus:border-transparent">
-${cloture?.commentaire_gerant || ''}</textarea>
+                                                 focus:border-transparent"
+                                          >${cloture?.commentaire_gerant || ''}</textarea>
                             </div>` : ''}
                         </div>
                     </div>
 
-                    <!-- Bouton clôture / impression -->
                     ${!verrouille ? `
                     <button onclick="ClotureCaisse.cloturer()"
-                            class="w-full py-4 rounded-xl text-white font-bold
-                                   text-base shadow-lg transition-all
+                            class="w-full py-4 rounded-xl text-white font-bold text-base
+                                   shadow-lg transition-all
                                    bg-gradient-to-r from-yellow-500 to-black
                                    hover:shadow-xl hover:opacity-90
                                    flex items-center justify-center gap-3">
@@ -610,15 +485,12 @@ ${cloture?.commentaire_gerant || ''}</textarea>
                     </button>`}
 
                 </div>
-                <!-- fin colonne droite -->
 
             </div>`;
 
         this._totalTheorique = totalTheorique;
     },
-    // =========================================================================
-    // _kpi()
-    // =========================================================================
+
     _kpi(label, value, icon, color) {
         const colors = {
             blue:   'bg-blue-50 text-blue-600 border-blue-100',
@@ -627,8 +499,7 @@ ${cloture?.commentaire_gerant || ''}</textarea>
             purple: 'bg-purple-50 text-purple-600 border-purple-100',
         };
         return `
-            <div class="bg-white rounded-xl p-4 border ${colors[color]}
-                        shadow-sm">
+            <div class="bg-white rounded-xl p-4 border ${colors[color]} shadow-sm">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-lg flex items-center
                                 justify-center ${colors[color]}">
@@ -642,9 +513,6 @@ ${cloture?.commentaire_gerant || ''}</textarea>
             </div>`;
     },
 
-    // =========================================================================
-    // recalcBilletage()
-    // =========================================================================
     recalcBilletage() {
         let total = 0;
         this.COUPURES.forEach(c => {
@@ -669,8 +537,7 @@ ${cloture?.commentaire_gerant || ''}</textarea>
             .filter(m => m.type === 'Sortie')
             .reduce((s, m) => s + parseFloat(m.montant || 0), 0);
 
-        this._totalTheorique = montantOuverture + totalVentes
-                               + totalEntrees - totalSorties;
+        this._totalTheorique = montantOuverture + totalVentes + totalEntrees - totalSorties;
 
         const totalEl  = document.getElementById('cc-total-billetage');
         const theoriEl = document.getElementById('cc-total-theorique');
@@ -693,9 +560,6 @@ ${cloture?.commentaire_gerant || ''}</textarea>
         }
     },
 
-    // =========================================================================
-    // _getBilletage()
-    // =========================================================================
     _getBilletage() {
         const result = {};
         this.COUPURES.forEach(c => {
@@ -705,72 +569,55 @@ ${cloture?.commentaire_gerant || ''}</textarea>
         return result;
     },
 
-    // =========================================================================
-    // ajouterMouvement()
-    // =========================================================================
     ajouterMouvement(type) {
         const label = type === 'entree' ? 'Entrée' : 'Sortie';
         const color = type === 'entree' ? 'green'  : 'red';
-        const icon  = type === 'entree'
-            ? 'arrow-circle-down'
-            : 'arrow-circle-up';
+        const icon  = type === 'entree' ? 'arrow-circle-down' : 'arrow-circle-up';
 
         const content = `
             <div class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium
-                                  text-gray-700 mb-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
                         Libellé <span class="text-red-500">*</span>
                     </label>
                     <input type="text"
                            id="mv-libelle"
-                           placeholder="Ex: ${type === 'entree'
-                               ? 'Apport de fonds'
-                               : 'Achat fournitures'}"
-                           class="w-full border border-gray-300 rounded-lg
-                                  px-3 py-2 text-sm focus:ring-2
-                                  focus:ring-yellow-400 focus:border-transparent">
+                           placeholder="Ex: ${type === 'entree' ? 'Apport de fonds' : 'Achat fournitures'}"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2
+                                  text-sm focus:ring-2 focus:ring-yellow-400
+                                  focus:border-transparent">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium
-                                  text-gray-700 mb-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
                         Montant ($) <span class="text-red-500">*</span>
                     </label>
                     <input type="number"
                            id="mv-montant"
-                           min="0"
-                           step="0.01"
-                           placeholder="0.00"
-                           class="w-full border border-gray-300 rounded-lg
-                                  px-3 py-2 text-sm focus:ring-2
-                                  focus:ring-yellow-400 focus:border-transparent">
+                           min="0" step="0.01" placeholder="0.00"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2
+                                  text-sm focus:ring-2 focus:ring-yellow-400
+                                  focus:border-transparent">
                 </div>
                 <div>
-                    <label class="block text-sm font-medium
-                                  text-gray-700 mb-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
                         Note (optionnel)
                     </label>
                     <input type="text"
                            id="mv-note"
                            placeholder="Détail supplémentaire…"
-                           class="w-full border border-gray-300 rounded-lg
-                                  px-3 py-2 text-sm focus:ring-2
-                                  focus:ring-yellow-400 focus:border-transparent">
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2
+                                  text-sm focus:ring-2 focus:ring-yellow-400
+                                  focus:border-transparent">
                 </div>
             </div>`;
 
         Utils.createModal(
-            `<i class="fas fa-${icon} text-${color}-500 mr-2"></i>
-             Ajouter une ${label}`,
+            `<i class="fas fa-${icon} text-${color}-500 mr-2"></i>Ajouter une ${label}`,
             content,
             async (m) => {
-                const libelle = document.getElementById('mv-libelle')
-                                    ?.value?.trim();
-                const montant = parseFloat(
-                    document.getElementById('mv-montant')?.value || 0
-                );
-                const note = document.getElementById('mv-note')
-                                 ?.value?.trim();
+                const libelle = document.getElementById('mv-libelle')?.value?.trim();
+                const montant = parseFloat(document.getElementById('mv-montant')?.value || 0);
+                const note    = document.getElementById('mv-note')?.value?.trim();
 
                 if (!libelle) {
                     Utils.showToast('Veuillez saisir un libellé', 'warning');
@@ -790,66 +637,51 @@ ${cloture?.commentaire_gerant || ''}</textarea>
         setTimeout(() => document.getElementById('mv-libelle')?.focus(), 100);
     },
 
-    // =========================================================================
-    // _getCompteOhada()
-    // =========================================================================
     _getCompteOhada(type, libelle = '') {
         const l = libelle.toLowerCase();
 
         if (type === 'entree') {
-            if (l.includes('vente'))           return '701000';
-            if (l.includes('apport'))          return '101000';
-            if (l.includes('client'))          return '411000';
-            if (l.includes('remboursement'))   return '409000';
+            if (l.includes('vente'))         return '701000';
+            if (l.includes('apport'))        return '101000';
+            if (l.includes('client'))        return '411000';
+            if (l.includes('remboursement')) return '409000';
             return '571100';
         }
 
         if (type === 'sortie') {
-            if (l.includes('fourniss'))        return '401000';
-            if (l.includes('salaire')
-             || l.includes('paie'))            return '641000';
-            if (l.includes('achat'))           return '601000';
-            if (l.includes('loyer'))           return '613000';
-            if (l.includes('électric')
-             || l.includes('eau'))             return '614000';
-            if (l.includes('transport'))       return '624000';
-            if (l.includes('commission'))      return '651000';
+            if (l.includes('fourniss'))      return '401000';
+            if (l.includes('salaire') || l.includes('paie')) return '641000';
+            if (l.includes('achat'))         return '601000';
+            if (l.includes('loyer'))         return '613000';
+            if (l.includes('électric') || l.includes('eau')) return '614000';
+            if (l.includes('transport'))     return '624000';
+            if (l.includes('commission'))    return '651000';
             return '572100';
         }
 
         return '571100';
     },
 
-    // =========================================================================
-    // _saveMouvement() ✅ CORRIGÉ
-    // =========================================================================
     async _saveMouvement({ type, libelle, montant, note }) {
         try {
             const supabase = this._getClient();
             const user     = AuthSupabase.getCurrentUser();
 
-            console.log('👤 User courant :', user);
-
-            // ✅ Vérifier session
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) {
                 Utils.showToast('Session expirée — reconnectez-vous', 'error');
                 return;
             }
 
-            // ✅ Normaliser le type
             const TYPE_MAP = {
-                'entree': 'Entree',
-                'sortie': 'Sortie',
-                'Entree': 'Entree',
-                'Sortie': 'Sortie',
+                'entree': 'Entree', 'sortie': 'Sortie',
+                'Entree': 'Entree', 'Sortie': 'Sortie',
             };
             const typeNormalise = TYPE_MAP[type] ?? type;
 
-            // ✅ date_journee en format DATE pur (YYYY-MM-DD)
             const payload = {
                 type:         typeNormalise,
-                date_journee: this._currentDate,            // ✅ "2026-04-01"
+                date_journee: this._currentDate,
                 libelle:      libelle,
                 montant:      parseFloat(montant),
                 source:       'caisse',
@@ -859,25 +691,16 @@ ${cloture?.commentaire_gerant || ''}</textarea>
             if (note && note.trim() !== '') payload.note       = note.trim();
             if (user?.id)                   payload.created_by = user.id;
 
-            console.log('📦 Payload final :', JSON.stringify(payload, null, 2));
+            console.log('📦 Payload :', JSON.stringify(payload, null, 2));
 
             const { data, error } = await supabase
                 .from('mouvements_caisse')
                 .insert([payload])
                 .select();
 
-            if (error) {
-                console.error('❌ Erreur Supabase :', {
-                    message: error.message,
-                    details: error.details,
-                    hint:    error.hint,
-                    code:    error.code,
-                });
-                throw new Error(error.message);
-            }
+            if (error) throw new Error(error.message);
 
             console.log('✅ Mouvement inséré :', data);
-
             Utils.showToast(
                 `${type === 'entree' ? 'Entrée' : 'Sortie'} enregistrée`,
                 'success'
@@ -885,26 +708,21 @@ ${cloture?.commentaire_gerant || ''}</textarea>
             await this.chargerJournee();
 
         } catch (err) {
-            console.error('❌ _saveMouvement catch:', err);
+            console.error('❌ _saveMouvement:', err);
             Utils.showToast('Erreur : ' + err.message, 'error');
         }
     },
 
-    // =========================================================================
-    // supprimerMouvement() ✅ CORRIGÉ
-    // =========================================================================
     async supprimerMouvement(id) {
         if (!confirm('Supprimer ce mouvement ?')) return;
         try {
-            const supabase = this._getClient();             // ✅
-
+            const supabase = this._getClient();
             const { error } = await supabase
                 .from('mouvements_caisse')
                 .delete()
                 .eq('id', id);
 
             if (error) throw error;
-
             Utils.showToast('Mouvement supprimé', 'success');
             await this.chargerJournee();
 
@@ -914,40 +732,29 @@ ${cloture?.commentaire_gerant || ''}</textarea>
         }
     },
 
-    // =========================================================================
-    // cloturer() ✅ CORRIGÉ
-    // =========================================================================
     async cloturer() {
         const billetage      = this._getBilletage();
         const totalBilletage = this.COUPURES.reduce(
             (s, c) => s + (billetage[c] * c), 0
         );
-        const ecart = totalBilletage - (this._totalTheorique || 0);
-        const notes = document.getElementById('cc-notes')
-                          ?.value?.trim() || null;
-        const commentaireGerant = document.getElementById(
-            'cc-commentaire-gerant'
-        )?.value?.trim() || null;
-
-        const montantOuverture = parseFloat(
-            document.getElementById('cc-montant-ouverture')?.value || 0
-        );
+        const ecart            = totalBilletage - (this._totalTheorique || 0);
+        const notes            = document.getElementById('cc-notes')?.value?.trim() || null;
+        const commentaireGerant = document.getElementById('cc-commentaire-gerant')?.value?.trim() || null;
+        const montantOuverture  = parseFloat(document.getElementById('cc-montant-ouverture')?.value || 0);
 
         const ok = confirm(
             `Clôturer la journée du ${this._currentDate} ?\n\n` +
             `Total théorique : ${Utils.formatUSD(this._totalTheorique)}\n` +
             `Total en caisse : ${Utils.formatUSD(totalBilletage)}\n` +
-            `Écart           : ${ecart >= 0 ? '+' : ''}` +
-                              `${Utils.formatUSD(ecart)}\n\n` +
+            `Écart           : ${ecart >= 0 ? '+' : ''}${Utils.formatUSD(ecart)}\n\n` +
             `Cette action verrouillera la journée.`
         );
         if (!ok) return;
 
         try {
-            const supabase = this._getClient();             // ✅
+            const supabase = this._getClient();
             const user     = AuthSupabase.getCurrentUser();
 
-            // ✅ Vérifier session
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) {
                 Utils.showToast('Session expirée — reconnectez-vous', 'error');
@@ -955,19 +762,16 @@ ${cloture?.commentaire_gerant || ''}</textarea>
             }
 
             const payload = {
-                date_journee:       this._currentDate,      // ✅ date pure
+                date_journee:       this._currentDate,
                 montant_ouverture:  montantOuverture,
                 total_ventes:       this._ventes.reduce(
-                                        (s, v) => s + parseFloat(
-                                            v.montant_total || 0), 0),
+                                        (s, v) => s + parseFloat(v.montant_total || 0), 0),
                 total_entrees:      this._mouvements
                                         .filter(m => m.type === 'Entree')
-                                        .reduce((s, m) => s + parseFloat(
-                                            m.montant || 0), 0),
+                                        .reduce((s, m) => s + parseFloat(m.montant || 0), 0),
                 total_sorties:      this._mouvements
                                         .filter(m => m.type === 'Sortie')
-                                        .reduce((s, m) => s + parseFloat(
-                                            m.montant || 0), 0),
+                                        .reduce((s, m) => s + parseFloat(m.montant || 0), 0),
                 total_theorique:    this._totalTheorique,
                 total_billetage:    totalBilletage,
                 ecart:              ecart,
@@ -979,8 +783,6 @@ ${cloture?.commentaire_gerant || ''}</textarea>
                 user_id:            user?.id  || null,
                 heure_cloture:      new Date().toISOString(),
             };
-
-            console.log('📦 Payload clôture :', JSON.stringify(payload, null, 2));
 
             if (this._cloture?.id) {
                 const { error } = await supabase
@@ -1004,9 +806,6 @@ ${cloture?.commentaire_gerant || ''}</textarea>
         }
     },
 
-    // =========================================================================
-    // deverrouiller() ✅ CORRIGÉ
-    // =========================================================================
     async deverrouiller() {
         if (!AuthSupabase.isGerant()) {
             Utils.showToast('Réservé au gérant', 'error');
@@ -1015,7 +814,7 @@ ${cloture?.commentaire_gerant || ''}</textarea>
         if (!confirm('Déverrouiller cette journée pour la modifier ?')) return;
 
         try {
-            const supabase = this._getClient();             // ✅
+            const supabase = this._getClient();
             const user     = AuthSupabase.getCurrentUser();
 
             const { error } = await supabase
@@ -1030,7 +829,6 @@ ${cloture?.commentaire_gerant || ''}</textarea>
                 .eq('id', this._cloture.id);
 
             if (error) throw error;
-
             Utils.showToast('Journée déverrouillée', 'warning');
             await this.chargerJournee();
 
@@ -1039,158 +837,142 @@ ${cloture?.commentaire_gerant || ''}</textarea>
             Utils.showToast('Erreur : ' + err.message, 'error');
         }
     },
-        // =========================================================================  
-    // voirBilletage() ✅ NOUVEAU  
-    // =========================================================================  
-    voirBilletage() {  
-        const c = this._cloture;  
-        if (!c) {  
-            Utils.showToast('Aucune clôture pour cette journée', 'warning');  
-            return;  
-        }  
+    voirBilletage() {
+        const c = this._cloture;
+        if (!c) {
+            Utils.showToast('Aucune clôture pour cette journée', 'warning');
+            return;
+        }
 
-        const billetage = c.billetage  
-            ? (typeof c.billetage === 'string'  
-                ? JSON.parse(c.billetage)  
-                : c.billetage)  
-            : {};  
+        const billetage = c.billetage
+            ? (typeof c.billetage === 'string'
+                ? JSON.parse(c.billetage)
+                : c.billetage)
+            : {};
 
-        const totalBilletage = this.COUPURES.reduce(  
-            (s, coup) => s + (parseInt(billetage[coup] || 0) * coup), 0  
-        );  
-        const ecart    = parseFloat(c.ecart || 0);  
-        const ecartCls = ecart === 0  
-            ? 'text-green-600 bg-green-50'  
-            : ecart > 0  
-                ? 'text-blue-600 bg-blue-50'  
-                : 'text-red-600 bg-red-50';  
+        const totalBilletage = this.COUPURES.reduce(
+            (s, coup) => s + (parseInt(billetage[coup] || 0) * coup), 0
+        );
+        const ecart    = parseFloat(c.ecart || 0);
+        const ecartCls = ecart === 0
+            ? 'text-green-600 bg-green-50'
+            : ecart > 0 ? 'text-blue-600 bg-blue-50'
+                        : 'text-red-600 bg-red-50';
 
-        const lignesBilletage = this.COUPURES.map(coup => {  
-            const qty    = parseInt(billetage[coup] || 0);  
-            const sous   = qty * coup;  
-            const zeroCls = qty === 0 ? 'opacity-40' : '';  
-            return `  
-                <div class="flex items-center justify-between py-2.5  
-                            border-b border-gray-100 last:border-0 ${zeroCls}">  
-                    <div class="flex items-center gap-3">  
-                        <span class="w-16 text-center px-2 py-1  
-                                     bg-green-100 text-green-800  
-                                     rounded-lg text-sm font-bold  
-                                     border border-green-200">  
-                            $${coup}  
-                        </span>  
-                        <span class="text-sm text-gray-500">  
-                            × <strong class="text-gray-800">${qty}</strong>  
-                            billet${qty > 1 ? 's' : ''}  
-                        </span>  
-                    </div>  
-                    <span class="font-semibold text-gray-800 text-sm">  
-                        ${Utils.formatUSD(sous)}  
-                    </span>  
-                </div>`;  
-        }).join('');  
+        const lignesBilletage = this.COUPURES.map(coup => {
+            const qty     = parseInt(billetage[coup] || 0);
+            const sous    = qty * coup;
+            const zeroCls = qty === 0 ? 'opacity-40' : '';
+            return `
+                <div class="flex items-center justify-between py-2.5
+                            border-b border-gray-100 last:border-0 ${zeroCls}">
+                    <div class="flex items-center gap-3">
+                        <span class="w-16 text-center px-2 py-1 bg-green-100
+                                     text-green-800 rounded-lg text-sm font-bold
+                                     border border-green-200">
+                            $${coup}
+                        </span>
+                        <span class="text-sm text-gray-500">
+                            × <strong class="text-gray-800">${qty}</strong>
+                            billet${qty > 1 ? 's' : ''}
+                        </span>
+                    </div>
+                    <span class="font-semibold text-gray-800 text-sm">
+                        ${Utils.formatUSD(sous)}
+                    </span>
+                </div>`;
+        }).join('');
 
-        const content = `  
-            <div class="space-y-5">  
+        const content = `
+            <div class="space-y-5">
 
-                <!-- En-tête -->  
-                <div class="flex items-center justify-between  
-                            bg-gray-50 rounded-xl p-4">  
-                    <div>  
-                        <p class="text-xs text-gray-500">Journée</p>  
-                        <p class="font-bold text-gray-800">  
-                            ${this._currentDate}  
-                        </p>  
-                    </div>  
-                    <div class="text-right">  
-                        <p class="text-xs text-gray-500">Clôturé par</p>  
-                        <p class="font-semibold text-gray-700 text-sm">  
-                            ${c.cloture_par || '—'}  
-                        </p>  
-                    </div>  
-                </div>  
+                <div class="flex items-center justify-between bg-gray-50 rounded-xl p-4">
+                    <div>
+                        <p class="text-xs text-gray-500">Journée</p>
+                        <p class="font-bold text-gray-800">${this._currentDate}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-xs text-gray-500">Clôturé par</p>
+                        <p class="font-semibold text-gray-700 text-sm">
+                            ${c.cloture_par || '—'}
+                        </p>
+                    </div>
+                </div>
 
-                <!-- Détail billetage -->  
-                <div>  
-                    <p class="text-xs font-semibold text-gray-500 uppercase  
-                               tracking-wide mb-3">  
-                        <i class="fas fa-money-bill-wave text-green-500 mr-1"></i>  
-                        Détail des billets comptés  
-                    </p>  
-                    <div class="bg-white border border-gray-200 rounded-xl  
-                                px-4 divide-y divide-gray-50">  
-                        ${lignesBilletage}  
-                    </div>  
-                </div>  
+                <div>
+                    <p class="text-xs font-semibold text-gray-500 uppercase
+                               tracking-wide mb-3">
+                        <i class="fas fa-money-bill-wave text-green-500 mr-1"></i>
+                        Détail des billets comptés
+                    </p>
+                    <div class="bg-white border border-gray-200 rounded-xl px-4">
+                        ${lignesBilletage}
+                    </div>
+                </div>
 
-                <!-- Totaux -->  
-                <div class="bg-gray-50 rounded-xl p-4 space-y-2">  
-                    <div class="flex justify-between text-sm">  
-                        <span class="text-gray-500">Total billeté</span>  
-                        <span class="font-bold text-gray-900 text-base">  
-                            ${Utils.formatUSD(totalBilletage)}  
-                        </span>  
-                    </div>  
-                    <div class="flex justify-between text-sm">  
-                        <span class="text-gray-500">Total théorique</span>  
-                        <span class="font-semibold text-gray-700">  
-                            ${Utils.formatUSD(c.total_theorique)}  
-                        </span>  
-                    </div>  
-                    <div class="flex justify-between text-sm font-bold  
-                                pt-2 border-t border-gray-200">  
-                        <span>Écart</span>  
-                        <span class="${ecartCls} px-3 py-0.5 rounded-lg">  
-                            ${ecart >= 0 ? '+' : ''}${Utils.formatUSD(ecart)}  
-                            ${ecart === 0 ? ' ✅' : ecart > 0 ? ' ⬆️' : ' ⬇️'}  
-                        </span>  
-                    </div>  
-                </div>  
+                <div class="bg-gray-50 rounded-xl p-4 space-y-2">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">Total billeté</span>
+                        <span class="font-bold text-gray-900 text-base">
+                            ${Utils.formatUSD(totalBilletage)}
+                        </span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500">Total théorique</span>
+                        <span class="font-semibold text-gray-700">
+                            ${Utils.formatUSD(c.total_theorique)}
+                        </span>
+                    </div>
+                    <div class="flex justify-between text-sm font-bold
+                                pt-2 border-t border-gray-200">
+                        <span>Écart</span>
+                        <span class="${ecartCls} px-3 py-0.5 rounded-lg">
+                            ${ecart >= 0 ? '+' : ''}${Utils.formatUSD(ecart)}
+                            ${ecart === 0 ? ' ✅' : ecart > 0 ? ' ⬆️' : ' ⬇️'}
+                        </span>
+                    </div>
+                </div>
 
-                <!-- Détail financier -->  
-                <div class="grid grid-cols-3 gap-3 text-center text-xs">  
-                    <div class="bg-blue-50 rounded-xl p-3">  
-                        <p class="text-gray-500 mb-1">Ventes</p>  
-                        <p class="font-bold text-blue-700">  
-                            ${Utils.formatUSD(c.total_ventes)}  
-                        </p>  
-                    </div>  
-                    <div class="bg-green-50 rounded-xl p-3">  
-                        <p class="text-gray-500 mb-1">Entrées</p>  
-                        <p class="font-bold text-green-700">  
-                            +${Utils.formatUSD(c.total_entrees)}  
-                        </p>  
-                    </div>  
-                    <div class="bg-red-50 rounded-xl p-3">  
-                        <p class="text-gray-500 mb-1">Sorties</p>  
-                        <p class="font-bold text-red-700">  
-                            -${Utils.formatUSD(c.total_sorties)}  
-                        </p>  
-                    </div>  
-                </div>  
+                <div class="grid grid-cols-3 gap-3 text-center text-xs">
+                    <div class="bg-blue-50 rounded-xl p-3">
+                        <p class="text-gray-500 mb-1">Ventes</p>
+                        <p class="font-bold text-blue-700">
+                            ${Utils.formatUSD(c.total_ventes)}
+                        </p>
+                    </div>
+                    <div class="bg-green-50 rounded-xl p-3">
+                        <p class="text-gray-500 mb-1">Entrées</p>
+                        <p class="font-bold text-green-700">
+                            +${Utils.formatUSD(c.total_entrees)}
+                        </p>
+                    </div>
+                    <div class="bg-red-50 rounded-xl p-3">
+                        <p class="text-gray-500 mb-1">Sorties</p>
+                        <p class="font-bold text-red-700">
+                            -${Utils.formatUSD(c.total_sorties)}
+                        </p>
+                    </div>
+                </div>
 
-                ${c.notes ? `  
-                <div class="bg-yellow-50 border border-yellow-100  
-                            rounded-xl p-4">  
-                    <p class="text-xs font-semibold text-yellow-700 mb-1">  
-                        <i class="fas fa-sticky-note mr-1"></i>Notes  
-                    </p>  
-                    <p class="text-sm text-gray-700">${c.notes}</p>  
-                </div>` : ''}  
+                ${c.notes ? `
+                <div class="bg-yellow-50 border border-yellow-100 rounded-xl p-4">
+                    <p class="text-xs font-semibold text-yellow-700 mb-1">
+                        <i class="fas fa-sticky-note mr-1"></i>Notes
+                    </p>
+                    <p class="text-sm text-gray-700">${c.notes}</p>
+                </div>` : ''}
 
-            </div>`;  
+            </div>`;
 
-        Utils.createModal(  
-            `<i class="fas fa-money-bill-wave text-green-500 mr-2"></i>  
-             Billetage — ${this._currentDate}`,  
-            content,  
-            null,  
-            null  
-        );  
-    },  
-        // =========================================================================
-    // imprimerRecap()
-    // =========================================================================
+        Utils.createModal(
+            `<i class="fas fa-money-bill-wave text-green-500 mr-2"></i>
+             Billetage — ${this._currentDate}`,
+            content,
+            null,
+            null
+        );
+    },
+
     imprimerRecap() {
         const c         = this._cloture;
         const billetage = c?.billetage
@@ -1219,28 +1001,23 @@ ${cloture?.commentaire_gerant || ''}</textarea>
                 <meta charset="UTF-8">
                 <title>Récapitulatif Caisse — ${this._currentDate}</title>
                 <style>
-                    body  { font-family: Arial, sans-serif; font-size: 13px;
-                            max-width: 480px; margin: 0 auto; padding: 20px; }
-                    h1    { font-size: 18px; text-align: center;
-                            margin-bottom: 4px; }
-                    h2    { font-size: 13px; text-align: center; color: #666;
-                            font-weight: normal; margin-bottom: 20px; }
-                    table { width: 100%; border-collapse: collapse;
-                            margin-bottom: 16px; }
-                    th    { background: #f3f4f6; padding: 6px 8px;
-                            text-align: left; font-size: 11px;
-                            text-transform: uppercase; }
-                    td    { border-bottom: 1px solid #e5e7eb; }
-                    .total-row td { font-weight: bold; background: #f9fafb; }
-                    .ecart-pos    { color: #2563eb; }
-                    .ecart-neg    { color: #dc2626; }
-                    .ecart-ok     { color: #16a34a; }
-                    .section      { font-weight: bold; margin: 16px 0 6px;
-                                    font-size: 13px;
-                                    border-bottom: 2px solid #000;
-                                    padding-bottom: 3px; }
-                    .footer       { text-align: center; font-size: 11px;
-                                    color: #9ca3af; margin-top: 24px; }
+                    body       { font-family:Arial,sans-serif; font-size:13px;
+                                 max-width:480px; margin:0 auto; padding:20px; }
+                    h1         { font-size:18px; text-align:center; margin-bottom:4px; }
+                    h2         { font-size:13px; text-align:center; color:#666;
+                                 font-weight:normal; margin-bottom:20px; }
+                    table      { width:100%; border-collapse:collapse; margin-bottom:16px; }
+                    th         { background:#f3f4f6; padding:6px 8px; text-align:left;
+                                 font-size:11px; text-transform:uppercase; }
+                    td         { border-bottom:1px solid #e5e7eb; }
+                    .total-row td { font-weight:bold; background:#f9fafb; }
+                    .ecart-pos { color:#2563eb; }
+                    .ecart-neg { color:#dc2626; }
+                    .ecart-ok  { color:#16a34a; }
+                    .section   { font-weight:bold; margin:16px 0 6px; font-size:13px;
+                                 border-bottom:2px solid #000; padding-bottom:3px; }
+                    .footer    { text-align:center; font-size:11px;
+                                 color:#9ca3af; margin-top:24px; }
                 </style>
             </head>
             <body>
@@ -1290,9 +1067,7 @@ ${cloture?.commentaire_gerant || ''}</textarea>
                     </tr>
                     ${lignesBilletage}
                     <tr class="total-row">
-                        <td style="padding:6px 8px;" colspan="2">
-                            Total en caisse
-                        </td>
+                        <td style="padding:6px 8px;" colspan="2">Total en caisse</td>
                         <td style="padding:6px 8px;text-align:right;">
                             $${(c?.total_billetage || 0).toFixed(2)}
                         </td>
@@ -1315,23 +1090,18 @@ ${cloture?.commentaire_gerant || ''}</textarea>
 
                 ${c?.notes ? `
                 <div class="section">Notes caissière</div>
-                <p style="padding:4px 8px;color:#374151;">
-                    ${c.notes}
-                </p>` : ''}
+                <p style="padding:4px 8px;color:#374151;">${c.notes}</p>` : ''}
 
                 ${c?.commentaire_gerant ? `
                 <div class="section">Commentaire gérant</div>
-                <p style="padding:4px 8px;color:#374151;">
-                    ${c.commentaire_gerant}
-                </p>` : ''}
+                <p style="padding:4px 8px;color:#374151;">${c.commentaire_gerant}</p>` : ''}
 
                 <div class="footer">
                     Clôturé par ${c?.cloture_par || '—'}<br>
                     ${c?.heure_cloture
                         ? new Date(c.heure_cloture).toLocaleString('fr-FR')
                         : ''}<br><br>
-                    JL Beauty System — Édité le
-                    ${new Date().toLocaleString('fr-FR')}
+                    JL Beauty System — Édité le ${new Date().toLocaleString('fr-FR')}
                 </div>
             </body>
             </html>`;
@@ -1344,6 +1114,5 @@ ${cloture?.commentaire_gerant || ''}</textarea>
 
 };
 
-// ── Export global ─────────────────────────────────────────────────────────────
 window.ClotureCaisse = ClotureCaisse;
 console.log('✅ ClotureCaisse loaded');
