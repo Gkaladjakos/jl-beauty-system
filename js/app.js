@@ -161,8 +161,15 @@ const App = {
                     }
                     break;
                 case 'historique-clotures':
-                    App.setPageTitle('Historique', 'Clôtures passées');
-                    await HistoriqueClotures.init();
+                    this.updateHeader(
+                        'Historique des Clôtures',
+                        'Consultez et filtrez les journées passées'
+                    );
+                    if (typeof HistoriqueClotures !== 'undefined') {
+                        await HistoriqueClotures.init();
+                    } else {
+                        this._moduleNotFound(contentArea, 'HistoriqueClotures');
+                    }
                     break;
 
                 // ── Dashboard ──────────────────────────────────────────────

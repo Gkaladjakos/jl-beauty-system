@@ -1,18 +1,27 @@
 // ============================================
 // HISTORIQUE DES CLÔTURES DE CAISSE
-// JL BEAUTY SYSTEM
+// JL BEAUTY SYSTEM - VERSION CORRIGÉE
 // ============================================
 
 const HistoriqueClotures = {
 
     _filtres: {
-        mode:  'date',   // 'date' | 'semaine' | 'mois'
+        mode:  'date',
         date:  new Date().toISOString().split('T')[0],
-        mois:  new Date().toISOString().slice(0, 7),   // YYYY-MM
+        mois:  new Date().toISOString().slice(0, 7),
         debut: null,
         fin:   null,
     },
     _data: [],
+
+    // =========================================================================
+    // ✅ Client Supabase authentifié — évite le 401
+    // =========================================================================
+    _getClient() {
+        const client = AuthSupabase?.supabase || window.supabase;
+        if (!client) throw new Error('Client Supabase non initialisé');
+        return client;
+    },
 
     // =========================================================================
     // init()
@@ -57,7 +66,6 @@ const HistoriqueClotures = {
                             Consultez et filtrez les journées passées
                         </p>
                     </div>
-                    <!-- Export -->
                     <button onclick="HistoriqueClotures.exportCSV()"
                             class="px-4 py-2 border border-gray-300 rounded-lg
                                    text-sm text-gray-700 hover:bg-gray-50
@@ -72,12 +80,9 @@ const HistoriqueClotures = {
                             border-gray-100 p-5">
                     <div class="flex flex-wrap gap-3 items-end">
 
-                        <!-- Sélecteur de mode -->
                         <div>
                             <label class="block text-xs font-medium
-                                          text-gray-500 mb-1">
-                                Filtrer par
-                            </label>
+                                          text-gray-500 mb-1">Filtrer par</label>
                             <div class="flex rounded-lg border border-gray-300
                                         overflow-hidden">
                                 ${['date','semaine','mois'].map(m => `
@@ -93,22 +98,18 @@ const HistoriqueClotures = {
                             </div>
                         </div>
 
-                        <!-- Zone de filtre dynamique -->
                         <div id="zone-filtre" class="flex gap-3 items-end">
                             ${this._renderFiltreInputs()}
                         </div>
 
-                        <!-- Bouton recherche -->
                         <button onclick="HistoriqueClotures.charger()"
                                 class="px-5 py-2 bg-yellow-500 text-white
                                        rounded-lg text-sm font-medium
                                        hover:bg-yellow-600 transition-colors
                                        flex items-center gap-2">
-                            <i class="fas fa-search"></i>
-                            Rechercher
+                            <i class="fas fa-search"></i>Rechercher
                         </button>
 
-                        <!-- Reset -->
                         <button onclick="HistoriqueClotures.reset()"
                                 class="px-4 py-2 text-sm text-gray-500
                                        hover:text-gray-700 transition-colors">
@@ -118,7 +119,7 @@ const HistoriqueClotures = {
                     </div>
                 </div>
 
-                <!-- ── KPI récap période ── -->
+                <!-- ── KPI ── -->
                 <div id="hc-kpi-zone"
                      class="grid grid-cols-2 md:grid-cols-4 gap-4">
                     ${this._kpiSkeleton()}
@@ -152,10 +153,8 @@ const HistoriqueClotures = {
                     <label class="block text-xs font-medium text-gray-500 mb-1">
                         Date
                     </label>
-                    <input type="date"
-                           id="filtre-date"
-                           value="${this._filtres.date}"
-                           max="${today}"
+                    <input type="date" id="filtre-date"
+                           value="${this._filtres.date}" max="${today}"
                            class="border border-gray-300 rounded-lg px-3 py-2
                                   text-sm focus:ring-2 focus:ring-yellow-400
                                   focus:border-transparent">
@@ -168,10 +167,8 @@ const HistoriqueClotures = {
                     <label class="block text-xs font-medium text-gray-500 mb-1">
                         Du
                     </label>
-                    <input type="date"
-                           id="filtre-debut"
-                           value="${this._filtres.debut}"
-                           max="${today}"
+                    <input type="date" id="filtre-debut"
+                           value="${this._filtres.debut}" max="${today}"
                            class="border border-gray-300 rounded-lg px-3 py-2
                                   text-sm focus:ring-2 focus:ring-yellow-400
                                   focus:border-transparent">
@@ -180,10 +177,8 @@ const HistoriqueClotures = {
                     <label class="block text-xs font-medium text-gray-500 mb-1">
                         Au
                     </label>
-                    <input type="date"
-                           id="filtre-fin"
-                           value="${this._filtres.fin}"
-                           max="${today}"
+                    <input type="date" id="filtre-fin"
+                           value="${this._filtres.fin}" max="${today}"
                            class="border border-gray-300 rounded-lg px-3 py-2
                                   text-sm focus:ring-2 focus:ring-yellow-400
                                   focus:border-transparent">
@@ -196,8 +191,7 @@ const HistoriqueClotures = {
                     <label class="block text-xs font-medium text-gray-500 mb-1">
                         Mois
                     </label>
-                    <input type="month"
-                           id="filtre-mois"
+                    <input type="month" id="filtre-mois"
                            value="${this._filtres.mois}"
                            class="border border-gray-300 rounded-lg px-3 py-2
                                   text-sm focus:ring-2 focus:ring-yellow-400
@@ -213,7 +207,6 @@ const HistoriqueClotures = {
     setMode(mode) {
         this._filtres.mode = mode;
 
-        // Mettre à jour les boutons
         ['date','semaine','mois'].forEach(m => {
             const btn = document.getElementById(`btn-mode-${m}`);
             if (!btn) return;
@@ -221,14 +214,11 @@ const HistoriqueClotures = {
                 .replace(/bg-yellow-500 text-white/g, '')
                 .replace(/bg-white text-gray-600 hover:bg-gray-50/g, '')
                 .trim();
-            if (m === mode) {
-                btn.className += ' bg-yellow-500 text-white';
-            } else {
-                btn.className += ' bg-white text-gray-600 hover:bg-gray-50';
-            }
+            btn.className += m === mode
+                ? ' bg-yellow-500 text-white'
+                : ' bg-white text-gray-600 hover:bg-gray-50';
         });
 
-        // Mettre à jour les inputs
         const zone = document.getElementById('zone-filtre');
         if (zone) zone.innerHTML = this._renderFiltreInputs();
     },
@@ -248,18 +238,21 @@ const HistoriqueClotures = {
     },
 
     // =========================================================================
-    // charger() — requête Supabase selon le filtre actif
+    // charger() ✅ CORRIGÉ — client authentifié + gestion session expirée
     // =========================================================================
     async charger() {
-        // ── Lire les valeurs des inputs ──────────────────────────────────────
+
+        // ── Lire les inputs ──────────────────────────────────────────────────
         if (this._filtres.mode === 'date') {
             const d = document.getElementById('filtre-date');
             if (d) this._filtres.date = d.value;
+
         } else if (this._filtres.mode === 'semaine') {
             const deb = document.getElementById('filtre-debut');
             const fin = document.getElementById('filtre-fin');
             if (deb) this._filtres.debut = deb.value;
             if (fin) this._filtres.fin   = fin.value;
+
         } else if (this._filtres.mode === 'mois') {
             const m = document.getElementById('filtre-mois');
             if (m) this._filtres.mois = m.value;
@@ -274,16 +267,28 @@ const HistoriqueClotures = {
             </div>`;
 
         try {
-            let query = window.supabase
+            // ✅ Client authentifié
+            const supabase = this._getClient();
+
+            // ✅ Vérifier session active avant requête
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                throw new Error('SESSION_EXPIRED');
+            }
+
+            let query = supabase
                 .from('clotures_caisse')
                 .select('*')
                 .order('date_journee', { ascending: false });
 
-            // ── Appliquer le filtre ──────────────────────────────────────────
+            // ── Filtre ──────────────────────────────────────────────────────
             if (this._filtres.mode === 'date') {
+                if (!this._filtres.date) throw new Error('Veuillez sélectionner une date');
                 query = query.eq('date_journee', this._filtres.date);
 
             } else if (this._filtres.mode === 'semaine') {
+                if (!this._filtres.debut || !this._filtres.fin)
+                    throw new Error('Veuillez sélectionner une plage de dates');
                 query = query
                     .gte('date_journee', this._filtres.debut)
                     .lte('date_journee', this._filtres.fin);
@@ -291,15 +296,21 @@ const HistoriqueClotures = {
             } else if (this._filtres.mode === 'mois') {
                 const [annee, mois] = this._filtres.mois.split('-');
                 const debut = `${annee}-${mois}-01`;
-                const fin   = new Date(annee, mois, 0)
-                                .toISOString().split('T')[0];
+                const fin   = new Date(annee, mois, 0).toISOString().split('T')[0];
                 query = query
                     .gte('date_journee', debut)
                     .lte('date_journee', fin);
             }
 
             const { data, error } = await query;
-            if (error) throw error;
+
+            // ✅ Distinguer 401 des autres erreurs Supabase
+            if (error) {
+                if (error.status === 401 || error.message?.includes('JWT')) {
+                    throw new Error('SESSION_EXPIRED');
+                }
+                throw error;
+            }
 
             this._data = data || [];
             this._renderKPI(kpiZone);
@@ -307,10 +318,44 @@ const HistoriqueClotures = {
 
         } catch (err) {
             console.error('❌ charger historique:', err);
+
+            // ✅ Session expirée — message + bouton reconnexion
+            if (err.message === 'SESSION_EXPIRED' ||
+                err.message?.includes('expirée') ||
+                err.message?.includes('JWT')) {
+
+                if (tableZone) tableZone.innerHTML = `
+                    <div class="text-center py-16">
+                        <i class="fas fa-lock text-5xl text-orange-300 mb-4"></i>
+                        <p class="font-semibold text-orange-600 mb-1">
+                            Session expirée
+                        </p>
+                        <p class="text-sm text-gray-500 mb-5">
+                            Votre session a expiré. Veuillez vous reconnecter.
+                        </p>
+                        <button onclick="AuthSupabase.logout()"
+                                class="px-5 py-2 bg-purple-600 text-white
+                                       rounded-lg text-sm hover:bg-purple-700
+                                       font-medium">
+                            <i class="fas fa-sign-in-alt mr-2"></i>
+                            Se reconnecter
+                        </button>
+                    </div>`;
+                return;
+            }
+
+            // Erreur générique
             if (tableZone) tableZone.innerHTML = `
-                <div class="text-center py-16 text-red-600">
-                    <i class="fas fa-exclamation-triangle text-3xl mb-3"></i>
-                    <p class="font-medium">Erreur : ${err.message}</p>
+                <div class="text-center py-16 text-red-500">
+                    <i class="fas fa-exclamation-triangle text-4xl mb-4"></i>
+                    <p class="font-semibold mb-1">Erreur de chargement</p>
+                    <p class="text-sm text-gray-500 mb-5">${err.message}</p>
+                    <button onclick="HistoriqueClotures.charger()"
+                            class="px-5 py-2 bg-yellow-500 text-white
+                                   rounded-lg text-sm hover:bg-yellow-600
+                                   font-medium">
+                        <i class="fas fa-redo mr-2"></i>Réessayer
+                    </button>
                 </div>`;
         }
     },
@@ -322,12 +367,12 @@ const HistoriqueClotures = {
         if (!zone) return;
         const data = this._data;
 
-        const totalVentes    = data.reduce((s, r) => s + parseFloat(r.total_ventes    || 0), 0);
-        const totalEntrees   = data.reduce((s, r) => s + parseFloat(r.total_entrees   || 0), 0);
-        const totalSorties   = data.reduce((s, r) => s + parseFloat(r.total_sorties   || 0), 0);
-        const totalEcart     = data.reduce((s, r) => s + parseFloat(r.ecart           || 0), 0);
+        const totalVentes    = data.reduce((s,r) => s + parseFloat(r.total_ventes  ||0), 0);
+        const totalEntrees   = data.reduce((s,r) => s + parseFloat(r.total_entrees ||0), 0);
+        const totalSorties   = data.reduce((s,r) => s + parseFloat(r.total_sorties ||0), 0);
+        const totalEcart     = data.reduce((s,r) => s + parseFloat(r.ecart         ||0), 0);
         const nbJours        = data.length;
-        const nbDesequilibre = data.filter(r => parseFloat(r.ecart || 0) !== 0).length;
+        const nbDesequilibre = data.filter(r => parseFloat(r.ecart||0) !== 0).length;
 
         zone.innerHTML = `
             ${this._kpi('Journées trouvées',
@@ -384,57 +429,33 @@ const HistoriqueClotures = {
                     <thead>
                         <tr class="bg-gray-50 text-gray-500 text-xs
                                    uppercase tracking-wide">
-                            <th class="px-5 py-3 text-left font-semibold">
-                                Date
-                            </th>
-                            <th class="px-5 py-3 text-left font-semibold">
-                                Caissière
-                            </th>
-                            <th class="px-5 py-3 text-right font-semibold">
-                                Ventes
-                            </th>
-                            <th class="px-5 py-3 text-right font-semibold">
-                                Entrées
-                            </th>
-                            <th class="px-5 py-3 text-right font-semibold">
-                                Sorties
-                            </th>
-                            <th class="px-5 py-3 text-right font-semibold">
-                                Théorique
-                            </th>
-                            <th class="px-5 py-3 text-right font-semibold">
-                                En caisse
-                            </th>
-                            <th class="px-5 py-3 text-right font-semibold">
-                                Écart
-                            </th>
-                            <th class="px-5 py-3 text-center font-semibold">
-                                Statut
-                            </th>
-                            <th class="px-5 py-3 text-center font-semibold">
-                                Actions
-                            </th>
+                            <th class="px-5 py-3 text-left font-semibold">Date</th>
+                            <th class="px-5 py-3 text-left font-semibold">Caissière</th>
+                            <th class="px-5 py-3 text-right font-semibold">Ventes</th>
+                            <th class="px-5 py-3 text-right font-semibold">Entrées</th>
+                            <th class="px-5 py-3 text-right font-semibold">Sorties</th>
+                            <th class="px-5 py-3 text-right font-semibold">Théorique</th>
+                            <th class="px-5 py-3 text-right font-semibold">En caisse</th>
+                            <th class="px-5 py-3 text-right font-semibold">Écart</th>
+                            <th class="px-5 py-3 text-center font-semibold">Statut</th>
+                            <th class="px-5 py-3 text-center font-semibold">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
-                        ${this._data.map(r =>
-                            this._renderRow(r, isGerant)
-                        ).join('')}
+                        ${this._data.map(r => this._renderRow(r, isGerant)).join('')}
                     </tbody>
-                    <!-- Ligne totaux -->
                     ${this._renderTotaux()}
                 </table>
             </div>`;
     },
 
     // =========================================================================
-    // _renderRow() — ligne tableau desktop
+    // _renderRow()
     // =========================================================================
     _renderRow(r, isGerant) {
         const ecart    = parseFloat(r.ecart || 0);
-        const ecartCls = ecart === 0
-            ? 'text-green-600'
-            : ecart > 0 ? 'text-blue-600' : 'text-red-600';
+        const ecartCls = ecart === 0 ? 'text-green-600'
+                       : ecart > 0   ? 'text-blue-600' : 'text-red-600';
 
         return `
             <tr class="hover:bg-gray-50 transition-colors">
@@ -474,32 +495,29 @@ const HistoriqueClotures = {
                 </td>
                 <td class="px-5 py-3 text-center">
                     <div class="flex items-center justify-center gap-2">
-                        <!-- Voir le détail -->
                         <button title="Voir le détail"
                                 onclick="HistoriqueClotures.voirDetail('${r.id}')"
-                                class="w-8 h-8 rounded-lg bg-gray-100
-                                       text-gray-600 hover:bg-yellow-100
-                                       hover:text-yellow-700 transition-colors
-                                       flex items-center justify-center text-sm">
+                                class="w-8 h-8 rounded-lg bg-gray-100 text-gray-600
+                                       hover:bg-yellow-100 hover:text-yellow-700
+                                       transition-colors flex items-center
+                                       justify-center text-sm">
                             <i class="fas fa-eye"></i>
                         </button>
-                        <!-- Imprimer -->
                         <button title="Imprimer"
                                 onclick="HistoriqueClotures.imprimer('${r.id}')"
-                                class="w-8 h-8 rounded-lg bg-gray-100
-                                       text-gray-600 hover:bg-blue-100
-                                       hover:text-blue-700 transition-colors
-                                       flex items-center justify-center text-sm">
+                                class="w-8 h-8 rounded-lg bg-gray-100 text-gray-600
+                                       hover:bg-blue-100 hover:text-blue-700
+                                       transition-colors flex items-center
+                                       justify-center text-sm">
                             <i class="fas fa-print"></i>
                         </button>
-                        <!-- Supprimer (gérant uniquement) -->
                         ${isGerant ? `
                         <button title="Supprimer"
                                 onclick="HistoriqueClotures.supprimer('${r.id}')"
-                                class="w-8 h-8 rounded-lg bg-gray-100
-                                       text-gray-600 hover:bg-red-100
-                                       hover:text-red-700 transition-colors
-                                       flex items-center justify-center text-sm">
+                                class="w-8 h-8 rounded-lg bg-gray-100 text-gray-600
+                                       hover:bg-red-100 hover:text-red-700
+                                       transition-colors flex items-center
+                                       justify-center text-sm">
                             <i class="fas fa-trash"></i>
                         </button>` : ''}
                     </div>
@@ -508,13 +526,12 @@ const HistoriqueClotures = {
     },
 
     // =========================================================================
-    // _renderCard() — carte mobile
+    // _renderCard()
     // =========================================================================
     _renderCard(r, isGerant) {
         const ecart    = parseFloat(r.ecart || 0);
-        const ecartCls = ecart === 0
-            ? 'text-green-600'
-            : ecart > 0 ? 'text-blue-600' : 'text-red-600';
+        const ecartCls = ecart === 0 ? 'text-green-600'
+                       : ecart > 0   ? 'text-blue-600' : 'text-red-600';
 
         return `
             <div class="p-4 hover:bg-gray-50">
@@ -574,11 +591,11 @@ const HistoriqueClotures = {
     },
 
     // =========================================================================
-    // _renderTotaux() — ligne de total tableau
+    // _renderTotaux()
     // =========================================================================
     _renderTotaux() {
-        const d = this._data;
-        const sum = k => d.reduce((s, r) => s + parseFloat(r[k] || 0), 0);
+        const d   = this._data;
+        const sum = k => d.reduce((s,r) => s + parseFloat(r[k]||0), 0);
         const ecartTotal = sum('ecart');
 
         return `
@@ -603,11 +620,9 @@ const HistoriqueClotures = {
                         ${Utils.formatUSD(sum('total_billetage'))}
                     </td>
                     <td class="px-5 py-3 text-right
-                               ${ecartTotal === 0
-                                   ? 'text-green-400'
-                                   : ecartTotal > 0
-                                       ? 'text-blue-400'
-                                       : 'text-red-400'}">
+                               ${ecartTotal === 0 ? 'text-green-400'
+                               : ecartTotal  > 0  ? 'text-blue-400'
+                                                  : 'text-red-400'}">
                         ${ecartTotal >= 0 ? '+' : ''}${Utils.formatUSD(ecartTotal)}
                     </td>
                     <td colspan="2"></td>
@@ -616,7 +631,7 @@ const HistoriqueClotures = {
     },
 
     // =========================================================================
-    // voirDetail() — modale de détail
+    // voirDetail()
     // =========================================================================
     async voirDetail(id) {
         const r = this._data.find(x => x.id === id);
@@ -648,16 +663,12 @@ const HistoriqueClotures = {
         }).join('');
 
         const ecart    = parseFloat(r.ecart || 0);
-        const ecartCls = ecart === 0
-            ? 'text-green-600 bg-green-50'
-            : ecart > 0
-                ? 'text-blue-600 bg-blue-50'
-                : 'text-red-600 bg-red-50';
+        const ecartCls = ecart === 0 ? 'text-green-600 bg-green-50'
+                       : ecart  > 0  ? 'text-blue-600 bg-blue-50'
+                                     : 'text-red-600 bg-red-50';
 
         const content = `
             <div class="space-y-5">
-
-                <!-- Info journée -->
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-lg font-bold text-gray-800">
@@ -670,18 +681,15 @@ const HistoriqueClotures = {
                     ${this._badgeStatut(r.statut)}
                 </div>
 
-                <!-- Résumé financier -->
                 <div class="bg-gray-50 rounded-xl p-4 space-y-2">
                     <p class="text-xs font-semibold text-gray-500 uppercase
-                               tracking-wide mb-3">
-                        Résumé financier
-                    </p>
+                               tracking-wide mb-3">Résumé financier</p>
                     ${[
-                        ['Ventes du jour',     r.total_ventes,    'text-blue-600',  '+'],
-                        ['Entrées manuelles',  r.total_entrees,   'text-green-600', '+'],
-                        ['Sorties manuelles',  r.total_sorties,   'text-red-500',   '-'],
-                        ['Total théorique',    r.total_theorique, 'text-gray-800 font-bold', ''],
-                        ['Total en caisse',    r.total_billetage, 'text-gray-800 font-bold', ''],
+                        ['Ventes du jour',    r.total_ventes,    'text-blue-600',          '+'],
+                        ['Entrées manuelles', r.total_entrees,   'text-green-600',         '+'],
+                        ['Sorties manuelles', r.total_sorties,   'text-red-500',           '-'],
+                        ['Total théorique',   r.total_theorique, 'text-gray-800 font-bold',''],
+                        ['Total en caisse',   r.total_billetage, 'text-gray-800 font-bold',''],
                     ].map(([label, val, cls, prefix]) => `
                         <div class="flex justify-between text-sm">
                             <span class="text-gray-600">${label}</span>
@@ -689,7 +697,6 @@ const HistoriqueClotures = {
                                 ${prefix}${Utils.formatUSD(val)}
                             </span>
                         </div>`).join('')}
-                    <!-- Écart -->
                     <div class="flex justify-between text-sm font-bold
                                 pt-2 mt-2 border-t border-gray-200">
                         <span>Écart</span>
@@ -700,17 +707,13 @@ const HistoriqueClotures = {
                     </div>
                 </div>
 
-                <!-- Billetage -->
                 ${Object.values(billetage).some(v => v > 0) ? `
                 <div>
                     <p class="text-xs font-semibold text-gray-500 uppercase
-                               tracking-wide mb-3">
-                        Billetage physique
-                    </p>
+                               tracking-wide mb-3">Billetage physique</p>
                     <div class="space-y-0">${lignesBilletage}</div>
                 </div>` : ''}
 
-                <!-- Notes -->
                 ${r.notes ? `
                 <div class="bg-yellow-50 rounded-xl p-4">
                     <p class="text-xs font-semibold text-yellow-700 uppercase
@@ -719,15 +722,12 @@ const HistoriqueClotures = {
                     </p>
                     <p class="text-sm text-gray-700">${r.notes}</p>
                 </div>` : ''}
-
             </div>`;
 
         Utils.createModal(
             `<i class="fas fa-file-alt text-yellow-500 mr-2"></i>
              Détail — ${this._formatDate(r.date_journee)}`,
-            content,
-            null,
-            null
+            content, null, null
         );
     },
 
@@ -738,8 +738,6 @@ const HistoriqueClotures = {
         const r = this._data.find(x => x.id === id);
         if (!r) return;
 
-        // Réutiliser la méthode d'impression de ClotureCaisse
-        // en lui passant les données manuellement
         const billetage = r.billetage
             ? (typeof r.billetage === 'string'
                 ? JSON.parse(r.billetage) : r.billetage)
@@ -760,8 +758,7 @@ const HistoriqueClotures = {
         const ecart = parseFloat(r.ecart || 0);
 
         const html = `
-            <!DOCTYPE html>
-            <html>
+            <!DOCTYPE html><html>
             <head>
                 <meta charset="UTF-8">
                 <title>Récap Caisse — ${r.date_journee}</title>
@@ -771,19 +768,16 @@ const HistoriqueClotures = {
                     h1    { font-size:18px; text-align:center; margin-bottom:4px; }
                     h2    { font-size:13px; text-align:center; color:#666;
                             font-weight:normal; margin-bottom:20px; }
-                    table { width:100%; border-collapse:collapse;
-                            margin-bottom:16px; }
-                    th    { background:#f3f4f6; padding:6px 8px;
-                            text-align:left; font-size:11px;
-                            text-transform:uppercase; }
+                    table { width:100%; border-collapse:collapse; margin-bottom:16px; }
+                    th    { background:#f3f4f6; padding:6px 8px; text-align:left;
+                            font-size:11px; text-transform:uppercase; }
                     td    { border-bottom:1px solid #e5e7eb; }
                     .tr   { font-weight:bold; background:#f9fafb; }
                     .ep   { color:#2563eb; }
                     .en   { color:#dc2626; }
                     .eo   { color:#16a34a; }
-                    .sec  { font-weight:bold; margin:16px 0 6px;
-                            font-size:13px; border-bottom:2px solid #000;
-                            padding-bottom:3px; }
+                    .sec  { font-weight:bold; margin:16px 0 6px; font-size:13px;
+                            border-bottom:2px solid #000; padding-bottom:3px; }
                     .ft   { text-align:center; font-size:11px;
                             color:#9ca3af; margin-top:24px; }
                 </style>
@@ -791,7 +785,6 @@ const HistoriqueClotures = {
             <body>
                 <h1>JL Beauty System</h1>
                 <h2>Récapitulatif de caisse — ${r.date_journee}</h2>
-
                 <div class="sec">Résumé financier</div>
                 <table>
                     <tr><td style="padding:4px 8px;">Ventes du jour</td>
@@ -808,7 +801,6 @@ const HistoriqueClotures = {
                         <td style="padding:6px 8px;text-align:right;">
                             $${parseFloat(r.total_theorique||0).toFixed(2)}</td></tr>
                 </table>
-
                 <div class="sec">Billetage physique</div>
                 <table>
                     <tr>
@@ -818,15 +810,12 @@ const HistoriqueClotures = {
                     </tr>
                     ${lignesBilletage}
                     <tr class="tr">
-                        <td style="padding:6px 8px;" colspan="2">
-                            Total en caisse
-                        </td>
+                        <td style="padding:6px 8px;" colspan="2">Total en caisse</td>
                         <td style="padding:6px 8px;text-align:right;">
                             $${parseFloat(r.total_billetage||0).toFixed(2)}
                         </td>
                     </tr>
                 </table>
-
                 <div class="sec">Écart</div>
                 <table>
                     <tr class="tr">
@@ -837,18 +826,15 @@ const HistoriqueClotures = {
                         </td>
                     </tr>
                 </table>
-
                 ${r.notes ? `
                 <div class="sec">Notes</div>
                 <p style="padding:4px 8px;">${r.notes}</p>` : ''}
-
                 <div class="ft">
                     Clôturé par ${r.cloture_par || '—'}<br>
                     JL Beauty System — Édité le
                     ${new Date().toLocaleString('fr-FR')}
                 </div>
-            </body>
-            </html>`;
+            </body></html>`;
 
         const win = window.open('', '_blank');
         win.document.write(html);
@@ -857,7 +843,7 @@ const HistoriqueClotures = {
     },
 
     // =========================================================================
-    // supprimer() — gérant uniquement
+    // supprimer() ✅ CORRIGÉ — client authentifié
     // =========================================================================
     async supprimer(id) {
         if (!AuthSupabase.isGerant()) {
@@ -868,19 +854,26 @@ const HistoriqueClotures = {
         if (!r) return;
 
         if (!confirm(
-            `Supprimer définitivement la clôture du ${this._formatDate(r.date_journee)} ?\n\nCette action est irréversible.`
+            `Supprimer définitivement la clôture du ` +
+            `${this._formatDate(r.date_journee)} ?\n\nCette action est irréversible.`
         )) return;
 
         try {
-            const { error } = await window.supabase
+            // ✅ Client authentifié
+            const supabase = this._getClient();
+
+            const { error } = await supabase
                 .from('clotures_caisse')
                 .delete()
                 .eq('id', id);
+
             if (error) throw error;
 
             Utils.showToast('Clôture supprimée', 'success');
             await this.charger();
+
         } catch (err) {
+            console.error('❌ supprimer:', err);
             Utils.showToast('Erreur : ' + err.message, 'error');
         }
     },
@@ -895,8 +888,8 @@ const HistoriqueClotures = {
         }
 
         const header = [
-            'Date', 'Caissière', 'Ventes', 'Entrées',
-            'Sorties', 'Théorique', 'En caisse', 'Écart', 'Statut', 'Notes'
+            'Date','Caissière','Ventes','Entrées',
+            'Sorties','Théorique','En caisse','Écart','Statut','Notes'
         ].join(';');
 
         const rows = this._data.map(r => [
@@ -912,12 +905,12 @@ const HistoriqueClotures = {
             (r.notes || '').replace(/;/g, ',').replace(/\n/g, ' '),
         ].join(';'));
 
-        const csv     = [header, ...rows].join('\n');
-        const blob    = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-        const url     = URL.createObjectURL(blob);
-        const a       = document.createElement('a');
-        a.href        = url;
-        a.download    = `clotures_caisse_${this._currentPeriodeLabel()}.csv`;
+        const csv  = [header, ...rows].join('\n');
+        const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = `clotures_caisse_${this._currentPeriodeLabel()}.csv`;
         a.click();
         URL.revokeObjectURL(url);
 
@@ -930,9 +923,8 @@ const HistoriqueClotures = {
     _currentPeriodeLabel() {
         if (this._filtres.mode === 'date')    return this._filtres.date;
         if (this._filtres.mode === 'mois')    return this._filtres.mois;
-        if (this._filtres.mode === 'semaine') {
+        if (this._filtres.mode === 'semaine')
             return `${this._filtres.debut}_${this._filtres.fin}`;
-        }
         return 'export';
     },
 
@@ -947,16 +939,15 @@ const HistoriqueClotures = {
     _badgeStatut(statut) {
         const cfg = {
             cloture: { cls: 'bg-green-100 text-green-800',
-                       icon: 'fa-lock', label: 'Clôturé' },
+                       icon: 'fa-lock',      label: 'Clôturé' },
             ouvert:  { cls: 'bg-yellow-100 text-yellow-800',
-                       icon: 'fa-lock-open', label: 'Ouvert' },
+                       icon: 'fa-lock-open', label: 'Ouvert'  },
         };
         const s = cfg[statut] || cfg['ouvert'];
         return `
-            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full
-                         text-xs font-medium ${s.cls}">
-                <i class="fas ${s.icon} text-xs"></i>
-                ${s.label}
+            <span class="inline-flex items-center gap-1 px-2.5 py-1
+                         rounded-full text-xs font-medium ${s.cls}">
+                <i class="fas ${s.icon} text-xs"></i>${s.label}
             </span>`;
     },
 
@@ -968,8 +959,7 @@ const HistoriqueClotures = {
             red:    'bg-red-50    text-red-600    border-red-100',
         };
         return `
-            <div class="bg-white rounded-xl p-4 border ${colors[color]}
-                        shadow-sm">
+            <div class="bg-white rounded-xl p-4 border ${colors[color]} shadow-sm">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-lg flex items-center
                                 justify-center ${colors[color]} flex-shrink-0">
@@ -998,6 +988,6 @@ const HistoriqueClotures = {
     },
 };
 
-// ── Export global ─────────────────────────────────────────────────────────────
+// ── Export global ──────────────────────────────────────────────────────────────
 window.HistoriqueClotures = HistoriqueClotures;
 console.log('✅ HistoriqueClotures loaded');
