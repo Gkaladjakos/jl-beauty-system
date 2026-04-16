@@ -26,9 +26,10 @@ const ROLE_PERMISSIONS = {
 const DEFAULT_ROLE = 'caissiere';
 
 const AuthSupabase = {
-    supabase:         null,
-    currentUser:      null,
-    _listenerStarted: false,
+    supabase:          null,
+    currentUser:       null,
+    _listenerStarted:  false,
+    _changingPassword: false,   // ✅ NOUVEAU
 
     // =========================================================================
     // init()
@@ -51,18 +52,30 @@ const AuthSupabase = {
     startAuthListener() {
         if (!this.supabase || this._listenerStarted) return;
         this._listenerStarted = true;
-
+    
         this.supabase.auth.onAuthStateChange(async (event, session) => {
             console.log('[Auth] onAuthStateChange:', event);
-
+    
+            // ✅ Ignorer tous les événements pendant le changement de mot de passe
+            if (this._changingPassword) {
+                console.log('[Auth] _changingPassword actif → événement ignoré:', event);
+                return;
+            }
+    
             if (event === 'SIGNED_OUT' || !session) {
                 this.currentUser = null;
                 localStorage.removeItem('jlbeauty_user');
                 localStorage.removeItem('jlbeauty_auth_type');
                 return;
             }
-
-            if (['TOKEN_REFRESHED', 'SIGNED_IN', 'USER_UPDATED'].includes(event)) {
+    
+            if (event === 'USER_UPDATED') {
+                console.log('[Auth] USER_UPDATED — session stable');
+                await this.checkAuth();
+                return;
+            }
+    
+            if (['TOKEN_REFRESHED', 'SIGNED_IN'].includes(event)) {
                 await this.checkAuth();
             }
         });

@@ -144,14 +144,13 @@ const AuthManager = {
             '<i class="fas fa-history mr-2 text-purple-500"></i>' +
             'Journal de connexion',
             content,
-            null   // pas de bouton confirmer
+            null
         );
         document.body.appendChild(modal);
     },
 
     // =========================================================================
     // ✅ showChangePasswordModal()
-    // Accessible à TOUS les rôles (chacun change son propre mot de passe)
     // =========================================================================
     showChangePasswordModal() {
         const content = `
@@ -251,7 +250,7 @@ const AuthManager = {
     },
 
     // =========================================================================
-    // ✅ submitChangePassword()
+    // ✅ submitChangePassword() — CORRIGÉ
     // =========================================================================
     async submitChangePassword(modal) {
         const errEl = document.getElementById('pwd-error');
@@ -274,9 +273,13 @@ const AuthManager = {
             if (!/[0-9]/.test(newPassword))
                 throw new Error('Au moins un chiffre est requis.');
             if (newPassword === currentPassword)
-                throw new Error('Le nouveau mot de passe doit être différent de l\'ancien.');
+                throw new Error("Le nouveau mot de passe doit être différent de l'ancien.");
 
             App.showLoading?.();
+
+            // ✅ Bloquer le listener auth pendant toute l'opération
+            AuthSupabase._changingPassword = true;
+            console.log('[Auth] _changingPassword = true');
 
             // ── Vérifier l'ancien mot de passe (re-login silencieux) ─────────
             const { data: { user } } = await AuthSupabase.supabase.auth.getUser();
@@ -293,9 +296,12 @@ const AuthManager = {
             // ── Appliquer le nouveau mot de passe ────────────────────────────
             const { error: updateError } =
                 await AuthSupabase.supabase.auth.updateUser({
-                    password: newPassword
+                    password: newPassword,
                 });
             if (updateError) throw new Error(updateError.message);
+
+            // ── Mettre à jour le cache offline avec le nouveau mot de passe ──
+            await AuthSupabase._cacheSession(user.email, newPassword, AuthSupabase.currentUser);
 
             // ── Log de l'événement ───────────────────────────────────────────
             await AuthSupabase._logConnexion({
@@ -315,27 +321,31 @@ const AuthManager = {
                 errEl.textContent = err.message;
                 errEl.classList.remove('hidden');
             }
+        } finally {
+            // ✅ Toujours libérer le flag, même en cas d'erreur
+            AuthSupabase._changingPassword = false;
+            console.log('[Auth] _changingPassword = false');
         }
     },
 
     // =========================================================================
-    // ✅ togglePwd() — afficher / masquer un champ password
+    // ✅ togglePwd()
     // =========================================================================
     togglePwd(inputId, btn) {
         const input = document.getElementById(inputId);
         const icon  = btn?.querySelector('i');
         if (!input) return;
         if (input.type === 'password') {
-            input.type     = 'text';
+            input.type = 'text';
             if (icon) icon.className = 'fas fa-eye-slash text-sm';
         } else {
-            input.type     = 'password';
+            input.type = 'password';
             if (icon) icon.className = 'fas fa-eye text-sm';
         }
     },
 
     // =========================================================================
-    // ✅ checkStrength() — jauge de force en temps réel
+    // ✅ checkStrength()
     // =========================================================================
     checkStrength(pwd) {
         let score = 0;

@@ -148,7 +148,7 @@ const ClotureCaisse = {
     _renderJournee(zone) {
         const cloture    = this._cloture;
         const verrouille = ['validé', 'en_attente', 'rejeté'].includes(cloture?.statut);
-        const isGerant = AuthManager.isGerant();
+        const isGerant = AuthSupabase.isGerant();
 
         const totalVentes = this._ventes.reduce(
             (s, v) => s + parseFloat(v.montant_total || 0), 0
@@ -881,7 +881,7 @@ const ClotureCaisse = {
     },
 
     async deverrouiller() {
-        if (!AuthManager.isGerant()) {
+        if (!AuthSupabase.isGerant()) {
             Utils.showToast('Réservé au gérant', 'error');
             return;
         }
