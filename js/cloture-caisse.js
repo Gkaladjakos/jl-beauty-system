@@ -19,6 +19,15 @@ const ClotureCaisse = {
     COUPURES: [100, 50, 20, 10, 5],
 
     // =========================================================================
+    // _getClient() ✅ Client Supabase authentifié
+    // =========================================================================
+    _getClient() {
+        const client = AuthSupabase?.supabase || window.supabase;
+        if (!client) throw new Error('Client Supabase non initialisé');
+        return client;
+    },
+
+    // =========================================================================
     // init()
     // =========================================================================
     async init() {
@@ -83,7 +92,7 @@ const ClotureCaisse = {
     },
 
     // =========================================================================
-    // chargerJournee()
+    // chargerJournee() ✅ CORRIGÉ
     // =========================================================================
     async chargerJournee() {
         const picker = document.getElementById('cc-date-picker');
@@ -98,12 +107,32 @@ const ClotureCaisse = {
             </div>`;
 
         try {
+            const supabase = this._getClient();             // ✅
+
+            // ✅ Vérifier session
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                zone.innerHTML = `
+                    <div class="text-center py-16">
+                        <i class="fas fa-lock text-5xl text-orange-300 mb-4"></i>
+                        <p class="font-semibold text-orange-600 mb-4">
+                            Session expirée
+                        </p>
+                        <button onclick="AuthSupabase.logout()"
+                                class="px-5 py-2 bg-purple-600 text-white
+                                       rounded-lg text-sm hover:bg-purple-700">
+                            Se reconnecter
+                        </button>
+                    </div>`;
+                return;
+            }
+
             // ── 1. Clôture existante ─────────────────────────────────────────
             const { data: clotureData, error: clotureError } =
-                await window.supabase
+                await supabase
                     .from('clotures_caisse')
                     .select('*')
-                    .eq('date_journee', this._currentDate)
+                    .eq('date_journee', this._currentDate)  // ✅ date pure
                     .maybeSingle();
 
             if (clotureError) {
@@ -112,15 +141,12 @@ const ClotureCaisse = {
             this._cloture = clotureData || null;
 
             // ── 2. Ventes du jour ────────────────────────────────────────────
-            const debutV = this._currentDate + 'T00:00:00.000Z';
-            const finV   = this._currentDate + 'T23:59:59.999Z';
-
             const { data: ventesData, error: ventesError } =
-                await window.supabase
+                await supabase
                     .from('ventes')
                     .select('id, montant_total, mode_paiement, date_vente')
-                    .gte('date_vente', debutV)
-                    .lte('date_vente', finV)
+                    .gte('date_vente', this._currentDate + 'T00:00:00.000Z')
+                    .lte('date_vente', this._currentDate + 'T23:59:59.999Z')
                     .order('date_vente', { ascending: true });
 
             if (ventesError) {
@@ -128,16 +154,12 @@ const ClotureCaisse = {
             }
             this._ventes = ventesData || [];
 
-            // ── 3. Mouvements manuels ────────────────────────────────────────
-            const debutM = this._currentDate + 'T00:00:00.000Z';
-            const finM   = this._currentDate + 'T23:59:59.999Z';
-
+            // ── 3. Mouvements manuels ✅ CORRIGÉ — .eq sur date pure
             const { data: mouvementsData, error: mvtError } =
-                await window.supabase
+                await supabase
                     .from('mouvements_caisse')
                     .select('*')
-                    .gte('date_journee', debutM)
-                    .lte('date_journee', finM)
+                    .eq('date_journee', this._currentDate)  // ✅ plus d'ISO
                     .order('created_at', { ascending: true });
 
             if (mvtError) {
@@ -156,12 +178,17 @@ const ClotureCaisse = {
                     <i class="fas fa-exclamation-triangle text-2xl mb-2"></i>
                     <p class="font-medium">Erreur lors du chargement</p>
                     <p class="text-sm mt-1">${err.message}</p>
+                    <button onclick="ClotureCaisse.chargerJournee()"
+                            class="mt-4 px-4 py-2 bg-yellow-500 text-white
+                                   rounded-lg text-sm hover:bg-yellow-600">
+                        <i class="fas fa-redo mr-1"></i>Réessayer
+                    </button>
                 </div>`;
         }
     },
 
     // =========================================================================
-    // _renderJournee()
+    // _renderJournee() ✅ CORRIGÉ — bandeau avec bouton billetage
     // =========================================================================
     _renderJournee(zone) {
         const cloture    = this._cloture;
@@ -197,7 +224,7 @@ const ClotureCaisse = {
         // ── HTML ─────────────────────────────────────────────────────────────
         zone.innerHTML = `
 
-            <!-- ══ Bandeau statut ══ -->
+            <!-- ══ Bandeau statut ✅ CORRIGÉ ══ -->
             ${verrouille ? `
             <div class="bg-green-50 border border-green-200 rounded-xl px-5 py-3
                         flex items-center gap-3 mb-6">
@@ -211,13 +238,22 @@ const ClotureCaisse = {
                         par ${cloture.cloture_par || '—'}
                     </p>
                 </div>
-                ${isGerant ? `
-                <button onclick="ClotureCaisse.deverrouiller()"
-                        class="ml-auto text-xs px-3 py-1.5 rounded-lg
-                               border border-green-400 text-green-700
-                               hover:bg-green-100 transition-colors">
-                    <i class="fas fa-unlock mr-1"></i>Déverrouiller
-                </button>` : ''}
+                <div class="ml-auto flex gap-2">
+                    <!-- ✅ Bouton billetage -->
+                    <button onclick="ClotureCaisse.voirBilletage()"
+                            class="text-xs px-3 py-1.5 rounded-lg
+                                   border border-green-400 text-green-700
+                                   hover:bg-green-100 transition-colors">
+                        <i class="fas fa-money-bill-wave mr-1"></i>Billetage
+                    </button>
+                    ${isGerant ? `
+                    <button onclick="ClotureCaisse.deverrouiller()"
+                            class="text-xs px-3 py-1.5 rounded-lg
+                                   border border-green-400 text-green-700
+                                   hover:bg-green-100 transition-colors">
+                        <i class="fas fa-unlock mr-1"></i>Déverrouiller
+                    </button>` : ''}
+                </div>
             </div>` : `
             <div class="bg-yellow-50 border border-yellow-200 rounded-xl
                         px-5 py-3 flex items-center gap-3 mb-6">
@@ -322,10 +358,10 @@ const ClotureCaisse = {
                                         <span class="w-7 h-7 rounded-full flex
                                                      items-center justify-center
                                                      text-xs
-                                                     ${m.type === 'entree'
+                                                     ${m.type === 'Entree'
                                                         ? 'bg-green-100 text-green-700'
                                                         : 'bg-red-100 text-red-700'}">
-                                            <i class="fas fa-${m.type === 'entree'
+                                            <i class="fas fa-${m.type === 'Entree'
                                                 ? 'arrow-down' : 'arrow-up'}"></i>
                                         </span>
                                         <div>
@@ -340,10 +376,10 @@ const ClotureCaisse = {
                                     </div>
                                     <div class="flex items-center gap-3">
                                         <span class="font-semibold text-sm
-                                                     ${m.type === 'entree'
+                                                     ${m.type === 'Entree'
                                                         ? 'text-green-600'
                                                         : 'text-red-600'}">
-                                            ${m.type === 'entree' ? '+' : '-'}
+                                            ${m.type === 'Entree' ? '+' : '-'}
                                             ${Utils.formatUSD(m.montant)}
                                         </span>
                                         ${!verrouille ? `
@@ -580,7 +616,6 @@ ${cloture?.commentaire_gerant || ''}</textarea>
 
         this._totalTheorique = totalTheorique;
     },
-
     // =========================================================================
     // _kpi()
     // =========================================================================
@@ -755,17 +790,8 @@ ${cloture?.commentaire_gerant || ''}</textarea>
         setTimeout(() => document.getElementById('mv-libelle')?.focus(), 100);
     },
 
- // =========================================================================
-    // ✅ Client Supabase authentifié — évite le 401
     // =========================================================================
-    _getClient() {
-        const client = AuthSupabase?.supabase || window.supabase;
-        if (!client) throw new Error('Client Supabase non initialisé');
-        return client;
-    },
-
-    // =========================================================================
-    // _getCompteOhada()  — inchangé
+    // _getCompteOhada()
     // =========================================================================
     _getCompteOhada(type, libelle = '') {
         const l = libelle.toLowerCase();
@@ -799,12 +825,12 @@ ${cloture?.commentaire_gerant || ''}</textarea>
     // =========================================================================
     async _saveMouvement({ type, libelle, montant, note }) {
         try {
-            const user = AuthSupabase.getCurrentUser();
+            const supabase = this._getClient();
+            const user     = AuthSupabase.getCurrentUser();
 
             console.log('👤 User courant :', user);
 
-            // ✅ Vérifier session active
-            const supabase = this._getClient();
+            // ✅ Vérifier session
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) {
                 Utils.showToast('Session expirée — reconnectez-vous', 'error');
@@ -821,10 +847,9 @@ ${cloture?.commentaire_gerant || ''}</textarea>
             const typeNormalise = TYPE_MAP[type] ?? type;
 
             // ✅ date_journee en format DATE pur (YYYY-MM-DD)
-            //    — plus d'ISO complet qui casse la colonne type "date"
             const payload = {
                 type:         typeNormalise,
-                date_journee: this._currentDate,          // ✅ "2026-04-01"
+                date_journee: this._currentDate,            // ✅ "2026-04-01"
                 libelle:      libelle,
                 montant:      parseFloat(montant),
                 source:       'caisse',
@@ -836,7 +861,7 @@ ${cloture?.commentaire_gerant || ''}</textarea>
 
             console.log('📦 Payload final :', JSON.stringify(payload, null, 2));
 
-            const { data, error } = await supabase          // ✅ client auth
+            const { data, error } = await supabase
                 .from('mouvements_caisse')
                 .insert([payload])
                 .select();
@@ -847,7 +872,6 @@ ${cloture?.commentaire_gerant || ''}</textarea>
                     details: error.details,
                     hint:    error.hint,
                     code:    error.code,
-                    status:  error.status,
                 });
                 throw new Error(error.message);
             }
@@ -931,7 +955,7 @@ ${cloture?.commentaire_gerant || ''}</textarea>
             }
 
             const payload = {
-                date_journee:       this._currentDate,     // ✅ format DATE pur
+                date_journee:       this._currentDate,      // ✅ date pure
                 montant_ouverture:  montantOuverture,
                 total_ventes:       this._ventes.reduce(
                                         (s, v) => s + parseFloat(
@@ -959,13 +983,13 @@ ${cloture?.commentaire_gerant || ''}</textarea>
             console.log('📦 Payload clôture :', JSON.stringify(payload, null, 2));
 
             if (this._cloture?.id) {
-                const { error } = await supabase            // ✅
+                const { error } = await supabase
                     .from('clotures_caisse')
                     .update(payload)
                     .eq('id', this._cloture.id);
                 if (error) throw error;
             } else {
-                const { error } = await supabase            // ✅
+                const { error } = await supabase
                     .from('clotures_caisse')
                     .insert([payload]);
                 if (error) throw error;
@@ -1015,9 +1039,157 @@ ${cloture?.commentaire_gerant || ''}</textarea>
             Utils.showToast('Erreur : ' + err.message, 'error');
         }
     },
+        // =========================================================================  
+    // voirBilletage() ✅ NOUVEAU  
+    // =========================================================================  
+    voirBilletage() {  
+        const c = this._cloture;  
+        if (!c) {  
+            Utils.showToast('Aucune clôture pour cette journée', 'warning');  
+            return;  
+        }  
 
-    // =========================================================================
-    // imprimerRecap() — inchangé
+        const billetage = c.billetage  
+            ? (typeof c.billetage === 'string'  
+                ? JSON.parse(c.billetage)  
+                : c.billetage)  
+            : {};  
+
+        const totalBilletage = this.COUPURES.reduce(  
+            (s, coup) => s + (parseInt(billetage[coup] || 0) * coup), 0  
+        );  
+        const ecart    = parseFloat(c.ecart || 0);  
+        const ecartCls = ecart === 0  
+            ? 'text-green-600 bg-green-50'  
+            : ecart > 0  
+                ? 'text-blue-600 bg-blue-50'  
+                : 'text-red-600 bg-red-50';  
+
+        const lignesBilletage = this.COUPURES.map(coup => {  
+            const qty    = parseInt(billetage[coup] || 0);  
+            const sous   = qty * coup;  
+            const zeroCls = qty === 0 ? 'opacity-40' : '';  
+            return `  
+                <div class="flex items-center justify-between py-2.5  
+                            border-b border-gray-100 last:border-0 ${zeroCls}">  
+                    <div class="flex items-center gap-3">  
+                        <span class="w-16 text-center px-2 py-1  
+                                     bg-green-100 text-green-800  
+                                     rounded-lg text-sm font-bold  
+                                     border border-green-200">  
+                            $${coup}  
+                        </span>  
+                        <span class="text-sm text-gray-500">  
+                            × <strong class="text-gray-800">${qty}</strong>  
+                            billet${qty > 1 ? 's' : ''}  
+                        </span>  
+                    </div>  
+                    <span class="font-semibold text-gray-800 text-sm">  
+                        ${Utils.formatUSD(sous)}  
+                    </span>  
+                </div>`;  
+        }).join('');  
+
+        const content = `  
+            <div class="space-y-5">  
+
+                <!-- En-tête -->  
+                <div class="flex items-center justify-between  
+                            bg-gray-50 rounded-xl p-4">  
+                    <div>  
+                        <p class="text-xs text-gray-500">Journée</p>  
+                        <p class="font-bold text-gray-800">  
+                            ${this._currentDate}  
+                        </p>  
+                    </div>  
+                    <div class="text-right">  
+                        <p class="text-xs text-gray-500">Clôturé par</p>  
+                        <p class="font-semibold text-gray-700 text-sm">  
+                            ${c.cloture_par || '—'}  
+                        </p>  
+                    </div>  
+                </div>  
+
+                <!-- Détail billetage -->  
+                <div>  
+                    <p class="text-xs font-semibold text-gray-500 uppercase  
+                               tracking-wide mb-3">  
+                        <i class="fas fa-money-bill-wave text-green-500 mr-1"></i>  
+                        Détail des billets comptés  
+                    </p>  
+                    <div class="bg-white border border-gray-200 rounded-xl  
+                                px-4 divide-y divide-gray-50">  
+                        ${lignesBilletage}  
+                    </div>  
+                </div>  
+
+                <!-- Totaux -->  
+                <div class="bg-gray-50 rounded-xl p-4 space-y-2">  
+                    <div class="flex justify-between text-sm">  
+                        <span class="text-gray-500">Total billeté</span>  
+                        <span class="font-bold text-gray-900 text-base">  
+                            ${Utils.formatUSD(totalBilletage)}  
+                        </span>  
+                    </div>  
+                    <div class="flex justify-between text-sm">  
+                        <span class="text-gray-500">Total théorique</span>  
+                        <span class="font-semibold text-gray-700">  
+                            ${Utils.formatUSD(c.total_theorique)}  
+                        </span>  
+                    </div>  
+                    <div class="flex justify-between text-sm font-bold  
+                                pt-2 border-t border-gray-200">  
+                        <span>Écart</span>  
+                        <span class="${ecartCls} px-3 py-0.5 rounded-lg">  
+                            ${ecart >= 0 ? '+' : ''}${Utils.formatUSD(ecart)}  
+                            ${ecart === 0 ? ' ✅' : ecart > 0 ? ' ⬆️' : ' ⬇️'}  
+                        </span>  
+                    </div>  
+                </div>  
+
+                <!-- Détail financier -->  
+                <div class="grid grid-cols-3 gap-3 text-center text-xs">  
+                    <div class="bg-blue-50 rounded-xl p-3">  
+                        <p class="text-gray-500 mb-1">Ventes</p>  
+                        <p class="font-bold text-blue-700">  
+                            ${Utils.formatUSD(c.total_ventes)}  
+                        </p>  
+                    </div>  
+                    <div class="bg-green-50 rounded-xl p-3">  
+                        <p class="text-gray-500 mb-1">Entrées</p>  
+                        <p class="font-bold text-green-700">  
+                            +${Utils.formatUSD(c.total_entrees)}  
+                        </p>  
+                    </div>  
+                    <div class="bg-red-50 rounded-xl p-3">  
+                        <p class="text-gray-500 mb-1">Sorties</p>  
+                        <p class="font-bold text-red-700">  
+                            -${Utils.formatUSD(c.total_sorties)}  
+                        </p>  
+                    </div>  
+                </div>  
+
+                ${c.notes ? `  
+                <div class="bg-yellow-50 border border-yellow-100  
+                            rounded-xl p-4">  
+                    <p class="text-xs font-semibold text-yellow-700 mb-1">  
+                        <i class="fas fa-sticky-note mr-1"></i>Notes  
+                    </p>  
+                    <p class="text-sm text-gray-700">${c.notes}</p>  
+                </div>` : ''}  
+
+            </div>`;  
+
+        Utils.createModal(  
+            `<i class="fas fa-money-bill-wave text-green-500 mr-2"></i>  
+             Billetage — ${this._currentDate}`,  
+            content,  
+            null,  
+            null  
+        );  
+    },  
+        // =========================================================================
+    // imprimerRecap()
     // =========================================================================
     imprimerRecap() {
         const c         = this._cloture;
@@ -1080,27 +1252,32 @@ ${cloture?.commentaire_gerant || ''}</textarea>
                     <tr>
                         <td style="padding:4px 8px;">Fonds d'ouverture</td>
                         <td style="padding:4px 8px;text-align:right;">
-                            $${(c?.montant_ouverture || 0).toFixed(2)}</td>
+                            $${(c?.montant_ouverture || 0).toFixed(2)}
+                        </td>
                     </tr>
                     <tr>
                         <td style="padding:4px 8px;">Ventes du jour</td>
                         <td style="padding:4px 8px;text-align:right;">
-                            $${(c?.total_ventes || 0).toFixed(2)}</td>
+                            $${(c?.total_ventes || 0).toFixed(2)}
+                        </td>
                     </tr>
                     <tr>
                         <td style="padding:4px 8px;">Entrées manuelles</td>
                         <td style="padding:4px 8px;text-align:right;">
-                            +$${(c?.total_entrees || 0).toFixed(2)}</td>
+                            +$${(c?.total_entrees || 0).toFixed(2)}
+                        </td>
                     </tr>
                     <tr>
                         <td style="padding:4px 8px;">Sorties manuelles</td>
                         <td style="padding:4px 8px;text-align:right;">
-                            -$${(c?.total_sorties || 0).toFixed(2)}</td>
+                            -$${(c?.total_sorties || 0).toFixed(2)}
+                        </td>
                     </tr>
                     <tr class="total-row">
                         <td style="padding:6px 8px;">Total théorique</td>
                         <td style="padding:6px 8px;text-align:right;">
-                            $${(c?.total_theorique || 0).toFixed(2)}</td>
+                            $${(c?.total_theorique || 0).toFixed(2)}
+                        </td>
                     </tr>
                 </table>
 
@@ -1128,8 +1305,8 @@ ${cloture?.commentaire_gerant || ''}</textarea>
                         <td style="padding:6px 8px;">Écart</td>
                         <td style="padding:6px 8px;text-align:right;"
                             class="${(c?.ecart || 0) === 0 ? 'ecart-ok'
-                                   : (c?.ecart || 0)  > 0  ? 'ecart-pos'
-                                   :                         'ecart-neg'}">
+                                   : (c?.ecart || 0) > 0  ? 'ecart-pos'
+                                   :                        'ecart-neg'}">
                             ${(c?.ecart || 0) >= 0 ? '+' : ''}
                             $${(c?.ecart || 0).toFixed(2)}
                         </td>
@@ -1138,8 +1315,9 @@ ${cloture?.commentaire_gerant || ''}</textarea>
 
                 ${c?.notes ? `
                 <div class="section">Notes caissière</div>
-                <p style="padding:4px 8px;color:#374151;">${c.notes}</p>`
-                : ''}
+                <p style="padding:4px 8px;color:#374151;">
+                    ${c.notes}
+                </p>` : ''}
 
                 ${c?.commentaire_gerant ? `
                 <div class="section">Commentaire gérant</div>
@@ -1166,6 +1344,6 @@ ${cloture?.commentaire_gerant || ''}</textarea>
 
 };
 
-// ── Export global ──────────────────────────────────────────────────────────────
+// ── Export global ─────────────────────────────────────────────────────────────
 window.ClotureCaisse = ClotureCaisse;
 console.log('✅ ClotureCaisse loaded');
