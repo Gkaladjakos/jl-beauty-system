@@ -276,44 +276,37 @@ const AuthManager = {
                 throw new Error("Le nouveau mot de passe doit être différent de l'ancien.");
 
             App.showLoading?.();
+AuthSupabase._changingPassword = true;
 
-            // ✅ Bloquer le listener auth pendant toute l'opération
-            AuthSupabase._changingPassword = true;
-            console.log('[Auth] _changingPassword = true');
+try {
+    const { data: { user } } = await AuthSupabase.supabase.auth.getUser();
+    if (!user) throw new Error('Session expirée, reconnectez-vous.');
 
-            // ── Vérifier l'ancien mot de passe (re-login silencieux) ─────────
-            const { data: { user } } = await AuthSupabase.supabase.auth.getUser();
-            if (!user) throw new Error('Session expirée, reconnectez-vous.');
+    // ✅ Plus de signInWithPassword — updateUser suffit (session déjà active)
+    const { error: updateError } =
+        await AuthSupabase.supabase.auth.updateUser({ password: newPassword });
+    if (updateError) throw new Error(updateError.message);
 
-            const { error: verifyError } =
-                await AuthSupabase.supabase.auth.signInWithPassword({
-                    email:    user.email,
-                    password: currentPassword,
-                });
-            if (verifyError)
-                throw new Error('Mot de passe actuel incorrect.');
+    // Mettre à jour le cache offline
+    await AuthSupabase._cacheSession(user.email, newPassword, AuthSupabase.currentUser);
 
-            // ── Appliquer le nouveau mot de passe ────────────────────────────
-            const { error: updateError } =
-                await AuthSupabase.supabase.auth.updateUser({
-                    password: newPassword,
-                });
-            if (updateError) throw new Error(updateError.message);
+    await AuthSupabase._logConnexion({
+        userId:  user.id,
+        email:   user.email,
+        statut:  'succes',
+        details: 'Changement de mot de passe',
+    });
 
-            // ── Mettre à jour le cache offline avec le nouveau mot de passe ──
-            await AuthSupabase._cacheSession(user.email, newPassword, AuthSupabase.currentUser);
+} finally {
+    // Attendre que les événements Supabase se stabilisent avant de lever le flag
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    AuthSupabase._changingPassword = false;
+    console.log('[Auth] _changingPassword = false');
+}
 
-            // ── Log de l'événement ───────────────────────────────────────────
-            await AuthSupabase._logConnexion({
-                userId:  user.id,
-                email:   user.email,
-                statut:  'succes',
-                details: 'Changement de mot de passe',
-            });
-
-            App.hideLoading?.();
-            if (modal?.parentNode) modal.parentNode.removeChild(modal);
-            App.showNotification('✅ Mot de passe mis à jour avec succès !', 'success');
+App.hideLoading?.();
+if (modal?.parentNode) modal.parentNode.removeChild(modal);
+App.showNotification('✅ Mot de passe mis à jour avec succès !', 'success');
 
         } catch (err) {
             App.hideLoading?.();
