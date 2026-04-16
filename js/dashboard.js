@@ -219,7 +219,7 @@ const Dashboard = {
                 <div class="bg-white rounded-lg shadow-md p-6">
                     <h3 class="text-lg font-semibold text-gray-800 mb-4">
                         <i class="fas fa-star mr-2 text-purple-600"></i>
-                        Top 5 Clients (plus gros dépensiers)
+                        Top 5 Meilleurs Clients
                     </h3>
                     <div id="top-clients" class="space-y-3"></div>
                 </div>

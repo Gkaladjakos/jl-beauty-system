@@ -3,13 +3,10 @@
 // JL BEAUTY SYSTEM
 // ============================================
 
-// =========================================================================
-// ✅ PERMISSIONS PAR RÔLE — source de vérité unique
-// =========================================================================
 const ROLE_PERMISSIONS = {
     gerant: {
         label: 'Gérant',
-        pages: ['all']   // accès total
+        pages: ['all']
     },
     caissiere: {
         label: 'Caissière',
@@ -21,8 +18,7 @@ const ROLE_PERMISSIONS = {
             'materiels',
             'consommables',
             'ventes',
-            'cloture-caisse'        // ✅ AJOUTÉ — ouvrir/clôturer la caisse
-            // 'historique-clotures' intentionnellement absent → gérant only
+            'cloture-caisse'
         ]
     }
 };
@@ -44,17 +40,13 @@ const AuthSupabase = {
             return false;
         }
         this.supabase = window.supabase;
-
-        // ✅ Démarrer l'écouteur de session dès l'init (une seule fois)
         this.startAuthListener();
-
         console.log('✅ AuthSupabase initialized');
         return true;
     },
 
     // =========================================================================
-    // ✅ startAuthListener()
-    // Réagit en temps réel : refresh token, signOut autre onglet, etc.
+    // startAuthListener()
     // =========================================================================
     startAuthListener() {
         if (!this.supabase || this._listenerStarted) return;
@@ -70,7 +62,6 @@ const AuthSupabase = {
                 return;
             }
 
-            // Revalider le profil silencieusement à chaque changement de session
             if (['TOKEN_REFRESHED', 'SIGNED_IN', 'USER_UPDATED'].includes(event)) {
                 await this.checkAuth();
             }
@@ -90,18 +81,88 @@ const AuthSupabase = {
     },
 
     // =========================================================================
-    // ✅ _logConnexion()
-    // Enregistre chaque événement dans connexion_logs — ne bloque jamais l'app
+    // ✅ NOUVEAU — Vérification réseau réelle (navigator.onLine pas fiable)
+    // =========================================================================
+    async _isNetworkAvailable() {
+        try {
+            const baseUrl = this.supabase?.supabaseUrl
+                          || 'https://gxlgxlkcisesywnzckhg.supabase.co';
+            const res = await fetch(`${baseUrl}/rest/v1/`, {
+                method: 'HEAD',
+                cache:  'no-store',
+                signal: AbortSignal.timeout(4000),
+            });
+            return res.ok || res.status < 500;
+        } catch {
+            return false;
+        }
+    },
+
+    // =========================================================================
+    // ✅ NOUVEAU — Cache session pour login offline
+    // =========================================================================
+    async _cacheSession(email, password, userData) {
+        try {
+            const hash = await this._hashPassword(password);
+            localStorage.setItem('jlbeauty_offline_session', JSON.stringify({
+                email:    email.toLowerCase().trim(),
+                hash,
+                userData,
+                cachedAt: new Date().toISOString(),
+            }));
+            console.log('🔐 Session cachée pour usage offline');
+        } catch (e) {
+            console.warn('⚠️ _cacheSession failed:', e.message);
+        }
+    },
+
+    async _hashPassword(password) {
+        const buf = await crypto.subtle.digest(
+            'SHA-256',
+            new TextEncoder().encode(password + 'jlbeauty_salt_2025')
+        );
+        return Array.from(new Uint8Array(buf))
+            .map(b => b.toString(16).padStart(2, '0')).join('');
+    },
+
+    // =========================================================================
+    // ✅ NOUVEAU — Tentative login offline
+    // =========================================================================
+    async _tryOfflineLogin(email, password) {
+        try {
+            const raw = localStorage.getItem('jlbeauty_offline_session');
+            if (!raw) return { success: false, reason: 'Aucune session en cache' };
+
+            const cached = JSON.parse(raw);
+            const emailOk = cached.email === email.toLowerCase().trim();
+            const hashOk  = (await this._hashPassword(password)) === cached.hash;
+
+            if (emailOk && hashOk) {
+                console.log('✅ Login offline validé');
+                return { success: true, userData: cached.userData };
+            }
+
+            return {
+                success: false,
+                reason: 'Email ou mot de passe incorrect'
+            };
+        } catch (e) {
+            return { success: false, reason: 'Erreur lecture cache offline' };
+        }
+    },
+
+    // =========================================================================
+    // _logConnexion()
     // =========================================================================
     async _logConnexion({ userId = null, email = '', statut, details = null }) {
         try {
             if (!this.supabase) return;
             await this.supabase.from('connexion_logs').insert({
                 user_id:    userId,
-                email:      email,
-                statut:     statut,   // 'succes' | 'echec' | 'deconnexion'
+                email,
+                statut,
                 user_agent: navigator.userAgent,
-                details:    details,
+                details,
             });
         } catch (err) {
             console.warn('[Auth] _logConnexion failed (non-bloquant):', err.message);
@@ -109,7 +170,7 @@ const AuthSupabase = {
     },
 
     // =========================================================================
-    // login()  ✅ + log automatique succès/échec
+    // ✅ login() — avec fallback offline complet
     // =========================================================================
     async login(email, password) {
         console.log('🔐 LOGIN ATTEMPT:', email);
@@ -118,16 +179,42 @@ const AuthSupabase = {
             return { success: false, error: 'Configuration Supabase manquante' };
         }
 
+        // ── 1. Vérifier le réseau réellement ──────────────────────────────────
+        const online = await this._isNetworkAvailable();
+
+        // ── 2. MODE OFFLINE ───────────────────────────────────────────────────
+        if (!online) {
+            console.warn('📴 Réseau indisponible → tentative login offline');
+
+            const result = await this._tryOfflineLogin(email, password);
+
+            if (result.success) {
+                this.currentUser = result.userData;
+                localStorage.setItem('jlbeauty_user',      JSON.stringify(result.userData));
+                localStorage.setItem('jlbeauty_auth_type', 'offline');
+
+                console.log('✅ LOGIN OFFLINE SUCCESS:', result.userData.email);
+                return { success: true, user: result.userData, offline: true };
+            }
+
+            return {
+                success: false,
+                error: result.reason === 'Aucune session en cache'
+                    ? '📴 Hors connexion — Connectez-vous une première fois avec internet'
+                    : `📴 Hors connexion — ${result.reason}`,
+                offline: true,
+            };
+        }
+
+        // ── 3. MODE ONLINE — login normal ─────────────────────────────────────
         try {
             const { data, error } = await this.supabase.auth.signInWithPassword({
                 email,
-                password
+                password,
             });
 
             if (error) {
                 console.error('❌ Auth error:', error.message);
-
-                // ✅ Log échec
                 await this._logConnexion({
                     email,
                     statut:  'echec',
@@ -135,39 +222,28 @@ const AuthSupabase = {
                         ? 'Email ou mot de passe incorrect'
                         : error.message,
                 });
-
                 return {
                     success: false,
                     error: error.message === 'Invalid login credentials'
                         ? 'Email ou mot de passe incorrect'
-                        : error.message
+                        : error.message,
                 };
             }
 
             console.log('✅ Supabase auth successful');
 
-            const { data: sessionData } = await this.supabase.auth.getSession();
-            const session      = sessionData?.session;
-            const sessionEmail = session?.user?.email || data?.user?.email || email;
-
-            // Récupérer le profil utilisateur
+            // Récupérer le profil
             let userProfile = null;
             try {
-                const { data: profiles, error: profileError } = await this.supabase
+                const { data: profiles } = await this.supabase
                     .from('users')
                     .select('role, nom')
-                    .eq('id', data.user.id);   // ✅ par uuid, plus fiable que email
+                    .eq('id', data.user.id);
 
-                if (profileError) {
-                    console.warn('[Auth] Profil fetch failed:', profileError);
-                } else if (Array.isArray(profiles) && profiles.length > 0) {
+                if (Array.isArray(profiles) && profiles.length > 0)
                     userProfile = profiles[0];
-                    console.log('✅ User profile found:', userProfile);
-                } else {
-                    console.warn('⚠️ No profile found, using defaults');
-                }
-            } catch (err) {
-                console.warn('⚠️ Profile fetch exception:', err?.message || err);
+            } catch (e) {
+                console.warn('⚠️ Profile fetch exception:', e?.message);
             }
 
             const role     = userProfile?.role || DEFAULT_ROLE;
@@ -176,14 +252,16 @@ const AuthSupabase = {
                 email:       data.user.email,
                 nom:         userProfile?.nom || data.user.email.split('@')[0],
                 role,
-                permissions: this._resolvePermissions(role)
+                permissions: this._resolvePermissions(role),
             };
 
             this.currentUser = userData;
-            localStorage.setItem('jlbeauty_user', JSON.stringify(userData));
+            localStorage.setItem('jlbeauty_user',      JSON.stringify(userData));
             localStorage.setItem('jlbeauty_auth_type', 'supabase');
 
-            // ✅ Log succès
+            // ✅ Cacher la session pour le prochain usage offline
+            await this._cacheSession(email, password, userData);
+
             await this._logConnexion({
                 userId:  data.user.id,
                 email:   data.user.email,
@@ -191,8 +269,8 @@ const AuthSupabase = {
                 details: `Rôle: ${role}`,
             });
 
-            // Sync des opérations en attente
-            if (window.OfflineManager && navigator.onLine) {
+            // Sync ops en attente
+            if (window.OfflineManager) {
                 const pending = await OfflineManager.getPendingCount();
                 if (pending > 0) {
                     console.log(`🔄 ${pending} op(s) en attente → sync au login`);
@@ -200,53 +278,72 @@ const AuthSupabase = {
                 }
             }
 
-            console.log('✅ LOGIN SUCCESS:', userData.email,
-                        '| Rôle:', userData.role,
-                        '| Pages:', userData.permissions);
-
+            console.log('✅ LOGIN SUCCESS:', userData.email, '| Rôle:', role);
             return { success: true, user: userData };
 
         } catch (error) {
             console.error('💥 Login error:', error);
             return {
                 success: false,
-                error: 'Erreur de connexion. Vérifiez votre connexion internet.'
+                error: '❌ Erreur inattendue lors de la connexion',
             };
         }
     },
 
     // =========================================================================
-    // checkAuth()  ✅ requête profil par id (uuid)
+    // ✅ checkAuth() — avec fallback offline
     // =========================================================================
     async checkAuth() {
         console.log('🔍 checkAuth() called');
 
         try {
+            // ── Cache localStorage ─────────────────────────────────────────
             const storedUserStr = localStorage.getItem('jlbeauty_user');
             const authType      = localStorage.getItem('jlbeauty_auth_type');
+            let   cachedUser    = null;
 
-            let cachedUser = null;
-            if (storedUserStr && authType === 'supabase') {
-                try {
-                    cachedUser = JSON.parse(storedUserStr);
-                } catch (e) {
-                    console.warn('⚠️ localStorage parse failed, cleaning');
-                    localStorage.removeItem('jlbeauty_user');
-                    localStorage.removeItem('jlbeauty_auth_type');
-                }
+            if (storedUserStr) {
+                try { cachedUser = JSON.parse(storedUserStr); } catch {}
             }
 
             if (!this.init()) {
-                console.error('❌ Supabase not initialized');
+                // Supabase pas dispo → retourner le cache si existant
+                if (cachedUser) {
+                    console.warn('⚠️ Supabase non init → fallback cache');
+                    this.currentUser = cachedUser;
+                    return cachedUser;
+                }
                 return null;
             }
 
+            // ── Vérifier réseau ─────────────────────────────────────────────
+            const online = await this._isNetworkAvailable();
+
+            if (!online) {
+                // ── OFFLINE : retourner le cache sans requête Supabase ──────
+                if (cachedUser) {
+                    console.warn('📴 Offline → session depuis cache localStorage');
+                    this.currentUser = cachedUser;
+                    return cachedUser;
+                }
+                console.warn('📴 Offline + aucun cache → non authentifié');
+                return null;
+            }
+
+            // ── ONLINE : vérification normale ───────────────────────────────
             const { data: { session } } = await this.supabase.auth.getSession();
             if (!session) {
+                // ✅ Session Supabase expirée mais cache valide → garder offline
+                if (cachedUser && authType === 'offline') {
+                    console.warn('⚠️ Session expirée mais mode offline actif');
+                    this.currentUser = cachedUser;
+                    return cachedUser;
+                }
                 console.log('❌ No active session found');
                 return null;
             }
 
+            // Récupérer le profil DB
             let profile     = null;
             let dbReachable = false;
 
@@ -254,69 +351,51 @@ const AuthSupabase = {
                 const { data, error } = await this.supabase
                     .from('users')
                     .select('role, nom')
-                    .eq('id', session.user.id);   // ✅ par uuid
+                    .eq('id', session.user.id);
 
-                if (error) {
-                    console.warn('⚠️ users table error:', error.message);
-                } else {
+                if (!error) {
                     dbReachable = true;
-                    profile = (Array.isArray(data) && data.length > 0)
-                        ? data[0]
-                        : null;
-                    console.log('🔎 Profile from DB:', profile);
+                    profile = Array.isArray(data) && data.length > 0 ? data[0] : null;
                 }
             } catch (e) {
-                console.warn('⚠️ users table exception:', e?.message || e);
+                console.warn('⚠️ users table exception:', e?.message);
             }
 
+            // Résolution du rôle
             let role = DEFAULT_ROLE;
-
-            if (profile?.role) {
-                role = profile.role;
-                console.log(`✅ Rôle issu de la DB: ${role}`);
-            } else if (dbReachable) {
-                role = DEFAULT_ROLE;
-                console.warn(
-                    `⚠️ Aucun profil trouvé pour ${session.user.email}.` +
-                    ` Rôle par défaut: ${DEFAULT_ROLE}.`
-                );
-            } else {
-                const sameEmail = cachedUser?.email === session.user.email;
-                if (sameEmail && cachedUser?.role) {
-                    role = cachedUser.role;
-                    console.warn(`⚠️ DB inaccessible → rôle cache: ${role}`);
-                } else {
-                    role = DEFAULT_ROLE;
-                    console.warn('⚠️ DB inaccessible + cache invalide → DEFAULT_ROLE');
-                }
-            }
+            if (profile?.role)          role = profile.role;
+            else if (!dbReachable && cachedUser?.email === session.user.email && cachedUser?.role)
+                                        role = cachedUser.role;
 
             const finalUserData = {
                 id:               session.user.id,
                 email:            session.user.email,
-                nom:              profile?.nom
-                                    || cachedUser?.nom
-                                    || session.user.email.split('@')[0],
+                nom:              profile?.nom || cachedUser?.nom || session.user.email.split('@')[0],
                 role,
                 permissions:      this._resolvePermissions(role),
-                _revalidatedRole: dbReachable
+                _revalidatedRole: dbReachable,
             };
 
             this.currentUser = finalUserData;
-            localStorage.setItem('jlbeauty_user', JSON.stringify(finalUserData));
+            localStorage.setItem('jlbeauty_user',      JSON.stringify(finalUserData));
             localStorage.setItem('jlbeauty_auth_type', 'supabase');
 
-            console.log('✅ checkAuth OK', {
-                email:       finalUserData.email,
-                role:        finalUserData.role,
-                permissions: finalUserData.permissions,
-                dbReachable
-            });
-
+            console.log('✅ checkAuth OK', { email: finalUserData.email, role, dbReachable });
             return finalUserData;
 
         } catch (error) {
             console.error('💥 checkAuth error:', error);
+
+            // ✅ Dernier recours : retourner le cache plutôt que null
+            const raw = localStorage.getItem('jlbeauty_user');
+            if (raw) {
+                try {
+                    const cached = JSON.parse(raw);
+                    console.warn('⚠️ checkAuth exception → fallback cache');
+                    this.currentUser = cached;
+                    return cached;
+                } catch {}
+            }
             return null;
         }
     },
@@ -331,23 +410,16 @@ const AuthSupabase = {
         try {
             this.currentUser = JSON.parse(userStr);
             return this.currentUser;
-        } catch (error) {
-            console.error('Error parsing user data:', error);
+        } catch {
             return null;
         }
     },
 
-    // =========================================================================
-    // isLoggedIn()
-    // =========================================================================
-    isLoggedIn() {
-        return this.getCurrentUser() !== null;
-    },
-
-    // =========================================================================
-    // hasPermission()  ✅ supporte les sous-pages (ex: 'cloture-caisse')
-    // =========================================================================
-    hasPermission(page) {
+    isLoggedIn()         { return this.getCurrentUser() !== null; },
+    getRole()            { return this.getCurrentUser()?.role || null; },
+    isGerant()           { return ['gerant', 'admin'].includes(this.getRole()); },
+    isCaisse()           { return this.getRole() === 'caissiere'; },
+    hasPermission(page)  {
         const user = this.getCurrentUser();
         if (!user) return false;
         if (user.permissions?.includes('all')) return true;
@@ -355,48 +427,21 @@ const AuthSupabase = {
     },
 
     // =========================================================================
-    // getRole()
-    // =========================================================================
-    getRole() {
-        return this.getCurrentUser()?.role || null;
-    },
-
-    // =========================================================================
-    // ✅ isGerant() — vérifie gérant OU admin
-    // =========================================================================
-    isGerant() {
-        return ['gerant', 'admin'].includes(this.getRole());
-    },
-
-    // =========================================================================
-    // isCaisse()
-    // =========================================================================
-    isCaisse() {
-        return this.getRole() === 'caissiere';
-    },
-
-    // =========================================================================
-    // logout()  ✅ + log déconnexion
+    // ✅ logout() — avec avertissement ops en attente
     // =========================================================================
     async logout() {
         try {
             if (window.OfflineManager) {
                 const pending = await OfflineManager.getPendingCount();
                 if (pending > 0) {
-                    const confirmed = window.confirm(
-                        `⚠️ Attention : ${pending} opération(s) n'ont pas encore ` +
-                        `été synchronisées.\n\n` +
-                        `Si vous vous déconnectez maintenant, elles seront perdues.\n\n` +
-                        `Voulez-vous quand même vous déconnecter ?`
+                    const ok = window.confirm(
+                        `⚠️ ${pending} opération(s) non synchronisée(s).\n\n` +
+                        `Déconnecter quand même ?`
                     );
-                    if (!confirmed) {
-                        console.log('🚫 Logout annulé — ops en attente');
-                        return;
-                    }
+                    if (!ok) return;
                 }
             }
 
-            // ✅ Log déconnexion avant signOut
             const user = this.getCurrentUser();
             if (user) {
                 await this._logConnexion({
@@ -407,17 +452,16 @@ const AuthSupabase = {
                 });
             }
 
-            if (this.init()) {
-                await this.supabase.auth.signOut();
-            }
+            if (this.init()) await this.supabase.auth.signOut();
 
         } catch (e) {
-            console.warn('⚠️ Supabase signOut error:', e?.message || e);
+            console.warn('⚠️ Supabase signOut error:', e?.message);
         } finally {
             this.currentUser = null;
             localStorage.removeItem('jlbeauty_user');
             localStorage.removeItem('jlbeauty_auth_type');
-            console.log('✅ Logged out successfully');
+            // ✅ On garde jlbeauty_offline_session pour le prochain login offline
+            console.log('✅ Logged out');
             window.location.href = 'login.html';
         }
     }
