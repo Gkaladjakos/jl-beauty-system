@@ -702,7 +702,7 @@ const ClotureCaisse = {
 
             console.log('✅ Mouvement inséré :', data);
             Utils.showToast(
-                `${type === 'entree' ? 'Entrée' : 'Sortie'} enregistrée`,
+                `${type === 'Entree' ? 'Entrée' : 'Sortie'} enregistrée`,
                 'success'
             );
             await this.chargerJournee();
@@ -774,7 +774,6 @@ const ClotureCaisse = {
                                         .reduce((s, m) => s + parseFloat(m.montant || 0), 0),
                 total_theorique:    this._totalTheorique,
                 total_billetage:    totalBilletage,
-                ecart:              ecart,
                 billetage:          billetage,
                 notes:              notes,
                 commentaire_gerant: commentaireGerant,
