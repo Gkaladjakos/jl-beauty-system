@@ -67,21 +67,27 @@ const OfflineManager = {
     // ============================================================
     async _pingSupabase() {
         try {
-            const url = window.supabase?.supabaseUrl
-                      || 'https://gxlgxlkcisesywnzckhg.supabase.co';
-            const res = await fetch(`${url}/rest/v1/`, {
-                method:  'HEAD',
-                cache:   'no-store',
-                signal:  AbortSignal.timeout(4000),
-            });
-            this.isOnline = res.ok || res.status < 500;
+            // ── Récupérer le token de session actif ──────────────────────
+            const client = AuthSupabase?.supabase || window.supabase;
+            const { data: { session } } = await client.auth.getSession();
+            const token = session?.access_token || SUPABASE_ANON_KEY;
+    
+            const response = await fetch(
+                `${SUPABASE_URL}/rest/v1/`,
+                {
+                    method: 'HEAD',
+                    headers: {
+                        'apikey':        SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${token}`,  // ✅ ajout
+                    }
+                }
+            );
+            return response.ok;
         } catch {
-            this.isOnline = false;
+            return false;
         }
-
-        if (!this.isOnline) this.showBanner('offline');
-        return this.isOnline;
     },
+
 
     // ============================================================
     // LOGIN OFFLINE
