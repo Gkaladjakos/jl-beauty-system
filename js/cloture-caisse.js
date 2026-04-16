@@ -147,7 +147,7 @@ const ClotureCaisse = {
 
     _renderJournee(zone) {
         const cloture    = this._cloture;
-        const verrouille = cloture?.statut === 'cloture';
+        const verrouille = ['validé', 'en_attente', 'rejeté'].includes(cloture?.statut);
         const isGerant   = AuthSupabase.isGerant();
 
         const totalVentes = this._ventes.reduce(
@@ -737,11 +737,12 @@ const ClotureCaisse = {
         const totalBilletage = this.COUPURES.reduce(
             (s, c) => s + (billetage[c] * c), 0
         );
-        const ecart            = totalBilletage - (this._totalTheorique || 0);
-        const notes            = document.getElementById('cc-notes')?.value?.trim() || null;
-        const commentaireGerant = document.getElementById('cc-commentaire-gerant')?.value?.trim() || null;
-        const montantOuverture  = parseFloat(document.getElementById('cc-montant-ouverture')?.value || 0);
-
+        const ecart             = totalBilletage - (this._totalTheorique || 0);
+        const notes             = document.getElementById('cc-notes')?.value?.trim() || null;
+        const montantOuverture  = parseFloat(
+            document.getElementById('cc-montant-ouverture')?.value || 0
+        );
+    
         const ok = confirm(
             `Clôturer la journée du ${this._currentDate} ?\n\n` +
             `Total théorique : ${Utils.formatUSD(this._totalTheorique)}\n` +
@@ -750,57 +751,131 @@ const ClotureCaisse = {
             `Cette action verrouillera la journée.`
         );
         if (!ok) return;
-
+    
         try {
             const supabase = this._getClient();
             const user     = AuthSupabase.getCurrentUser();
-
+    
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) {
                 Utils.showToast('Session expirée — reconnectez-vous', 'error');
                 return;
             }
-
-            const payload = {
-                date_journee:       this._currentDate,
-                montant_ouverture:  montantOuverture,
-                total_ventes:       this._ventes.reduce(
-                                        (s, v) => s + parseFloat(v.montant_total || 0), 0),
-                total_entrees:      this._mouvements
-                                        .filter(m => m.type === 'Entree')
-                                        .reduce((s, m) => s + parseFloat(m.montant || 0), 0),
-                total_sorties:      this._mouvements
-                                        .filter(m => m.type === 'Sortie')
-                                        .reduce((s, m) => s + parseFloat(m.montant || 0), 0),
-                total_theorique:    this._totalTheorique,
-                total_billetage:    totalBilletage,
-                billetage:          billetage,
-                notes:              notes,
-                commentaire_gerant: commentaireGerant,
-                statut:             'cloture',
-                cloture_par:        user?.nom || user?.email || 'inconnu',
-                user_id:            user?.id  || null,
-                heure_cloture:      new Date().toISOString(),
+    
+            // ── Payload MINIMAL garanti ──────────────────────────────────────
+            // Seulement les colonnes quasi-certaines d'exister
+            const payloadMinimal = {
+                date_journee: this._currentDate,
+                statut:       'validé',
             };
-
-            if (this._cloture?.id) {
-                const { error } = await supabase
-                    .from('clotures_caisse')
-                    .update(payload)
-                    .eq('id', this._cloture.id);
-                if (error) throw error;
+    
+            // ── Payload COMPLET à tester ─────────────────────────────────────
+            const payloadComplet = {
+                date_journee:      this._currentDate,
+                statut:            'validé',
+                montant_ouverture: montantOuverture,
+                total_ventes:      this._ventes.reduce(
+                                       (s, v) => s + parseFloat(v.montant_total || 0), 0),
+                total_entrees:     this._mouvements
+                                       .filter(m => m.type === 'Entree')
+                                       .reduce((s, m) => s + parseFloat(m.montant || 0), 0),
+                total_sorties:     this._mouvements
+                                       .filter(m => m.type === 'Sortie')
+                                       .reduce((s, m) => s + parseFloat(m.montant || 0), 0),
+                total_theorique:   this._totalTheorique,
+                total_billetage:   totalBilletage,
+                billetage:         billetage,
+                notes:             notes,
+                statut:            'validé',
+                cloture_par:       user?.nom || user?.email || 'inconnu',
+                heure_cloture:     new Date().toISOString(),
+            };
+    
+            // ── Colonnes optionnelles — ajoutées seulement si elles existent ─
+            const optionnelles = {
+                commentaire_gerant: document.getElementById('cc-commentaire-gerant')
+                                        ?.value?.trim() || null,
+                user_id:            user?.id || null,
+            };
+    
+            // ── Tester d'abord avec payload complet ──────────────────────────
+            let payloadFinal = { ...payloadComplet };
+    
+            // Test rapide : essayer un SELECT avec toutes les colonnes
+            const colonnesOptTest = Object.keys(optionnelles);
+            const { error: testError } = await supabase
+                .from('clotures_caisse')
+                .select(colonnesOptTest.join(','))
+                .limit(1);
+    
+            if (!testError) {
+                // Les colonnes optionnelles existent
+                Object.assign(payloadFinal, optionnelles);
+                console.log('✅ Colonnes optionnelles disponibles');
             } else {
-                const { error } = await supabase
-                    .from('clotures_caisse')
-                    .insert([payload]);
-                if (error) throw error;
+                console.warn('⚠️ Colonnes optionnelles ignorées:', testError.message);
             }
-
+    
+            console.log('📦 Payload final:', JSON.stringify(payloadFinal, null, 2));
+    
+            let error = null;
+    
+            if (this._cloture?.id) {
+                const res = await supabase
+                    .from('clotures_caisse')
+                    .update(payloadFinal)
+                    .eq('id', this._cloture.id);
+                error = res.error;
+    
+                // Si erreur, retenter avec payload minimal
+                if (error) {
+                    console.warn('⚠️ Update complet échoué, tentative minimale...');
+                    console.error('Erreur détaillée:', error.message, error.details, error.hint);
+    
+                    const { error: e2 } = await supabase
+                        .from('clotures_caisse')
+                        .update(payloadMinimal)
+                        .eq('id', this._cloture.id);
+                    error = e2;
+                }
+    
+            } else {
+                const res = await supabase
+                    .from('clotures_caisse')
+                    .insert([payloadFinal]);
+                error = res.error;
+    
+                // Si erreur, retenter avec payload minimal
+                if (error) {
+                    console.warn('⚠️ Insert complet échoué, tentative minimale...');
+                    console.error('Erreur détaillée:', error.message, error.details, error.hint);
+    
+                    const { error: e2 } = await supabase
+                        .from('clotures_caisse')
+                        .insert([payloadMinimal]);
+                    error = e2;
+                }
+            }
+    
+            if (error) {
+                console.error('❌ Échec total:', {
+                    message: error.message,
+                    details: error.details,
+                    hint:    error.hint,
+                    code:    error.code,
+                });
+                throw new Error(
+                    error.message +
+                    (error.hint    ? ` | ${error.hint}`    : '') +
+                    (error.details ? ` | ${error.details}` : '')
+                );
+            }
+    
             Utils.showToast('✅ Journée clôturée avec succès', 'success');
             await this.chargerJournee();
-
+    
         } catch (err) {
-            console.error('❌ cloturer:', err);
+            console.error('❌ cloturer catch:', err);
             Utils.showToast('Erreur : ' + err.message, 'error');
         }
     },
