@@ -536,11 +536,13 @@ const CommissionsV3 = {
         );
 
         setTimeout(() => {
-            const saveBtn = document.querySelector('.save-modal');
+            const saveBtn = document.querySelector('.modal-save');
             if (saveBtn) {
-                saveBtn.className = saveBtn.className
-                    .replace('bg-purple-600', 'bg-green-600')
-                    .replace('hover:bg-purple-700', 'hover:bg-green-700');
+                saveBtn.classList.remove(
+                    'from-yellow-500', 'to-black', 'hover:opacity-90'
+                );
+                saveBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+                saveBtn.style.background = '';
                 saveBtn.innerHTML =
                     '<i class="fas fa-check mr-2"></i>Confirmer le paiement';
             }
@@ -770,11 +772,13 @@ const CommissionsV3 = {
         );
 
         setTimeout(() => {
-            const saveBtn = document.querySelector('.save-modal');
+            const saveBtn = document.querySelector('.modal-save');
             if (saveBtn) {
-                saveBtn.className = saveBtn.className
-                    .replace('bg-purple-600', 'bg-green-600')
-                    .replace('hover:bg-purple-700', 'hover:bg-green-700');
+                saveBtn.classList.remove(
+                    'from-yellow-500', 'to-black', 'hover:opacity-90'
+                );
+                saveBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+                saveBtn.style.background = '';
                 saveBtn.innerHTML =
                     `<i class="fas fa-check-double mr-2"></i>
                      Payer ${unpaid.length} commission(s)`;
@@ -909,9 +913,24 @@ async calculerCommissions() {
 
         const periodLabel = PeriodFilter.getLabel?.() || 'Période personnalisée';
 
+        // ✅ Charger les commissions existantes pour cette période
+        const existantes = this.data.filter(c => c.periode === periodLabel);
+
+        let created = 0;
+        let updated  = 0;
+
         for (const coiffeuseId in commissionsByCoiffeuse) {
             const commData = commissionsByCoiffeuse[coiffeuseId];
-            await Utils.create('commissions', {
+
+            // Chercher si une commission existe déjà pour
+            // cette coiffeuse ET cette période
+            const existante = existantes.find(
+                c => c.coiffeuse_id === coiffeuseId &&
+                    c.periode      === periodLabel  &&
+                    c.statut       !== 'Payé'        // ← ne jamais écraser une commission payée
+            );
+
+            const payload = {
                 coiffeuse_id:     commData.coiffeuse_id,
                 coiffeuse_nom:    commData.coiffeuse_nom,
                 periode:          periodLabel,
@@ -923,7 +942,20 @@ async calculerCommissions() {
                 statut:           'Calculé',
                 date_paiement:    null,
                 note_paiement:    ''
-            });
+            };
+
+            if (existante) {
+                // ✅ Mettre à jour l'existante au lieu d'en créer une nouvelle
+                await Utils.update('commissions', existante.id, {
+                    ...payload,
+                    updated_at: new Date().toISOString()
+                });
+                updated++;
+            } else {
+                // ✅ Créer seulement si aucune n'existe pour cette période
+                await Utils.create('commissions', payload);
+                created++;
+            }
         }
 
         await this.loadAllData();
@@ -933,10 +965,14 @@ async calculerCommissions() {
         this._updatePayAllButton();
 
         App.hideLoading();
+
+        // Message détaillé selon ce qui s'est passé
+        const msg = [];
+        if (created > 0) msg.push(`${created} nouvelle(s) créée(s)`);
+        if (updated > 0) msg.push(`${updated} mise(s) à jour`);
+
         App.showNotification(
-            `Commissions calculées pour ` +
-            `${Object.keys(commissionsByCoiffeuse).length} coiffeuse(s) ` +
-            `— Formule : prix × 93% × taux`,
+            `✅ Commissions recalculées — ${msg.join(', ')} — Formule : prix × 93% × taux`,
             'success'
         );
 
