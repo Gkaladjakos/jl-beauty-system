@@ -149,10 +149,25 @@ const CommissionsV3 = {
 
     filterByPeriod(data) {
         if (!this.currentPeriod) return data;
+    
+        // ✅ Récupérer le label de la période active
+        const periodLabel = PeriodFilter.getLabel?.() || null;
+    
         return data.filter(item => {
+            // ✅ Priorité 1 : comparer par le champ "periode" (string label)
+            // C'est le champ stocké en base et fiable
+            if (periodLabel && item.periode) {
+                return item.periode === periodLabel;
+            }
+    
+            // ✅ Priorité 2 : fallback sur date_calcul si pas de label
+            // Avec end corrigé à 23:59:59
             const itemDate = new Date(item.date_calcul || item.created_at);
+            const endOfDay = new Date(this.currentPeriod.end);
+            endOfDay.setHours(23, 59, 59, 999);
+    
             return itemDate >= this.currentPeriod.start &&
-                   itemDate <= this.currentPeriod.end;
+                   itemDate <= endOfDay;
         });
     },
 
@@ -801,12 +816,18 @@ async calculerCommissions() {
     try {
         App.showLoading();
 
+        // ✅ Corriger end à 23:59:59 pour inclure toute la journée finale
+        const periodStart = new Date(this.currentPeriod.start);
+        const periodEnd   = new Date(this.currentPeriod.end);
+        periodEnd.setHours(23, 59, 59, 999); // ← AJOUT CRITIQUE
+
         const salesInPeriod = this.ventes.filter(vente => {
             const venteDate = new Date(vente.date_vente || vente.created_at);
-            return venteDate >= this.currentPeriod.start &&
-                   venteDate <= this.currentPeriod.end &&
+            return venteDate >= periodStart &&
+                   venteDate <= periodEnd   && // ← utiliser periodEnd corrigé
                    (vente.type === 'Service' || vente.type === 'Mixte');
         });
+
 
         if (salesInPeriod.length === 0) {
             App.hideLoading();
