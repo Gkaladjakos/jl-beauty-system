@@ -150,24 +150,19 @@ const CommissionsV3 = {
     filterByPeriod(data) {
         if (!this.currentPeriod) return data;
     
-        // ✅ Récupérer le label de la période active
         const periodLabel = PeriodFilter.getLabel?.() || null;
     
         return data.filter(item => {
-            // ✅ Priorité 1 : comparer par le champ "periode" (string label)
-            // C'est le champ stocké en base et fiable
+            // ✅ Priorité 1 : correspondance par label stocké en base
             if (periodLabel && item.periode) {
                 return item.periode === periodLabel;
             }
     
-            // ✅ Priorité 2 : fallback sur date_calcul si pas de label
-            // Avec end corrigé à 23:59:59
-            const itemDate = new Date(item.date_calcul || item.created_at);
-            const endOfDay = new Date(this.currentPeriod.end);
-            endOfDay.setHours(23, 59, 59, 999);
-    
-            return itemDate >= this.currentPeriod.start &&
-                   itemDate <= endOfDay;
+            // ✅ Priorité 2 : fallback timestamp
+            // currentPeriod.start et .end sont déjà des timestamps (getTime())
+            const itemTime = new Date(item.date_calcul || item.created_at).getTime();
+            return itemTime >= this.currentPeriod.start &&
+                   itemTime <= this.currentPeriod.end;
         });
     },
 
@@ -817,17 +812,19 @@ async calculerCommissions() {
         App.showLoading();
 
         // ✅ Corriger end à 23:59:59 pour inclure toute la journée finale
-        const periodStart = new Date(this.currentPeriod.start);
-        const periodEnd   = new Date(this.currentPeriod.end);
-        periodEnd.setHours(23, 59, 59, 999); // ← AJOUT CRITIQUE
+        const periodStart = this.currentPeriod.start;
+        const periodEnd   = this.currentPeriod.end;
+        
+        console.log('🗓️ Calcul période:', new Date(periodStart), '→', new Date(periodEnd));
+        console.log('🗓️ Label:', PeriodFilter.getLabel?.());
 
         const salesInPeriod = this.ventes.filter(vente => {
-            const venteDate = new Date(vente.date_vente || vente.created_at);
-            return venteDate >= periodStart &&
-                   venteDate <= periodEnd   && // ← utiliser periodEnd corrigé
+            const venteTime = new Date(vente.date_vente || vente.created_at).getTime();
+            return venteTime >= this.currentPeriod.start &&
+                   venteTime <= this.currentPeriod.end &&
                    (vente.type === 'Service' || vente.type === 'Mixte');
         });
-
+        console.log(`✅ Ventes trouvées: ${salesInPeriod.length} / ${this.ventes.length}`);
 
         if (salesInPeriod.length === 0) {
             App.hideLoading();

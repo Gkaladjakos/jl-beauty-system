@@ -42,14 +42,14 @@ const PeriodFilter = {
             </div>
         `;
     },
-    
+
     // Setup event listeners
     setup(onFilterChange) {
         this.onFilterChange = onFilterChange;
-        
-        const periodType = document.getElementById('period-type');
+
+        const periodType  = document.getElementById('period-type');
         const customDates = document.getElementById('custom-dates');
-        
+
         if (periodType) {
             periodType.addEventListener('change', (e) => {
                 if (e.target.value === 'custom') {
@@ -60,158 +60,178 @@ const PeriodFilter = {
                 }
             });
         }
-        
+
         // Set default dates for custom
-        const today = new Date().toISOString().split('T')[0];
+        const today     = new Date().toISOString().split('T')[0];
         const startDate = document.getElementById('date-start');
-        const endDate = document.getElementById('date-end');
-        
+        const endDate   = document.getElementById('date-end');
+
         if (startDate) {
             const firstDayOfMonth = new Date();
             firstDayOfMonth.setDate(1);
             startDate.value = firstDayOfMonth.toISOString().split('T')[0];
         }
-        
+
         if (endDate) {
             endDate.value = today;
         }
+
+        // ✅ Déclencher le filtre initial automatiquement au chargement
+        this.applyFilter();
     },
-    
+
     // Get date range based on period type
     getDateRange() {
         const periodType = document.getElementById('period-type')?.value;
-        const now = new Date();
+        // ✅ Toujours travailler sur une NOUVELLE instance de now
+        // pour éviter les mutations de date dans les case 'today' / 'yesterday'
         let startDate, endDate;
-        
-        switch(periodType) {
-            case 'today':
-                startDate = new Date(now.setHours(0, 0, 0, 0));
-                endDate = new Date(now.setHours(23, 59, 59, 999));
+
+        switch (periodType) {
+            case 'today': {
+                const d = new Date();
+                startDate = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+                endDate   = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
                 break;
-                
-            case 'yesterday':
-                const yesterday = new Date(now);
-                yesterday.setDate(yesterday.getDate() - 1);
-                startDate = new Date(yesterday.setHours(0, 0, 0, 0));
-                endDate = new Date(yesterday.setHours(23, 59, 59, 999));
+            }
+            case 'yesterday': {
+                const d = new Date();
+                d.setDate(d.getDate() - 1);
+                startDate = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
+                endDate   = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
                 break;
-                
-            case 'this-week':
-                const firstDayOfWeek = new Date(now);
-                firstDayOfWeek.setDate(now.getDate() - now.getDay() + 1); // Monday
-                startDate = new Date(firstDayOfWeek.setHours(0, 0, 0, 0));
-                endDate = new Date(now.setHours(23, 59, 59, 999));
+            }
+            case 'this-week': {
+                const d    = new Date();
+                // ✅ Lundi = début de semaine
+                const day  = d.getDay() === 0 ? 6 : d.getDay() - 1; // 0=lundi … 6=dimanche
+                const mon  = new Date(d.getFullYear(), d.getMonth(), d.getDate() - day);
+                startDate  = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate(), 0, 0, 0, 0);
+                endDate    = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
                 break;
-                
-            case 'last-week':
-                const lastWeekStart = new Date(now);
-                lastWeekStart.setDate(now.getDate() - now.getDay() - 6); // Last Monday
-                const lastWeekEnd = new Date(lastWeekStart);
-                lastWeekEnd.setDate(lastWeekStart.getDate() + 6); // Last Sunday
-                startDate = new Date(lastWeekStart.setHours(0, 0, 0, 0));
-                endDate = new Date(lastWeekEnd.setHours(23, 59, 59, 999));
+            }
+            case 'last-week': {
+                const d   = new Date();
+                const day = d.getDay() === 0 ? 6 : d.getDay() - 1;
+                const mon = new Date(d.getFullYear(), d.getMonth(), d.getDate() - day - 7);
+                const sun = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate() + 6);
+                startDate = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate(), 0, 0, 0, 0);
+                endDate   = new Date(sun.getFullYear(), sun.getMonth(), sun.getDate(), 23, 59, 59, 999);
                 break;
-                
-            case 'this-month':
-                startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-                endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+            }
+            case 'this-month': {
+                const d   = new Date();
+                startDate = new Date(d.getFullYear(), d.getMonth(), 1, 0, 0, 0, 0);
+                endDate   = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
                 break;
-                
-            case 'last-month':
-                startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
-                endDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+            }
+            case 'last-month': {
+                const d   = new Date();
+                startDate = new Date(d.getFullYear(), d.getMonth() - 1, 1, 0, 0, 0, 0);
+                endDate   = new Date(d.getFullYear(), d.getMonth(), 0, 23, 59, 59, 999);
                 break;
-                
-            case 'this-year':
-                startDate = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
-                endDate = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+            }
+            case 'this-year': {
+                const d   = new Date();
+                startDate = new Date(d.getFullYear(), 0, 1, 0, 0, 0, 0);
+                endDate   = new Date(d.getFullYear(), 11, 31, 23, 59, 59, 999);
                 break;
-                
-            case 'last-year':
-                startDate = new Date(now.getFullYear() - 1, 0, 1, 0, 0, 0, 0);
-                endDate = new Date(now.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
+            }
+            case 'last-year': {
+                const d   = new Date();
+                startDate = new Date(d.getFullYear() - 1, 0, 1, 0, 0, 0, 0);
+                endDate   = new Date(d.getFullYear() - 1, 11, 31, 23, 59, 59, 999);
                 break;
-                
-            case 'custom':
+            }
+            case 'custom': {
                 const dateStart = document.getElementById('date-start')?.value;
-                const dateEnd = document.getElementById('date-end')?.value;
-                
+                const dateEnd   = document.getElementById('date-end')?.value;
+
                 if (!dateStart || !dateEnd) {
-                    App.showNotification('Veuillez sélectionner les dates de début et fin', 'error');
+                    App.showNotification(
+                        'Veuillez sélectionner les dates de début et fin', 'error'
+                    );
                     return null;
                 }
-                
-                startDate = new Date(dateStart + 'T00:00:00');
-                endDate = new Date(dateEnd + 'T23:59:59');
+
+                // ✅ Forcer heure locale (pas UTC) pour éviter le décalage
+                const [sy, sm, sd] = dateStart.split('-').map(Number);
+                const [ey, em, ed] = dateEnd.split('-').map(Number);
+                startDate = new Date(sy, sm - 1, sd, 0, 0, 0, 0);
+                endDate   = new Date(ey, em - 1, ed, 23, 59, 59, 999);
                 break;
-                
-            default:
-                startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-                endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+            }
+            default: {
+                const d   = new Date();
+                startDate = new Date(d.getFullYear(), d.getMonth(), 1, 0, 0, 0, 0);
+                endDate   = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
+            }
         }
-        
+
         return {
-            start: startDate.getTime(),
-            end: endDate.getTime(),
-            startDate: startDate,
-            endDate: endDate
+            start:     startDate.getTime(), // ✅ timestamp numérique
+            end:       endDate.getTime(),   // ✅ timestamp numérique
+            startDate,
+            endDate
         };
     },
-    
-    // Get period label
+
+    // ✅ Get period label — méthode principale
     getPeriodLabel() {
         const periodType = document.getElementById('period-type')?.value;
-        const range = this.getDateRange();
-        
+        const range      = this.getDateRange();
         if (!range) return '';
-        
-        const formatDate = (date) => {
-            return new Intl.DateTimeFormat('fr-FR', {
-                day: '2-digit',
-                month: '2-digit',
-                year: 'numeric'
-            }).format(date);
-        };
-        
+
+        const fmt = (date) => new Intl.DateTimeFormat('fr-FR', {
+            day:   '2-digit',
+            month: '2-digit',
+            year:  'numeric'
+        }).format(date);
+
         if (periodType === 'custom') {
-            return `Du ${formatDate(range.startDate)} au ${formatDate(range.endDate)}`;
+            return `Du ${fmt(range.startDate)} au ${fmt(range.endDate)}`;
         }
-        
+
         const labels = {
-            'today': "Aujourd'hui",
-            'yesterday': 'Hier',
-            'this-week': 'Cette semaine',
-            'last-week': 'Semaine dernière',
+            'today':      "Aujourd'hui",
+            'yesterday':  'Hier',
+            'this-week':  'Cette semaine',
+            'last-week':  'Semaine dernière',
             'this-month': 'Ce mois-ci',
             'last-month': 'Mois dernier',
-            'this-year': 'Cette année',
-            'last-year': 'Année dernière'
+            'this-year':  'Cette année',
+            'last-year':  'Année dernière'
         };
-        
+
         return labels[periodType] || '';
     },
-    
+
+    // ✅ Alias getLabel() — utilisé par CommissionsV3, VentesModule, etc.
+    getLabel() {
+        return this.getPeriodLabel();
+    },
+
     // Filter data by period
     filterData(data, dateField = 'date') {
         const range = this.getDateRange();
         if (!range) return data;
-        
+
         return data.filter(item => {
-            const itemDate = typeof item[dateField] === 'number' 
-                ? item[dateField] 
+            const itemTime = typeof item[dateField] === 'number'
+                ? item[dateField]
                 : new Date(item[dateField]).getTime();
-            
-            return itemDate >= range.start && itemDate <= range.end;
+
+            return itemTime >= range.start && itemTime <= range.end;
         });
     },
-    
+
     // Apply filter (calls callback)
     applyFilter() {
         if (this.onFilterChange) {
             this.onFilterChange(this.getDateRange());
         }
     },
-    
+
     // Export period data
     exportPeriod() {
         if (this.onExport) {
