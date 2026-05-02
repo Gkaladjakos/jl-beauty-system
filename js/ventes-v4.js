@@ -532,24 +532,26 @@ const Ventes = {
     loadFromRdv() {
         const rdvId = document.getElementById('select-rdv')?.value;
         if (!rdvId) return;
-
+    
         const rdv = this.rendezVous.find(r => r.id === rdvId);
         if (!rdv) return;
-
+    
         const telInput = document.getElementById('client-telephone');
         const nomInput = document.getElementById('client-nom');
         if (telInput) telInput.value = rdv.client_telephone || '';
         if (nomInput) nomInput.value = rdv.client_nom       || '';
-
+    
         const service   = this.services.find(s => s.id === rdv.service_id);
         const coiffeuse = this.coiffeuses.find(c => c.id === rdv.coiffeuse_id);
-
+    
         if (service) {
             const prixService = service.prix || 0;
             const tauxComm    = coiffeuse?.taux_commission || 0;
-            const commission  =
-                Math.round((prixService * tauxComm / 100) * 100) / 100;
-
+    
+            // ✅ CORRIGÉ — base imposable = prix × 0.93
+            const commission =
+                Math.round((prixService * 0.93 * tauxComm / 100) * 100) / 100;
+    
             const alreadyLoaded = this.selectedItems.find(
                 i => i.id === service.id && i.item_type === 'Service'
             );
@@ -722,19 +724,21 @@ const Ventes = {
         const selectService   = document.getElementById('select-service');
         const selectCoiffeuse = document.getElementById('select-coiffeuse');
         const prixInput       = document.getElementById('item-prix');
-
+    
         if (!selectService?.value) {
             App.showNotification('Veuillez choisir un service', 'error');
             return;
         }
-
+    
         const serviceOpt = selectService.options[selectService.selectedIndex];
         const coiffOpt   = selectCoiffeuse?.options[selectCoiffeuse?.selectedIndex];
         const prix       = parseFloat(prixInput?.value) || 0;
         const tauxComm   = parseFloat(coiffOpt?.dataset?.taux) || 0;
+    
+        // ✅ CORRIGÉ — base imposable = prix × 0.93
         const commission =
-            Math.round((prix * tauxComm / 100) * 100) / 100;
-
+            Math.round((prix * 0.93 * tauxComm / 100) * 100) / 100;
+    
         this.selectedItems.push({
             id:              selectService.value,
             nom:             serviceOpt.dataset.nom || serviceOpt.text,
@@ -747,9 +751,9 @@ const Ventes = {
             taux_commission: tauxComm,
             commission:      commission
         });
-
+    
         this.renderSelectedItems();
-
+    
         selectService.value = '';
         if (selectCoiffeuse) selectCoiffeuse.value = '';
         if (prixInput)       prixInput.value       = '';
@@ -1499,30 +1503,33 @@ App.showNotification(
 // 22. updateCommissionPreview()  — usage interne seulement, pas sur le reçu
 // =========================================================================
 updateCommissionPreview() {
-const selectService   = document.getElementById('select-service');
-const selectCoiffeuse = document.getElementById('select-coiffeuse');
-const prixInput       = document.getElementById('item-prix');
-const preview         = document.getElementById('commission-preview');
+    const selectService   = document.getElementById('select-service');
+    const selectCoiffeuse = document.getElementById('select-coiffeuse');
+    const prixInput       = document.getElementById('item-prix');
+    const preview         = document.getElementById('commission-preview');
 
-if (!preview) return;
+    if (!preview) return;
 
-const prix     = parseFloat(prixInput?.value)             || 0;
-const coiffOpt = selectCoiffeuse?.options[
-                     selectCoiffeuse?.selectedIndex
-                 ];
-const taux     = parseFloat(coiffOpt?.dataset?.taux)      || 0;
+    const prix     = parseFloat(prixInput?.value)             || 0;
+    const coiffOpt = selectCoiffeuse?.options[
+                         selectCoiffeuse?.selectedIndex
+                     ];
+    const taux     = parseFloat(coiffOpt?.dataset?.taux)      || 0;
 
-if (prix > 0 && taux > 0 && selectService?.value) {
-    const comm = Math.round((prix * taux / 100) * 100) / 100;
-    preview.classList.remove('hidden');
+    if (prix > 0 && taux > 0 && selectService?.value) {
+        // ✅ Base nette = prix - 7% de charges
+        const baseNette = prix * 0.93;
+        const comm      = Math.round((baseNette * taux / 100) * 100) / 100;
 
-    const tauxLabel = document.getElementById('comm-taux-label');
-    const commLabel = document.getElementById('comm-montant-label');
-    if (tauxLabel) tauxLabel.textContent = `(${taux}%)`;
-    if (commLabel) commLabel.textContent = Utils.formatCurrency(comm);
-} else {
-    preview.classList.add('hidden');
-}
+        preview.classList.remove('hidden');
+
+        const tauxLabel = document.getElementById('comm-taux-label');
+        const commLabel = document.getElementById('comm-montant-label');
+        if (tauxLabel) tauxLabel.textContent = `(${taux}% sur base nette -7%)`;
+        if (commLabel) commLabel.textContent = Utils.formatCurrency(comm);
+    } else {
+        preview.classList.add('hidden');
+    }
 },
 
 };  // ── Fin de l'objet Ventes ─────────────────────────────────────────────────

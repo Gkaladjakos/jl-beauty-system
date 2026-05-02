@@ -783,85 +783,60 @@ const CommissionsV3 = {
     },
 
     // ================================================================
-    // Calculer les commissions
-    // ================================================================
+// Calculer les commissions
+// ✅ Recalcule toujours depuis les ventes (corrige les anciennes aussi)
+// ✅ Formule : montant × 0.93 × taux%
+// ================================================================
 
-    async calculerCommissions() {
-        if (!this.currentPeriod) {
-            App.showNotification('Veuillez sélectionner une période', 'error');
+async calculerCommissions() {
+    if (!this.currentPeriod) {
+        App.showNotification('Veuillez sélectionner une période', 'error');
+        return;
+    }
+
+    try {
+        App.showLoading();
+
+        const salesInPeriod = this.ventes.filter(vente => {
+            const venteDate = new Date(vente.date_vente || vente.created_at);
+            return venteDate >= this.currentPeriod.start &&
+                   venteDate <= this.currentPeriod.end &&
+                   (vente.type === 'Service' || vente.type === 'Mixte');
+        });
+
+        if (salesInPeriod.length === 0) {
+            App.hideLoading();
+            App.showNotification(
+                'Aucune vente de service dans cette période', 'info'
+            );
             return;
         }
 
-        try {
-            App.showLoading();
+        const commissionsByCoiffeuse = {};
 
-            const salesInPeriod = this.ventes.filter(vente => {
-                const venteDate = new Date(vente.date_vente || vente.created_at);
-                return venteDate >= this.currentPeriod.start &&
-                       venteDate <= this.currentPeriod.end &&
-                       (vente.type === 'Service' || vente.type === 'Mixte');
-            });
-
-            if (salesInPeriod.length === 0) {
-                App.hideLoading();
-                App.showNotification(
-                    'Aucune vente de service dans cette période', 'info'
-                );
-                return;
+        salesInPeriod.forEach(vente => {
+            let items = [];
+            if (Array.isArray(vente.items)) {
+                items = vente.items;
+            } else if (typeof vente.items === 'string') {
+                try { items = JSON.parse(vente.items); } catch(e) { items = []; }
             }
 
-            const commissionsByCoiffeuse = {};
+            if (items.length > 0) {
+                items.forEach(item => {
+                    if (vente.type === 'Mixte' && item.item_type !== 'Service') return;
 
-            salesInPeriod.forEach(vente => {
-                let items = [];
-                if (Array.isArray(vente.items)) {
-                    items = vente.items;
-                } else if (typeof vente.items === 'string') {
-                    try { items = JSON.parse(vente.items); } catch(e) { items = []; }
-                }
-
-                if (items.length > 0) {
-                    items.forEach(item => {
-                        if (vente.type === 'Mixte' && item.item_type !== 'Service') return;
-
-                        const coiffeuseId = item.coiffeuse_id;
-                        if (!coiffeuseId) return;
-
-                        const commission  = item.commission    || 0;
-                        const montant     = (item.prix_unitaire || 0) * (item.quantite || 1);
-                        const coiffeuse   = this.coiffeuses.find(c => c.id === coiffeuseId);
-                        const coiffeusNom = item.coiffeuse_nom || coiffeuse?.nom || 'N/A';
-
-                        if (!commissionsByCoiffeuse[coiffeuseId]) {
-                            commissionsByCoiffeuse[coiffeuseId] = {
-                                coiffeuse_id:     coiffeuseId,
-                                coiffeuse_nom:    coiffeusNom,
-                                total_commission: 0,
-                                total_ventes:     0,
-                                nombre_services:  0,
-                                details:          []
-                            };
-                        }
-
-                        commissionsByCoiffeuse[coiffeuseId].total_commission += commission;
-                        commissionsByCoiffeuse[coiffeuseId].total_ventes     += montant;
-                        commissionsByCoiffeuse[coiffeuseId].nombre_services  += 1;
-                        commissionsByCoiffeuse[coiffeuseId].details.push({
-                            service_nom: item.item_nom || item.nom || '-',
-                            montant,
-                            commission,
-                            taux: item.taux_commission || 0,
-                            date: vente.date_vente
-                        });
-                    });
-
-                } else {
-                    const coiffeuseId = vente.coiffeuse_id;
+                    const coiffeuseId = item.coiffeuse_id;
                     if (!coiffeuseId) return;
 
-                    const commission  = vente.commission || 0;
-                    const coiffeuse   = this.coiffeuses.find(c => c.id === coiffeuseId);
-                    const coiffeusNom = vente.coiffeuse_nom || coiffeuse?.nom || 'N/A';
+                    const montant    = (item.prix_unitaire || 0) * (item.quantite || 1);
+                    const taux       = item.taux_commission || 0;
+
+                    // ✅ NOUVELLE FORMULE — recalcul systématique
+                    const commission = Math.round(montant * 0.93 * taux / 100 * 100) / 100;
+
+                    const coiffeuse  = this.coiffeuses.find(c => c.id === coiffeuseId);
+                    const coiffeusNom = item.coiffeuse_nom || coiffeuse?.nom || 'N/A';
 
                     if (!commissionsByCoiffeuse[coiffeuseId]) {
                         commissionsByCoiffeuse[coiffeuseId] = {
@@ -875,65 +850,102 @@ const CommissionsV3 = {
                     }
 
                     commissionsByCoiffeuse[coiffeuseId].total_commission += commission;
-                    commissionsByCoiffeuse[coiffeuseId].total_ventes +=
-                        (vente.montant_total || 0);
+                    commissionsByCoiffeuse[coiffeuseId].total_ventes     += montant;
                     commissionsByCoiffeuse[coiffeuseId].nombre_services  += 1;
                     commissionsByCoiffeuse[coiffeuseId].details.push({
-                        service_nom: vente.item_nom || vente.article_nom || '-',
-                        montant:     vente.montant_total || 0,
+                        service_nom: item.item_nom || item.nom || '-',
+                        montant,
                         commission,
-                        taux: vente.taux_commission || 0,
+                        taux,
                         date: vente.date_vente
                     });
+                });
+
+            } else {
+                // Vente simple (pas d'items JSON)
+                const coiffeuseId = vente.coiffeuse_id;
+                if (!coiffeuseId) return;
+
+                const montant    = vente.montant_total || 0;
+                const taux       = vente.taux_commission || 0;
+
+                // ✅ NOUVELLE FORMULE — recalcul systématique
+                const commission = Math.round(montant * 0.93 * taux / 100 * 100) / 100;
+
+                const coiffeuse  = this.coiffeuses.find(c => c.id === coiffeuseId);
+                const coiffeusNom = vente.coiffeuse_nom || coiffeuse?.nom || 'N/A';
+
+                if (!commissionsByCoiffeuse[coiffeuseId]) {
+                    commissionsByCoiffeuse[coiffeuseId] = {
+                        coiffeuse_id:     coiffeuseId,
+                        coiffeuse_nom:    coiffeusNom,
+                        total_commission: 0,
+                        total_ventes:     0,
+                        nombre_services:  0,
+                        details:          []
+                    };
                 }
-            });
 
-            if (Object.keys(commissionsByCoiffeuse).length === 0) {
-                App.hideLoading();
-                App.showNotification(
-                    'Aucune commission à calculer (coiffeuses non assignées ?)', 'info'
-                );
-                return;
-            }
-
-            const periodLabel = PeriodFilter.getLabel?.() || 'Période personnalisée';
-
-            for (const coiffeuseId in commissionsByCoiffeuse) {
-                const commData = commissionsByCoiffeuse[coiffeuseId];
-                await Utils.create('commissions', {
-                    coiffeuse_id:     commData.coiffeuse_id,
-                    coiffeuse_nom:    commData.coiffeuse_nom,
-                    periode:          periodLabel,
-                    date_calcul:      new Date().toISOString(),
-                    nombre_services:  commData.nombre_services,
-                    total_ventes:     Math.round(commData.total_ventes     * 100) / 100,
-                    total_commission: Math.round(commData.total_commission * 100) / 100,
-                    details:          commData.details,
-                    statut:           'Calculé',
-                    date_paiement:    null,
-                    note_paiement:    ''
+                commissionsByCoiffeuse[coiffeuseId].total_commission += commission;
+                commissionsByCoiffeuse[coiffeuseId].total_ventes     += montant;
+                commissionsByCoiffeuse[coiffeuseId].nombre_services  += 1;
+                commissionsByCoiffeuse[coiffeuseId].details.push({
+                    service_nom: vente.item_nom || vente.article_nom || '-',
+                    montant,
+                    commission,
+                    taux,
+                    date: vente.date_vente
                 });
             }
+        });
 
-            await this.loadAllData();
-            this.renderTable();
-            this.updateStats();
-            this._updatePeriodBanner();
-            this._updatePayAllButton();
-
+        if (Object.keys(commissionsByCoiffeuse).length === 0) {
             App.hideLoading();
             App.showNotification(
-                `Commissions calculées pour ` +
-                `${Object.keys(commissionsByCoiffeuse).length} coiffeuse(s)`,
-                'success'
+                'Aucune commission à calculer (coiffeuses non assignées ?)', 'info'
             );
-
-        } catch (error) {
-            App.hideLoading();
-            App.showNotification('Erreur lors du calcul des commissions', 'error');
-            console.error('[Commissions] calculerCommissions error:', error);
+            return;
         }
-    },
+
+        const periodLabel = PeriodFilter.getLabel?.() || 'Période personnalisée';
+
+        for (const coiffeuseId in commissionsByCoiffeuse) {
+            const commData = commissionsByCoiffeuse[coiffeuseId];
+            await Utils.create('commissions', {
+                coiffeuse_id:     commData.coiffeuse_id,
+                coiffeuse_nom:    commData.coiffeuse_nom,
+                periode:          periodLabel,
+                date_calcul:      new Date().toISOString(),
+                nombre_services:  commData.nombre_services,
+                total_ventes:     Math.round(commData.total_ventes     * 100) / 100,
+                total_commission: Math.round(commData.total_commission * 100) / 100,
+                details:          commData.details,
+                statut:           'Calculé',
+                date_paiement:    null,
+                note_paiement:    ''
+            });
+        }
+
+        await this.loadAllData();
+        this.renderTable();
+        this.updateStats();
+        this._updatePeriodBanner();
+        this._updatePayAllButton();
+
+        App.hideLoading();
+        App.showNotification(
+            `Commissions calculées pour ` +
+            `${Object.keys(commissionsByCoiffeuse).length} coiffeuse(s) ` +
+            `— Formule : prix × 93% × taux`,
+            'success'
+        );
+
+    } catch (error) {
+        App.hideLoading();
+        App.showNotification('Erreur lors du calcul des commissions', 'error');
+        console.error('[Commissions] calculerCommissions error:', error);
+    }
+},
 
     // ================================================================
     // Détails
